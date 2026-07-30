@@ -260,6 +260,20 @@ public sealed class MemberFileReaderTests : IDisposable
     }
 
     [Fact]
+    public void Read_他プロセスが読み取り共有のみで開いているファイルは読み込める()
+    {
+        // Excelなどが書込みアクセスを保持したまま読み取り共有(FileShare.Read)は許可しているケースを模擬する。
+        // MemberListReaderがFileShare.ReadWriteで開くことで、完全排他でない限り読み込めることを確認する。
+        var path = Path.Combine(_directory, "shared-read.csv");
+        File.WriteAllText(path, "email\nuser1@example.com\n");
+        using var otherProcess = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.Read);
+
+        var result = new MemberListReader().Read(path, CancellationToken.None);
+
+        Assert.Equal(["user1@example.com"], result.Addresses);
+    }
+
+    [Fact]
     public void Read_キャンセル済みトークンでは例外()
     {
         var path = Path.Combine(_directory, "cancel.csv");

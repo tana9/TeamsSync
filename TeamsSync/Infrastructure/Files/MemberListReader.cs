@@ -69,7 +69,8 @@ public sealed class MemberListReader : IMemberListReader
     private static (IEnumerable<string>, string, string) ReadCsv(string path, CancellationToken cancellationToken)
     {
         var encoding = DetectCsvEncoding(path);
-        using var parser = new TextFieldParser(path, encoding, true)
+        using var stream = OpenShared(path);
+        using var parser = new TextFieldParser(stream, encoding, true)
         {
             TextFieldType = FieldType.Delimited,
             HasFieldsEnclosedInQuotes = true
@@ -97,7 +98,7 @@ public sealed class MemberListReader : IMemberListReader
         // BOMの判定は先頭数バイトだけで足りるため、File.ReadAllBytesでファイル全体を読み込まない
         Span<byte> preamble = stackalloc byte[4];
         int read;
-        using (var stream = File.OpenRead(path))
+        using (var stream = OpenShared(path))
         {
             read = stream.Read(preamble);
         }
@@ -118,7 +119,8 @@ public sealed class MemberListReader : IMemberListReader
         // byte[]とstringの両方を全体分保持しないため、ReadAllBytes+GetStringよりピークメモリが小さい。
         try
         {
-            using var reader = new StreamReader(path, new UTF8Encoding(false, true), false);
+            using var stream = OpenShared(path);
+            using var reader = new StreamReader(stream, new UTF8Encoding(false, true), false);
             var buffer = new char[8192];
             while (reader.Read(buffer, 0, buffer.Length) > 0)
             {
@@ -136,7 +138,8 @@ public sealed class MemberListReader : IMemberListReader
     private static (IEnumerable<string>, string, string) ReadExcel(string path, CancellationToken cancellationToken)
     {
         ValidateExcelArchive(path, cancellationToken);
-        using var book = new XLWorkbook(path);
+        using var stream = OpenShared(path);
+        using var book = new XLWorkbook(stream);
         var sheet = book.Worksheets.FirstOrDefault() ?? throw new InvalidDataException("Excelにワークシートがありません。");
 
         // RowsUsed()で全使用セルを展開する前に使用範囲の行数・列数を確認し、
@@ -162,7 +165,8 @@ public sealed class MemberListReader : IMemberListReader
 
     private static void ValidateExcelArchive(string path, CancellationToken cancellationToken)
     {
-        using var archive = ZipFile.OpenRead(path);
+        using var stream = OpenShared(path);
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
         long expandedBytes = 0;
         foreach (var entry in archive.Entries)
         {
@@ -196,8 +200,17 @@ public sealed class MemberListReader : IMemberListReader
 
     private static string ComputeSha256(string path)
     {
-        using var stream = File.OpenRead(path);
+        using var stream = OpenShared(path);
         return Convert.ToHexString(SHA256.HashData(stream));
+    }
+
+    // Excelなどが書込み用に開いたまま読み取り共有は許可しているケースを読めるようにするため、
+    // File.OpenRead既定のFileShare.ReadWriteへ緩め、他プロセスの読み書きを妨げないようにする。
+    // 完全排他(FileShare.None)のロックはこれでも読めないため、読込前後のSHA256比較(Read参照)で
+    // 途中変更を検知して安全側に倒す。
+    private static FileStream OpenShared(string path)
+    {
+        return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
     }
 
     private static string NormalizeHeader(string value)
