@@ -80,7 +80,7 @@
                         <RowDefinition Height="*" /><RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <ui:TextBox x:Name="PasteTextBox" Text="{Binding PastedText, UpdateSourceTrigger=PropertyChanged}"
-                             AcceptsReturn="True" ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             AcceptsReturn="True" MaxHeight="100" ScrollViewer.VerticalScrollBarVisibility="Auto"
                              AutomationProperties.Name="1行1ユーザーの貼り付け入力" />
                     <Grid Grid.Row="1" Margin="4,4,0,0">
                         <Grid.ColumnDefinitions>
