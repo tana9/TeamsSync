@@ -1,0 +1,73 @@
+version: "3"
+
+vars:
+  SOLUTION: TeamsSync.slnx
+  PROJECT: TeamsSync/TeamsSync.csproj
+  RUNTIME: win-x64
+  PUBLISH_DIR: artifacts/TeamsSync-{{.RUNTIME}}
+  MANUAL_OUTPUT: TeamsSync/Resources/Manual.html
+
+tasks:
+  manual:
+    desc: MANUAL.mdからexeに埋め込むHTMLマニュアルを生成します(要pandoc)
+    sources:
+      - MANUAL.md
+      - docs/manual-style.css
+      - docs/manual-callouts.lua
+    generates:
+      - "{{.MANUAL_OUTPUT}}"
+    cmds:
+      - >-
+        pandoc MANUAL.md
+        --standalone
+        --embed-resources
+        --css=docs/manual-style.css
+        --lua-filter=docs/manual-callouts.lua
+        --metadata pagetitle="TeamsSync マニュアル"
+        --metadata lang=ja
+        -o {{.MANUAL_OUTPUT}}
+      - 'echo "生成完了: {{.MANUAL_OUTPUT}}"'
+
+  restore:
+    desc: NuGetパッケージを復元します
+    cmds:
+      - dotnet restore {{.SOLUTION}}
+
+  build:
+    desc: Release構成でビルドします
+    deps: [restore]
+    cmds:
+      - dotnet build {{.SOLUTION}} -c Release --no-restore
+
+  test:
+    desc: Release構成で全テストを実行します
+    deps: [restore]
+    cmds:
+      - dotnet test {{.SOLUTION}} -c Release --no-restore
+
+  clean-publish:
+    internal: true
+    cmds:
+      - powershell -NoProfile -Command "if (Test-Path -LiteralPath '{{.PUBLISH_DIR}}') { Remove-Item -LiteralPath '{{.PUBLISH_DIR}}' -Recurse -Force }"
+
+  publish-single:
+    desc: Windows x64向けの自己完結型シングルバイナリを作成します
+    deps: [test, clean-publish]
+    cmds:
+      - >-
+        dotnet publish {{.PROJECT}}
+        -c Release
+        -r {{.RUNTIME}}
+        --self-contained true
+        --output {{.PUBLISH_DIR}}
+        -p:PublishSingleFile=true
+        -p:IncludeNativeLibrariesForSelfExtract=true
+        -p:EnableCompressionInSingleFile=true
+        -p:DebugType=None
+        -p:DebugSymbols=false
+      - >-
+        powershell -NoProfile -Command
+        "if (@(Get-ChildItem -LiteralPath '{{.PUBLISH_DIR}}' -File).Count -ne 1 -or
+        -not (Test-Path -LiteralPath '{{.PUBLISH_DIR}}/TeamsSync.exe' -PathType Leaf))
+        { throw '単一EXEの生成に失敗しました。' };
+        Write-Host '生成完了: {{.PUBLISH_DIR}}/TeamsSync.exe'"

@@ -1,0 +1,4 @@
+<Solution>
+    <Project Path="TeamsSync/TeamsSync.csproj"/>
+    <Project Path="TeamsSync.Tests/TeamsSync.Tests.csproj"/>
+</Solution>

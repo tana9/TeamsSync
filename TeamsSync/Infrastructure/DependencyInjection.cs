@@ -1,0 +1,43 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using TeamsSync.Application.Abstractions;
+using TeamsSync.Infrastructure.Authentication;
+using TeamsSync.Infrastructure.Files;
+using TeamsSync.Infrastructure.Graph;
+using TeamsSync.Infrastructure.Settings;
+
+namespace TeamsSync.Infrastructure;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<EntraOptions>().Bind(configuration.GetSection(EntraOptions.SectionName));
+        services.AddSingleton<IAuthenticationService, MsalAuthenticationService>();
+        services.AddGraphHttpClients();
+        services.AddSingleton<GraphHttpClient>();
+        services.AddSingleton<ITeamsGateway, GraphTeamsGateway>();
+        services.AddSingleton<IMemberListReader, MemberListReader>();
+        services.AddSingleton<IMemberTextParser, MemberTextParser>();
+        services.AddSingleton<ISyncResultWriter, SyncResultWriter>();
+        services.AddSingleton<IUserPreferences, JsonUserPreferences>();
+        return services;
+    }
+
+    public static IServiceCollection AddGraphHttpClients(this IServiceCollection services)
+    {
+        static void Configure(HttpClient client)
+        {
+            client.BaseAddress = new Uri("https://graph.microsoft.com/v1.0/");
+            client.Timeout = Timeout.InfiniteTimeSpan;
+        }
+
+        services.AddHttpClient(GraphHttpClient.ReadHttpClientName, Configure)
+            .AddStandardResilienceHandler(options =>
+                options.Retry.ShouldRetryAfterHeader = true);
+        services.AddHttpClient(GraphHttpClient.WriteHttpClientName, Configure)
+            .AddStandardResilienceHandler(options =>
+                options.Retry.ShouldRetryAfterHeader = true);
+        return services;
+    }
+}

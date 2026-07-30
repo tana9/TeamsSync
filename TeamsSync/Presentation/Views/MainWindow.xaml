@@ -1,0 +1,131 @@
+<ui:FluentWindow x:Class="TeamsSync.Presentation.Views.MainWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:behaviors="clr-namespace:TeamsSync.Presentation.Behaviors"
+                 xmlns:views="clr-namespace:TeamsSync.Presentation.Views"
+                 Title="{Binding WindowTitle}" Height="856" Width="1180" MinHeight="600" MinWidth="800"
+                 Icon="pack://application:,,,/Resources/AppIcon.ico"
+                 WindowStartupLocation="CenterScreen" WindowCornerPreference="Round"
+                 UseLayoutRounding="True">
+    <ui:FluentWindow.Resources>
+        <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlStrongStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Style.Triggers>
+                <Trigger Property="Appearance" Value="Primary">
+                    <Setter Property="Background" Value="{DynamicResource SystemAccentColorPrimaryBrush}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColorPrimaryBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="{DynamicResource ControlFillColorDisabledBrush}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlStrongStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlStrongStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+    </ui:FluentWindow.Resources>
+    <ui:FluentWindow.InputBindings>
+        <KeyBinding Key="O" Modifiers="Control" Command="{Binding MemberFile.BrowseCommand}" />
+        <KeyBinding Key="P" Modifiers="Control" Command="{Binding SyncWorkspace.PreviewCommand}" />
+        <KeyBinding Key="Enter" Modifiers="Control" Command="{Binding SyncWorkspace.ExecuteSyncCommand}" />
+        <KeyBinding Key="S" Modifiers="Control" Command="{Binding SyncWorkspace.SaveResultCommand}" />
+        <KeyBinding Key="Escape" Command="{Binding SyncWorkspace.CancelCommand}" />
+    </ui:FluentWindow.InputBindings>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" /><RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar Grid.Row="0" Title="{Binding WindowTitle}" ShowMinimize="True" ShowMaximize="True" ShowClose="True">
+            <ui:TitleBar.Icon>
+                <ui:ImageIcon Source="pack://application:,,,/Resources/AppIcon.ico" />
+            </ui:TitleBar.Icon>
+        </ui:TitleBar>
+
+        <Grid x:Name="ContentGrid" Grid.Row="1" Margin="20,12,20,16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" /><RowDefinition Height="*" MinHeight="208" /><RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- ヘッダーと手順1〜3はここでスクロールし、手順4(同期差分)は下段に固定表示する。
+                 以前は全カードを1つのScrollViewerに入れていたためDataGridの高さが際限なく伸び、
+                 行仮想化が実質無効だった。DataGridを固定領域に置くことで仮想化が効くようにする。
+                 上段行はAutoのままだとScrollViewerへ無限の高さが渡り、中身の量に関係なく下段が
+                 画面外へ押し出されてしまうため、ウィンドウの高さから下段の最低高さなどを差し引いた
+                 値をMaxHeightとして動的に与える。ウィンドウが十分大きい間は上段が自然な高さで収まり
+                 スクロール不要、小さいときだけ上段がスクロールして下段の最低高さを確保する。
+                 SyncActionBarView(進捗バー・結果パネル)は状況によって高さが数十pxから200px超まで
+                 変動するため、固定オフセットではなくSyncActionBarViewのActualHeightをマルチバインディングで
+                 実測し、下段カードの最低保証分(MinHeight=208+上マージン12+SyncActionBarView上マージン8=228、
+                 いずれも固定値でこの先も変わらない前提)だけを固定のConverterParameterとして扱う。
+                 SyncActionBarViewはGrid上*行ではなくAuto行で、その実測高さは自身のコンテンツ量だけで
+                 決まり上段ScrollViewerのMaxHeightには依存しないため、循環参照は発生しない。 -->
+            <!-- MarginはScrollViewer自体ではなく内側のStackPanelへ付ける。ScrollViewer自体のMarginは
+                 コンテンツとスクロールバーの間の余白にはならず、スクロールバー表示時にコンテンツの
+                 右端とスクロールバーが密着してしまう。 -->
+            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <ScrollViewer.MaxHeight>
+                    <MultiBinding Converter="{StaticResource HeightMinusOffsetConverter}" ConverterParameter="228">
+                        <Binding ElementName="ContentGrid" Path="ActualHeight" />
+                        <Binding ElementName="SyncActionBar" Path="ActualHeight" />
+                    </MultiBinding>
+                </ScrollViewer.MaxHeight>
+                <StackPanel Margin="0,0,16,0">
+                    <views:HeaderView Margin="0,0,0,12" />
+
+                    <ui:Card IsEnabled="{Binding InputsEnabled}" Padding="12" Margin="0,0,0,12"
+                             Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                             BorderBrush="{DynamicResource CardStrokeColorDefaultSolidBrush}" BorderThickness="1">
+                        <views:TeamSelectionCardContent DataContext="{Binding TeamSelection}" />
+                    </ui:Card>
+
+                    <ui:Card IsEnabled="{Binding InputsEnabled}" Padding="12" Margin="0,0,0,12"
+                             behaviors:FileDropBehavior.Command="{Binding MemberFile.LoadDroppedFileCommand}"
+                             Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                             BorderBrush="{DynamicResource CardStrokeColorDefaultSolidBrush}" BorderThickness="1">
+                        <views:MemberListInputView DataContext="{Binding MemberFile}" />
+                    </ui:Card>
+
+                    <!-- 「同期モード」を独立した手順3として扱う。以前はメンバーリストのカードに同居しており、
+                         番号なしの選択肢に見えていたため、専用カードへ分離して手順番号を付けた。 -->
+                    <ui:Card IsEnabled="{Binding InputsEnabled}" Padding="12" Margin="0,0,0,12"
+                             Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                             BorderBrush="{DynamicResource CardStrokeColorDefaultSolidBrush}" BorderThickness="1">
+                        <views:SyncModeSelectorView DataContext="{Binding SyncWorkspace}" />
+                    </ui:Card>
+
+                    <ui:InfoBar IsOpen="{Binding SyncWorkspace.IsRemovalWarningOpen}"
+                                Visibility="{Binding SyncWorkspace.IsRemovalWarningOpen, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                Title="{Binding SyncWorkspace.RemovalWarningTitle}"
+                                Message="{Binding SyncWorkspace.RemovalWarningMessage}"
+                                Severity="{Binding SyncWorkspace.RemovalSeverity}"
+                                IsClosable="False" AutomationProperties.LiveSetting="Assertive" />
+                </StackPanel>
+            </ScrollViewer>
+
+            <ui:Card Grid.Row="1" Padding="12" MinHeight="208" Margin="0,12,16,0"
+                     VerticalAlignment="Stretch" VerticalContentAlignment="Stretch"
+                     Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                     BorderBrush="{DynamicResource CardStrokeColorDefaultSolidBrush}" BorderThickness="1">
+                <views:SyncDiffCardContent DataContext="{Binding SyncWorkspace}" VerticalAlignment="Stretch" />
+            </ui:Card>
+
+            <views:SyncActionBarView x:Name="SyncActionBar" Grid.Row="2" Margin="0,8,0,0" />
+
+            <ui:ContentDialogHost x:Name="DialogHost" Grid.RowSpan="3" />
+            <ui:SnackbarPresenter x:Name="SnackbarPresenter" Grid.RowSpan="3" VerticalAlignment="Bottom" Margin="20" />
+        </Grid>
+    </Grid>
+</ui:FluentWindow>

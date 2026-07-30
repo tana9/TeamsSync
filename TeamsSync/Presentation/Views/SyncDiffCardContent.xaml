@@ -1,0 +1,165 @@
+<UserControl x:Class="TeamsSync.Presentation.Views.SyncDiffCardContent"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:domain="clr-namespace:TeamsSync.Domain.Teams"
+             xmlns:vm="clr-namespace:TeamsSync.Presentation.ViewModels">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="4  同期差分" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock Text="追加・削除される変更内容を確認します" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left"
+                        Margin="20,0,0,0" VerticalAlignment="Center">
+                <TextBlock Text="表示:" VerticalAlignment="Center" Margin="0,0,8,0"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                <ComboBox Width="130" ItemsSource="{Binding Filters}"
+                          SelectedItem="{Binding SelectedFilter}"
+                          DisplayMemberPath="DisplayText"
+                          IsEnabled="{Binding HasChanges}"
+                          AutomationProperties.Name="差分フィルター" />
+                <ui:Button Content="エラーのみ表示" Command="{Binding ShowErrorsCommand}"
+                           Margin="8,0,0,0" Appearance="Secondary"
+                           Visibility="{Binding HasErrors, Converter={StaticResource BooleanToVisibilityConverter}}"
+                           AutomationProperties.Name="同期差分のエラーのみ表示" />
+            </StackPanel>
+            <TextBlock x:Name="SummaryTextBlock" Grid.Column="2" Text="{Binding SummaryText}"
+                       VerticalAlignment="Center" AutomationProperties.Name="同期差分の集計"
+                       AutomationProperties.LiveSetting="Polite" Focusable="True"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            <!-- 差分確認カードの内容を更新するボタンのため、下部の固定アクションバーではなく
+                 このカード自体に置く。手順4がカードとしてこの下段固定領域に常に表示されているため
+                 (MainWindow.xaml参照)、カード1〜3をスクロールしていてもこのボタンは常に見える。 -->
+            <ui:Button Grid.Column="3" Content="差分を_確認" Command="{Binding PreviewCommand}"
+                       Icon="{ui:SymbolIcon Symbol=PreviewLink24}" Margin="12,0,0,0"
+                       ToolTip="同期差分を確認 (Ctrl+P)"
+                       AutomationProperties.Name="同期差分を確認">
+                <!-- 同期モードは既定値があり選択操作が不要なため、Step3が現在の操作の間はボタンを強調する。 -->
+                <ui:Button.Style>
+                    <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+                        <Setter Property="Appearance" Value="Secondary" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding DataContext.Step3State, RelativeSource={RelativeSource AncestorType=Window}}"
+                                         Value="{x:Static vm:WorkflowStepState.Current}">
+                                <Setter Property="Appearance" Value="Primary" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ui:Button.Style>
+            </ui:Button>
+        </Grid>
+        <StackPanel Grid.Row="1" Margin="0,0,0,8">
+            <TextBlock Text="{Binding InputSummary}" FontSize="12"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            <TextBlock Text="{Binding InputPreview}" FontSize="12" TextTrimming="CharacterEllipsis"
+                       ToolTip="{Binding InputPreview}" />
+            <TextBlock Text="氏名列を使用しています。同姓同名がないか差分を確認してください。"
+                       FontSize="12" FontWeight="SemiBold"
+                       Foreground="{DynamicResource SystemFillColorCautionBrush}"
+                       Visibility="{Binding IsNameColumn, Converter={StaticResource BooleanToVisibilityConverter}}" />
+        </StackPanel>
+        <ui:DataGrid x:Name="ChangesGrid" Grid.Row="2" ItemsSource="{Binding ChangesView}"
+                  AutoGenerateColumns="False" IsReadOnly="True"
+                  CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                  SelectionMode="Single" ColumnHeaderHeight="36"
+                  RowHeight="28" FontSize="12" BorderThickness="0"
+                  ClipboardCopyMode="IncludeHeader" CanUserSortColumns="True"
+                  AutomationProperties.Name="同期差分一覧">
+            <!-- 読込中はGrid.Row="2"に重なるオーバーレイが視覚的にDataGridを覆うが、
+                 既定ではTabキーによるフォーカスはヒットテストと無関係に背後の行へ入ってしまう。
+                 IsBusy中はDataGrid自体を無効化し、キーボードフォーカスも到達しないようにする。 -->
+            <ui:DataGrid.Style>
+                <Style TargetType="ui:DataGrid" BasedOn="{StaticResource {x:Type ui:DataGrid}}">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsBusy}" Value="True">
+                            <Setter Property="IsEnabled" Value="False" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </ui:DataGrid.Style>
+            <ui:DataGrid.Columns>
+                <DataGridTemplateColumn Header="操作" Width="120">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <ui:Badge Content="{Binding KindLabel}" HorizontalAlignment="Left"
+                                      Padding="12,4">
+                                <ui:Badge.Style>
+                                    <Style TargetType="ui:Badge"
+                                           BasedOn="{StaticResource {x:Type ui:Badge}}">
+                                        <Setter Property="Appearance" Value="Secondary" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Kind}"
+                                                         Value="{x:Static domain:ChangeKind.Add}">
+                                                <Setter Property="Appearance" Value="Success" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Kind}"
+                                                         Value="{x:Static domain:ChangeKind.Remove}">
+                                                <Setter Property="Appearance" Value="Danger" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Kind}"
+                                                         Value="{x:Static domain:ChangeKind.Protected}">
+                                                <Setter Property="Appearance" Value="Primary" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Kind}"
+                                                         Value="{x:Static domain:ChangeKind.Error}">
+                                                <Setter Property="Appearance" Value="Caution" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ui:Badge.Style>
+                            </ui:Badge>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="表示名" Binding="{Binding DisplayName}" Width="2*">
+                    <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="ToolTip" Value="{Binding DisplayName}" /></Style></DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="氏名 / メールアドレス" Binding="{Binding Email}" Width="2*">
+                    <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="ToolTip" Value="{Binding Email}" /></Style></DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="詳細" Binding="{Binding Detail}" Width="3*">
+                    <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="ToolTip" Value="{Binding Detail}" /></Style></DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+            </ui:DataGrid.Columns>
+        </ui:DataGrid>
+        <Grid Grid.Row="2" Margin="0,36,0,0" IsHitTestVisible="False">
+            <Grid.Style>
+                <Style TargetType="Grid">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding HasChanges}" Value="False">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <ui:SymbolIcon Symbol="DocumentSearch24" FontSize="28" HorizontalAlignment="Center"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                <TextBlock Text="{Binding EmptyStateMessage}" Margin="0,8,0,0"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+        </Grid>
+        <Grid Grid.Row="2" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+              Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="200">
+                <ProgressBar Minimum="0" Maximum="{Binding PreviewProgressMaximum}"
+                             Value="{Binding PreviewProgressValue}" Height="6"
+                             AutomationProperties.Name="差分確認の進捗" />
+                <TextBlock Text="{Binding PreviewProgressText}" Margin="0,8,0,0" HorizontalAlignment="Center"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                           AutomationProperties.LiveSetting="Polite" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

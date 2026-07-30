@@ -1,0 +1,9 @@
+bin/
+obj/
+.vs/
+.idea/
+.task/
+*.user
+artifacts/
+TeamsSync/appsettings.json
+coverage_results/
