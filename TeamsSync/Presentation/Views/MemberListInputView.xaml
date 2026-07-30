@@ -41,7 +41,7 @@
                         <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Top">
-                        <ui:TextBox Height="30" Text="{Binding FilePath}" IsReadOnly="True"
+                        <ui:TextBox Text="{Binding FilePath}" IsReadOnly="True"
                                  ClearButtonEnabled="False"
                                  IsTabStop="False" AutomationProperties.Name="選択したメンバーリストのパス" />
                         <TextBlock Text="CSV または Excel（.xlsx）ファイルを選択できます" Margin="4,4,0,0" FontSize="12"
