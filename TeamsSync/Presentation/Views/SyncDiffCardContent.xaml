@@ -73,7 +73,7 @@
                   CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                   SelectionMode="Single" ColumnHeaderHeight="36"
                   RowHeight="28" FontSize="12" BorderThickness="0"
-                  ClipboardCopyMode="IncludeHeader" CanUserSortColumns="True"
+                  ClipboardCopyMode="ExcludeHeader" CanUserSortColumns="True"
                   AutomationProperties.Name="同期差分一覧">
             <!-- 読込中はGrid.Row="2"に重なるオーバーレイが視覚的にDataGridを覆うが、
                  既定ではTabキーによるフォーカスはヒットテストと無関係に背後の行へ入ってしまう。
