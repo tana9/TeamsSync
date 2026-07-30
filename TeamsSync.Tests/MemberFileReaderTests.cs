@@ -248,6 +248,18 @@ public sealed class MemberFileReaderTests : IDisposable
     }
 
     [Fact]
+    public void Read_他プロセスが排他的に開いているファイルは分かりやすいメッセージで例外()
+    {
+        var path = Path.Combine(_directory, "locked.csv");
+        File.WriteAllText(path, "email\nuser1@example.com\n");
+        using var lockStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None);
+
+        var ex = Assert.Throws<InvalidDataException>(() => new MemberListReader().Read(path, CancellationToken.None));
+
+        Assert.Contains("他のプログラム", ex.Message);
+    }
+
+    [Fact]
     public void Read_キャンセル済みトークンでは例外()
     {
         var path = Path.Combine(_directory, "cancel.csv");

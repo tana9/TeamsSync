@@ -27,32 +27,43 @@ public sealed class MemberListReader : IMemberListReader
     private static readonly string[] AddressHeaderNames =
         ["email", "mail", "upn", "userprincipalname", "メール", "メールアドレス"];
 
+    // Excelなどが排他的にファイルを開いている場合のWin32エラーコード(ERROR_SHARING_VIOLATION)に対応するHResult。
+    private const int SharingViolationHResult = unchecked((int)0x80070020);
+
     public MemberListDocument Read(string path, CancellationToken cancellationToken)
     {
-        // File.ReadAllBytesで全体を読み込む前に、FileInfo.Lengthだけでサイズ超過を判定して即座に拒否する
-        var info = new FileInfo(path);
-        if (info.Length > MaximumFileSizeBytes)
-            throw new InvalidDataException(
-                $"ファイルサイズは{MaximumFileSizeBytes / 1024 / 1024:N0}MBまでです（{info.Length / 1024 / 1024.0:N1}MB）。");
-
-        var initialHash = ComputeSha256(path);
-        var extension = Path.GetExtension(path).ToLowerInvariant();
-        var (values, source, column) = extension switch
+        try
         {
-            ".csv" => ReadCsv(path, cancellationToken),
-            ".xlsx" => ReadExcel(path, cancellationToken),
-            _ => throw new InvalidDataException("対応形式は .csv と .xlsx です。")
-        };
-        cancellationToken.ThrowIfCancellationRequested();
-        var addresses = values.Select(x => x.Trim()).Where(x => !string.IsNullOrWhiteSpace(x))
-            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        if (addresses.Count == 0)
-            throw new InvalidDataException("メンバーのメールアドレスがありません。");
-        var finalHash = ComputeSha256(path);
-        if (!string.Equals(initialHash, finalHash, StringComparison.Ordinal))
-            throw new InvalidDataException("読込中にファイルが変更されました。もう一度選択してください。");
-        return new MemberListDocument(addresses, info.Name, info.FullName, info.LastWriteTime,
-            source, column, finalHash);
+            // File.ReadAllBytesで全体を読み込む前に、FileInfo.Lengthだけでサイズ超過を判定して即座に拒否する
+            var info = new FileInfo(path);
+            if (info.Length > MaximumFileSizeBytes)
+                throw new InvalidDataException(
+                    $"ファイルサイズは{MaximumFileSizeBytes / 1024 / 1024:N0}MBまでです（{info.Length / 1024 / 1024.0:N1}MB）。");
+
+            var initialHash = ComputeSha256(path);
+            var extension = Path.GetExtension(path).ToLowerInvariant();
+            var (values, source, column) = extension switch
+            {
+                ".csv" => ReadCsv(path, cancellationToken),
+                ".xlsx" => ReadExcel(path, cancellationToken),
+                _ => throw new InvalidDataException("対応形式は .csv と .xlsx です。")
+            };
+            cancellationToken.ThrowIfCancellationRequested();
+            var addresses = values.Select(x => x.Trim()).Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (addresses.Count == 0)
+                throw new InvalidDataException("メンバーのメールアドレスがありません。");
+            var finalHash = ComputeSha256(path);
+            if (!string.Equals(initialHash, finalHash, StringComparison.Ordinal))
+                throw new InvalidDataException("読込中にファイルが変更されました。もう一度選択してください。");
+            return new MemberListDocument(addresses, info.Name, info.FullName, info.LastWriteTime,
+                source, column, finalHash);
+        }
+        catch (IOException ex) when (ex.HResult == SharingViolationHResult)
+        {
+            throw new InvalidDataException(
+                "ファイルが他のプログラム（Excelなど）で開かれているため読み込めません。閉じてから再度お試しください。", ex);
+        }
     }
 
     private static (IEnumerable<string>, string, string) ReadCsv(string path, CancellationToken cancellationToken)
