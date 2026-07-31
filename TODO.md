@@ -308,6 +308,18 @@ TeamsSync の今後の改善項目。メンバー削除を伴うアプリケー�
 
 完了条件: 上記7件の指摘がすべて解消され、既存テストと新規テストが成功する。
 
+### C#の書き方とMVVM Toolkit活用度を見直す
+
+- [ ] `GraphTeamsGateway.cs`の`Array.Empty<string>()`をコレクション式`[]`へ統一する
+- [ ] 各所に残る`new List<T>()`(7箇所)をコレクション式または対象型`new()`へ統一する
+- [ ] 単純な1対1のプロパティ転送(例: `SignInViewModel.OnIsSignedInChanged`の`IsNotSignedIn`通知)に
+      `[NotifyPropertyChangedFor]`の採用を検討する。ただし複数プロパティや`_externallyBusy`のような
+      非observableなフィールドを合わせて更新する箇所(`NotifyCommandStates`など)は、属性で完全には
+      置き換えられないため手動のままで問題ない
+
+完了条件: 軽微なC#イディオムの取りこぼしが解消され、`[NotifyPropertyChangedFor]`/`[NotifyCanExecuteChangedFor]`の
+採用可否を単純な転送箇所について意図的に判断した状態になっている。
+
 ## 優先度: 低・配布準備
 
 ### ユーザー設定と同期結果CSVを原子的に保存する
