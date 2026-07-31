@@ -54,14 +54,29 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
 
     /// <summary>
     /// アドレスごとの解決結果を、追加・維持・保護・エラーの各<see cref="SyncChange"/>へ分類する。
-    /// 同一ユーザーが重複指定された場合は2件目以降を重複扱いにする。
+    /// 同一ユーザーが氏名とメールアドレスなど複数の表記で重複指定された場合、2件目以降を別行にはせず
+    /// 最初の行のEmailへ表記を合流させて1行にまとめる。
     /// </summary>
     private static (Dictionary<string, DirectoryUser> Resolved, List<SyncChange> Changes) ClassifyResolutions(
         IReadOnlyList<AddressResolution> resolutions)
     {
         var resolved = new Dictionary<string, DirectoryUser>(StringComparer.OrdinalIgnoreCase);
-        var desiredUserIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var changes = new List<SyncChange>();
+        var rowIndexByUserId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        void AddOrMergeChange(string address, string userId, string? membershipId, string displayName,
+            ChangeKind kind, string detail)
+        {
+            if (rowIndexByUserId.TryGetValue(userId, out var index))
+            {
+                changes[index] = changes[index] with { Email = $"{changes[index].Email} ／ {address}" };
+                return;
+            }
+
+            rowIndexByUserId[userId] = changes.Count;
+            changes.Add(new SyncChange(kind, displayName, address, detail, userId, membershipId));
+        }
+
         foreach (var resolution in resolutions)
         {
             switch (resolution)
@@ -71,31 +86,21 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
                         resolution.ErrorMessage!));
                     break;
                 case { Outcome: ResolutionOutcome.ExistingSingle, ExistingMember: { } existing }:
-                    var existingIsDuplicate = !desiredUserIds.Add(existing.UserId);
-                    changes.Add(new SyncChange(existing.IsOwner ? ChangeKind.Protected : ChangeKind.Keep,
-                        existing.DisplayName, resolution.Address,
-                        existingIsDuplicate
-                            ? "同一ユーザーの重複指定です"
-                            : existing.IsOwner ? "所有者のため変更しません" : "既にメンバーです",
-                        existing.UserId, existing.MembershipId));
+                    AddOrMergeChange(resolution.Address, existing.UserId, existing.MembershipId,
+                        existing.DisplayName, existing.IsOwner ? ChangeKind.Protected : ChangeKind.Keep,
+                        existing.IsOwner ? "所有者のため変更しません" : "既にメンバーです");
                     break;
                 case { Outcome: ResolutionOutcome.SameUserDifferentAddress, ExistingMember: { } sameUser,
                     User: { } sameUserAccount }:
-                    var sameUserIsDuplicate = !desiredUserIds.Add(sameUser.UserId);
-                    changes.Add(new SyncChange(sameUser.IsOwner ? ChangeKind.Protected : ChangeKind.Keep,
-                        sameUser.DisplayName, resolution.Address,
-                        sameUserIsDuplicate
-                            ? "同一ユーザーの重複指定です"
-                            : sameUser.IsOwner ? "所有者のため変更しません" : "別のアドレスで既にメンバーです",
-                        sameUser.UserId, sameUser.MembershipId));
                     resolved[resolution.Address] = sameUserAccount;
+                    AddOrMergeChange(resolution.Address, sameUser.UserId, sameUser.MembershipId,
+                        sameUser.DisplayName, sameUser.IsOwner ? ChangeKind.Protected : ChangeKind.Keep,
+                        sameUser.IsOwner ? "所有者のため変更しません" : "別のアドレスで既にメンバーです");
                     break;
                 case { Outcome: ResolutionOutcome.NewUser, User: { } user }:
                     resolved[resolution.Address] = user;
-                    var isDuplicate = !desiredUserIds.Add(user.Id);
-                    changes.Add(new SyncChange(isDuplicate ? ChangeKind.Keep : ChangeKind.Add,
-                        user.DisplayName, resolution.Address,
-                        isDuplicate ? "同一ユーザーの重複指定です" : "メンバーに追加します", user.Id));
+                    AddOrMergeChange(resolution.Address, user.Id, null, user.DisplayName, ChangeKind.Add,
+                        "メンバーに追加します");
                     break;
             }
         }

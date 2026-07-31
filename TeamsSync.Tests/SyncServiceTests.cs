@@ -133,7 +133,7 @@ public sealed class SyncServiceTests
     }
 
     [Fact]
-    public async Task BuildPlan_同じユーザーを別アドレスで指定しても追加は1件になる()
+    public async Task BuildPlan_同じユーザーを別アドレスで指定すると1行にまとめられる()
     {
         var graph = new FakeGraphService();
         var user = new DirectoryUser("USER-1", "User", "user@example.com", "alias@example.com");
@@ -144,8 +144,9 @@ public sealed class SyncServiceTests
             Team, ["user@example.com", "alias@example.com"], TestContext.Current.CancellationToken);
 
         Assert.Equal(1, plan.AddCount);
-        Assert.Contains(plan.Changes, change => change.Kind == ChangeKind.Keep &&
-                                                change.Detail.Contains("重複指定"));
+        var change = Assert.Single(plan.Changes);
+        Assert.Equal(ChangeKind.Add, change.Kind);
+        Assert.Equal("user@example.com ／ alias@example.com", change.Email);
 
         await new TeamSyncService(graph).ExecuteAsync(plan,
             cancellationToken: TestContext.Current.CancellationToken);
@@ -153,7 +154,7 @@ public sealed class SyncServiceTests
     }
 
     [Fact]
-    public async Task BuildPlan_氏名とメールが同じユーザーなら追加は1件になる()
+    public async Task BuildPlan_氏名とメールが同じユーザーなら1行にまとめられる()
     {
         var graph = new FakeGraphService();
         var user = new DirectoryUser("user-1", "山田 太郎", "taro@example.com", "taro@example.com");
@@ -164,7 +165,8 @@ public sealed class SyncServiceTests
             Team, ["山田 太郎", "taro@example.com"], TestContext.Current.CancellationToken);
 
         Assert.Equal(1, plan.AddCount);
-        Assert.Single(plan.Changes, change => change.Detail.Contains("重複指定"));
+        var change = Assert.Single(plan.Changes);
+        Assert.Equal("山田 太郎 ／ taro@example.com", change.Email);
     }
 
     [Fact]
