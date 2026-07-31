@@ -16,7 +16,7 @@ public sealed class MainWindowViewModelTests
         var preferences = new FakePreferences();
         var teamSelection = new TeamSelectionViewModel(gateway, dialogs);
         var memberFile = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
-            preferences, dialogs, dialogs);
+            preferences, dialogs, dialogs, gateway, dialogs);
         var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
             new FakeResultWriter(), preferences, dialogs, dialogs, dialogs);
         var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, dialogs,
@@ -37,7 +37,7 @@ public sealed class MainWindowViewModelTests
         var preferences = new FakePreferences();
         var teamSelection = new TeamSelectionViewModel(gateway, dialogs);
         var memberFile = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
-            preferences, dialogs, dialogs);
+            preferences, dialogs, dialogs, gateway, dialogs);
         var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
             new FakeResultWriter(), preferences, dialogs, dialogs, dialogs);
         var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, dialogs,
@@ -55,7 +55,7 @@ public sealed class MainWindowViewModelTests
         var preferences = new FakePreferences();
         var teamSelection = new TeamSelectionViewModel(gateway, dialogs);
         var memberFile = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
-            preferences, dialogs, dialogs);
+            preferences, dialogs, dialogs, gateway, dialogs);
         var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
             new FakeResultWriter(), preferences, dialogs, dialogs, dialogs);
         var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, notifications,
@@ -78,7 +78,7 @@ public sealed class MainWindowViewModelTests
         var preferences = new FakePreferences();
         var teamSelection = new TeamSelectionViewModel(gateway, dialogs);
         var memberFile = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
-            preferences, dialogs, dialogs);
+            preferences, dialogs, dialogs, gateway, dialogs);
         var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
             new FakeResultWriter(), preferences, dialogs, dialogs, dialogs);
         var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, dialogs,
@@ -110,7 +110,7 @@ public sealed class MainWindowViewModelTests
         var preferences = new FakePreferences();
         var teamSelection = new TeamSelectionViewModel(gateway, dialogs);
         var memberFile = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
-            preferences, dialogs, dialogs);
+            preferences, dialogs, dialogs, gateway, dialogs);
         var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
             new FakeResultWriter(), preferences, dialogs, dialogs, dialogs);
         var auth = new FakeAuthenticationService
@@ -146,7 +146,7 @@ public sealed class MainWindowViewModelTests
         var preferences = new FakePreferences();
         var teamSelection = new TeamSelectionViewModel(gateway, dialogs);
         var memberFile = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
-            preferences, dialogs, dialogs);
+            preferences, dialogs, dialogs, gateway, dialogs);
         var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
             new FakeResultWriter(), preferences, dialogs, dialogs, dialogs);
         var auth = new FakeAuthenticationService { SignOutException = new OperationCanceledException() };
@@ -182,7 +182,8 @@ public sealed class MainWindowViewModelTests
         var teamSelection = new TeamSelectionViewModel(gateway, dialogs);
         var reader = new FakeMemberListReader(new MemberListDocument(["new@example.com"], "members.csv",
             "C:\\members.csv", new DateTime(2026, 7, 28), "CSV", "email"));
-        var memberFile = new MemberFileViewModel(reader, new MemberTextParser(), preferences, dialogs, dialogs);
+        var memberFile = new MemberFileViewModel(reader, new MemberTextParser(), preferences, dialogs, dialogs,
+            gateway, dialogs);
         var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
             new FakeResultWriter(), preferences, dialogs, dialogs, dialogs);
         var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, dialogs,
@@ -219,5 +220,51 @@ public sealed class MainWindowViewModelTests
         {
             SynchronizationContext.SetSynchronizationContext(originalContext);
         }
+    }
+
+    [Fact]
+    public async Task MainWindow_現在メンバー取り込み中は競合する画面操作を無効化する()
+    {
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var gateway = new FakeTeamsGateway
+        {
+            OnGetMembers = async (_, cancellationToken) =>
+            {
+                started.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                return [];
+            }
+        };
+        var dialogs = new FakeDialogs();
+        var preferences = new FakePreferences();
+        var teamSelection = new TeamSelectionViewModel(gateway, dialogs);
+        var memberFile = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
+            preferences, dialogs, dialogs, gateway, dialogs);
+        var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+            new FakeResultWriter(), preferences, dialogs, dialogs, dialogs);
+        var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, dialogs,
+            new FakeManualService(), preferences, teamSelection, memberFile, syncWorkspace);
+        viewModel.SignIn.IsSignedIn = true;
+        teamSelection.SelectedTeam = new TeamInfo("team-1", "開発", null);
+        memberFile.SelectedInputIndex = 1;
+        memberFile.PastedText = "old@example.com";
+
+        var importing = memberFile.ImportCurrentMembersCommand.ExecuteAsync(null);
+        await started.Task;
+
+        Assert.False(viewModel.InputsEnabled);
+        Assert.False(teamSelection.IsSelectionEnabled);
+        Assert.False(teamSelection.RefreshCommand.CanExecute(null));
+        Assert.False(viewModel.SignIn.SignOutCommand.CanExecute(null));
+        Assert.False(memberFile.ApplyPastedTextInputCommand.CanExecute(null));
+        Assert.False(memberFile.LoadDroppedFileCommand.CanExecute("C:\\members.csv"));
+
+        memberFile.CancelImportCurrentMembersCommand.Execute(null);
+        await importing;
+
+        Assert.True(viewModel.InputsEnabled);
+        Assert.True(teamSelection.IsSelectionEnabled);
+        Assert.True(viewModel.SignIn.SignOutCommand.CanExecute(null));
+        Assert.True(memberFile.ApplyPastedTextInputCommand.CanExecute(null));
     }
 }

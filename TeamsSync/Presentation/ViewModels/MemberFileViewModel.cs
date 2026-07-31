@@ -13,12 +13,12 @@ namespace TeamsSync.Presentation.ViewModels;
 public partial class MemberFileViewModel : ObservableObject
 {
     private readonly IFilePickerService _filePicker;
-    private readonly IMemberInputConfirmationService? _inputConfirmation;
+    private readonly IMemberInputConfirmationService _inputConfirmation;
     private readonly INotificationService _notifications;
     private readonly IUserPreferences _preferences;
     private readonly IMemberListReader _reader;
     private readonly IMemberTextParser _textParser;
-    private readonly ITeamsGateway? _teamsGateway;
+    private readonly ITeamsGateway _teamsGateway;
     private bool _enabled = true;
     private MemberListDocument? _fileDocument;
     private CancellationTokenSource? _loadCancellation;
@@ -55,7 +55,7 @@ public partial class MemberFileViewModel : ObservableObject
     /// <summary>コンストラクター。</summary>
     public MemberFileViewModel(IMemberListReader reader, IMemberTextParser textParser,
         IUserPreferences preferences, IFilePickerService filePicker, INotificationService notifications,
-        ITeamsGateway? teamsGateway = null, IMemberInputConfirmationService? inputConfirmation = null)
+        ITeamsGateway teamsGateway, IMemberInputConfirmationService inputConfirmation)
     {
         _reader = reader;
         _textParser = textParser;
@@ -93,6 +93,7 @@ public partial class MemberFileViewModel : ObservableObject
     /// <summary>現在選択されているチームを設定し、メンバー取り込みコマンドの状態を更新する。</summary>
     public void SetSelectedTeam(TeamInfo? team)
     {
+        if (_selectedTeam?.Id != team?.Id) _importCancellation?.Cancel();
         _selectedTeam = team;
         ImportCurrentMembersCommand.NotifyCanExecuteChanged();
     }
@@ -145,7 +146,7 @@ public partial class MemberFileViewModel : ObservableObject
 
     private bool CanLoad()
     {
-        return _enabled && !IsLoadingFile;
+        return _enabled && !IsLoadingFile && !IsImportingMembers;
     }
 
     // CSV/Excelの解析は行数・列数によって時間がかかりうるため、貼り付け入力(ApplyPastedTextInputAsync)と同様に
@@ -284,14 +285,15 @@ public partial class MemberFileViewModel : ObservableObject
 
     private bool CanApplyPastedText()
     {
-        return _enabled && !IsParsing && SelectedInputIndex == 1 && !string.IsNullOrWhiteSpace(PastedText);
+        return _enabled && !IsParsing && !IsImportingMembers && SelectedInputIndex == 1 &&
+               !string.IsNullOrWhiteSpace(PastedText);
     }
 
     /// <summary>選択中チームの一般メンバーを取得し、テキスト入力として反映する。</summary>
     [RelayCommand(CanExecute = nameof(CanImportCurrentMembers))]
     private async Task ImportCurrentMembersAsync()
     {
-        if (_selectedTeam is null || _teamsGateway is null) return;
+        if (_selectedTeam is null) return;
         var team = _selectedTeam;
         _importCancellation?.Cancel();
         _importCancellation?.Dispose();
@@ -320,10 +322,16 @@ public partial class MemberFileViewModel : ObservableObject
 
             var hasExistingInput = Document is not null || _fileDocument is not null ||
                                    !string.IsNullOrWhiteSpace(PastedText);
-            if (hasExistingInput && _inputConfirmation is not null &&
+            if (hasExistingInput &&
                 !await _inputConfirmation.ConfirmReplaceMemberInputAsync(
                     team.DisplayName, importedMembers.Count, cts.Token))
                 return;
+
+            if (_selectedTeam?.Id != team.Id)
+            {
+                StatusChanged?.Invoke("取り込み中に対象チームが変わったため、取得結果を破棄しました", false);
+                return;
+            }
 
             var text = string.Join(Environment.NewLine, importedMembers.Select(FormatImportedMember));
             var document = _textParser.Parse(text) with
@@ -360,7 +368,7 @@ public partial class MemberFileViewModel : ObservableObject
     private bool CanImportCurrentMembers()
     {
         return _enabled && !IsLoadingFile && !IsParsing && !IsImportingMembers &&
-               SelectedInputIndex == 1 && _selectedTeam is not null && _teamsGateway is not null;
+               SelectedInputIndex == 1 && _selectedTeam is not null;
     }
 
     /// <summary>実行中の現在メンバー取り込みをキャンセルする。</summary>

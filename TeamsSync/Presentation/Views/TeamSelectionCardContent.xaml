@@ -21,6 +21,7 @@
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
             </StackPanel>
             <ComboBox x:Name="TeamComboBox" Grid.Column="1" Height="36"
+                      IsEnabled="{Binding IsSelectionEnabled}"
                       IsEditable="True" StaysOpenOnEdit="True"
                       Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                       ItemsSource="{Binding TeamsView}"

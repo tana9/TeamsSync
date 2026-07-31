@@ -48,6 +48,9 @@ public partial class TeamSelectionViewModel : ObservableObject
     /// <summary>検索テキストが入力されているかどうか。</summary>
     public bool HasSearchText => !string.IsNullOrEmpty(SearchText);
 
+    /// <summary>チームの検索・選択を操作できるかどうか。</summary>
+    public bool IsSelectionEnabled => !IsBusy && !_externallyBusy;
+
     /// <summary>検索条件に一致するチームが1件もないかどうか。</summary>
     public bool HasNoSearchResults =>
         !string.IsNullOrWhiteSpace(SearchText) && Teams.Count > 0 && !Teams.Any(MatchesSearch);
@@ -78,8 +81,15 @@ public partial class TeamSelectionViewModel : ObservableObject
     /// <summary>他画面の処理中状態を反映し、更新コマンドの実行可否を再評価する。</summary>
     public void SetExternalBusy(bool value)
     {
+        if (_externallyBusy == value) return;
         _externallyBusy = value;
+        OnPropertyChanged(nameof(IsSelectionEnabled));
         RefreshCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnIsBusyChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsSelectionEnabled));
     }
 
     /// <summary>検索テキストの変更に応じてビューを再フィルターし、関連プロパティを更新する。</summary>
