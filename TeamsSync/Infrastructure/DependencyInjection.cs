@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http.Resilience;
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Infrastructure.Authentication;
 using TeamsSync.Infrastructure.Files;
@@ -46,11 +47,22 @@ public static class DependencyInjection
         }
 
         services.AddHttpClient(GraphHttpClient.ReadHttpClientName, Configure)
+            .ConfigurePrimaryHttpMessageHandler(CreatePrimaryHandler)
             .AddStandardResilienceHandler(options =>
                 options.Retry.ShouldRetryAfterHeader = true);
         services.AddHttpClient(GraphHttpClient.WriteHttpClientName, Configure)
+            .ConfigurePrimaryHttpMessageHandler(CreatePrimaryHandler)
             .AddStandardResilienceHandler(options =>
-                options.Retry.ShouldRetryAfterHeader = true);
+            {
+                options.Retry.ShouldRetryAfterHeader = true;
+                options.Retry.DisableForUnsafeHttpMethods();
+            });
         return services;
+
+        static HttpMessageHandler CreatePrimaryHandler() => new SocketsHttpHandler
+        {
+            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(1)
+        };
     }
 }

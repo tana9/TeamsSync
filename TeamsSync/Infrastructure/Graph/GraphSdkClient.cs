@@ -83,7 +83,12 @@ public sealed class GraphSdkClient
         List<User> result = [];
         if (response is null) return result;
         var iterator = PageIterator<User, UserCollectionResponse>.CreatePageIterator(
-            _read, response, item => { result.Add(item); return true; });
+            _read, response, item => { result.Add(item); return true; },
+            search is null ? null : request =>
+            {
+                request.Headers.Add("ConsistencyLevel", "eventual");
+                return request;
+            });
         await iterator.IterateAsync(cancellationToken);
         return result;
     }

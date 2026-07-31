@@ -549,16 +549,25 @@ public sealed class GraphTeamsGatewayTests
     [Fact]
     public async Task FindUsers_SearchesDisplayNameWithConsistencyHeader()
     {
-        var searchHeaderFound = false;
+        var searchHeaderCount = 0;
         var handler = new DelegateHandler((request, _) =>
         {
             var query = Uri.UnescapeDataString(request.RequestUri!.Query);
             if (query.Contains("$search=", StringComparison.OrdinalIgnoreCase))
             {
-                searchHeaderFound = request.Headers.TryGetValues("ConsistencyLevel", out var values) &&
-                                    values.Single() == "eventual";
+                if (request.Headers.TryGetValues("ConsistencyLevel", out var values) &&
+                    values.Single() == "eventual") searchHeaderCount++;
                 return Task.FromResult(JsonResponse("""
-                                                    {"value":[{"id":"user-1","displayName":"山田 太郎","userPrincipalName":"yamada@example.com","mail":"yamada@example.com"}]}
+                                                    {"value":[{"id":"user-1","displayName":"山田 太郎","userPrincipalName":"yamada@example.com","mail":"yamada@example.com"}],"@odata.nextLink":"https://graph.microsoft.com/v1.0/users?$skiptoken=next"}
+                                                    """));
+            }
+
+            if (query.Contains("$skiptoken=", StringComparison.OrdinalIgnoreCase))
+            {
+                if (request.Headers.TryGetValues("ConsistencyLevel", out var values) &&
+                    values.Single() == "eventual") searchHeaderCount++;
+                return Task.FromResult(JsonResponse("""
+                                                    {"value":[{"id":"user-2","displayName":"山田 太郎","userPrincipalName":"yamada2@example.com","mail":"yamada2@example.com"}]}
                                                     """));
             }
 
@@ -573,10 +582,10 @@ public sealed class GraphTeamsGatewayTests
 
         var users = await gateway.FindUsersAsync("山田太郎", TestContext.Current.CancellationToken);
 
-        var user = Assert.Single(users);
-        Assert.Equal("user-1", user.Id);
-        Assert.True(searchHeaderFound);
-        Assert.Equal(3, handler.CallCount);
+        Assert.Equal(2, users.Count);
+        Assert.Equal("user-1", users[0].Id);
+        Assert.Equal(2, searchHeaderCount);
+        Assert.Equal(4, handler.CallCount);
     }
 
     [Fact]
