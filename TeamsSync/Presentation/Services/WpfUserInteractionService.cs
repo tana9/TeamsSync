@@ -76,7 +76,9 @@ public sealed class WpfSyncConfirmationService(
                 MinWidth = 320
             },
             PrimaryButtonText = "置き換える",
+            PrimaryButtonIcon = new SymbolIcon { Symbol = SymbolRegular.Checkmark24 },
             CloseButtonText = "キャンセル",
+            CloseButtonIcon = new SymbolIcon { Symbol = SymbolRegular.Dismiss24 },
             DefaultButton = ContentDialogButton.Close
         };
         return await ShowRestoringFocusAsync(contentDialogs, dialog, cancellationToken) ==
@@ -115,7 +117,9 @@ public sealed class WpfSyncConfirmationService(
             Title = BuildTitle(),
             Content = scrollViewer,
             PrimaryButtonText = "同期を実行",
+            PrimaryButtonIcon = new SymbolIcon { Symbol = SymbolRegular.ArrowSync24 },
             CloseButtonText = "キャンセル",
+            CloseButtonIcon = new SymbolIcon { Symbol = SymbolRegular.Dismiss24 },
             DefaultButton = ContentDialogButton.Close
         };
 
