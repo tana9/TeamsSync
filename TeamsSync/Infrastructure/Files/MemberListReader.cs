@@ -1,8 +1,10 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.IO.Compression;
 using ClosedXML.Excel;
-using Microsoft.VisualBasic.FileIO;
+using CsvHelper;
+using CsvHelper.Configuration;
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Domain.Teams;
 
@@ -73,22 +75,28 @@ public sealed class MemberListReader : IMemberListReader
         }
     }
 
+    // ヘッダー行も1行目のデータとして自前で扱う(ExtractColumn参照)ためHasHeaderRecord=false。
+    // 行数上限の判定を物理行単位で行うため空行もスキップせずIgnoreBlankLines=false。
+    // 引用符の対応崩れなど多少壊れたCSVでも読み進められるよう、BadDataFoundはnull(無視)にしている。
+    private static readonly CsvConfiguration CsvReaderConfiguration = new(CultureInfo.InvariantCulture)
+    {
+        HasHeaderRecord = false,
+        IgnoreBlankLines = false,
+        BadDataFound = null
+    };
+
     /// <summary>CSVファイルを解析し、アドレス候補列を抽出する。</summary>
     private static (IEnumerable<string>, string, string) ReadCsv(string path, CancellationToken cancellationToken)
     {
         var encoding = DetectCsvEncoding(path);
         using var stream = OpenShared(path);
-        using var parser = new TextFieldParser(stream, encoding, true)
-        {
-            TextFieldType = FieldType.Delimited,
-            HasFieldsEnclosedInQuotes = true
-        };
-        parser.SetDelimiters(",");
+        using var reader = new StreamReader(stream, encoding);
+        using var csv = new CsvReader(reader, CsvReaderConfiguration);
         var rows = new List<string[]>();
-        while (!parser.EndOfData)
+        while (csv.Read())
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var fields = parser.ReadFields() ?? [];
+            var fields = csv.Parser.Record ?? [];
             if (fields.Length > MaximumColumns)
                 throw new InvalidDataException($"CSVの{rows.Count + 1}行目の列数が{MaximumColumns:N0}列を超えています。");
             rows.Add(fields);
