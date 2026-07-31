@@ -1,4 +1,5 @@
 using System.Windows.Threading;
+using System.Runtime.ExceptionServices;
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Application.Services;
 using TeamsSync.Domain.Teams;
@@ -15,14 +16,26 @@ internal static class DispatcherTestHelper
     // DispatcherSynchronizationContext配下でTask.Runを含む非同期処理を、その完了までテストスレッドをブロックして
     // 同期的に待つためのヘルパー。Dispatcher.PushFrameでメッセージポンプを回すことで、Task.Run完了後の継続が
     // (DispatcherSynchronizationContext.Postにより)テストスレッド上で実行されるようにする。
-    public static void RunOnDispatcher(Func<Task> action)
+    public static void RunOnDispatcher(Func<Task> action, TimeSpan? timeout = null)
     {
         var frame = new DispatcherFrame();
         Exception? error = null;
+        var timer = new DispatcherTimer(DispatcherPriority.Send)
+        {
+            Interval = timeout ?? TimeSpan.FromSeconds(10)
+        };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            error = new TimeoutException("Dispatcher上のテスト処理が制限時間内に完了しませんでした。");
+            frame.Continue = false;
+        };
+        timer.Start();
         _ = RunAsync();
         Dispatcher.PushFrame(frame);
+        timer.Stop();
         if (error is not null)
-            throw error;
+            ExceptionDispatchInfo.Capture(error).Throw();
         return;
 
         async Task RunAsync()
@@ -173,51 +186,77 @@ internal sealed class FakeResultWriter : ISyncResultWriter
     }
 }
 
-internal sealed class FakeDialogs : IFilePickerService, ISyncConfirmationService,
-    IMemberInputConfirmationService, INotificationService
+internal sealed class FakeFilePickerService : IFilePickerService
+{
+    public string? ResultPath { get; init; }
+    public string? PickMemberFile(string? initialDirectory) => null;
+    public string? PickResultFile(string? initialDirectory, string teamName) => ResultPath;
+}
+
+internal sealed class FailingNotificationService : INotificationService
+{
+    public string WarningTitle { get; private set; } = "";
+    public void ShowSuccess(string title, string message) { }
+    public void ShowWarning(string title, string message) => WarningTitle = title;
+    public Task ShowErrorAsync(string message, string title = "エラー", Action? onClosed = null) =>
+        Task.FromException(new XunitException(message));
+}
+
+internal sealed class FakeSyncConfirmationService : ISyncConfirmationService
 {
     public Func<SyncConfirmation, bool>? OnConfirm { get; init; }
-    public Func<string, int, bool>? OnConfirmReplaceMemberInput { get; init; }
-    public int ReplaceMemberInputConfirmationCount { get; private set; }
-    public string? ResultPath { get; init; }
-    public string WarningTitle { get; private set; } = "";
-
-    public string? PickMemberFile(string? initialDirectory)
-    {
-        return null;
-    }
-
-    public string? PickResultFile(string? initialDirectory, string teamName)
-    {
-        return ResultPath;
-    }
-
-    public void ShowSuccess(string title, string message)
-    {
-    }
-
-    public void ShowWarning(string title, string message)
-    {
-        WarningTitle = title;
-    }
-
-    public Task ShowErrorAsync(string message, string title = "エラー", Action? onClosed = null)
-    {
-        throw new XunitException(message);
-    }
-
     public Task<bool> ConfirmSyncAsync(SyncConfirmation confirmation,
-        CancellationToken cancellationToken = default)
-    {
-        return Task.FromResult(OnConfirm?.Invoke(confirmation) ?? true);
-    }
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(OnConfirm?.Invoke(confirmation) ?? true);
+}
+
+internal sealed class FakeMemberInputConfirmationService : IMemberInputConfirmationService
+{
+    public Func<string, int, bool>? OnConfirmReplaceMemberInput { get; init; }
+    public int ConfirmationCount { get; private set; }
 
     public Task<bool> ConfirmReplaceMemberInputAsync(string teamName, int memberCount,
         CancellationToken cancellationToken = default)
     {
-        ReplaceMemberInputConfirmationCount++;
+        ConfirmationCount++;
         return Task.FromResult(OnConfirmReplaceMemberInput?.Invoke(teamName, memberCount) ?? true);
     }
+}
+
+// 複数の対話サービスを同じ状態で検証する既存の統合的ViewModelテスト向けアダプター。
+// 個々の振る舞いは責務別テストダブルへ委譲し、新規テストでは各サービスを直接使用する。
+internal sealed class FakeDialogs : IFilePickerService, ISyncConfirmationService,
+    IMemberInputConfirmationService, INotificationService
+{
+    private readonly FakeFilePickerService _filePicker;
+    private readonly FailingNotificationService _notifications = new();
+    private readonly FakeSyncConfirmationService _syncConfirmation;
+    private readonly FakeMemberInputConfirmationService _inputConfirmation;
+
+    public FakeDialogs()
+    {
+        _filePicker = new FakeFilePickerService { ResultPath = ResultPath };
+        _syncConfirmation = new FakeSyncConfirmationService { OnConfirm = value => OnConfirm?.Invoke(value) ?? true };
+        _inputConfirmation = new FakeMemberInputConfirmationService
+            { OnConfirmReplaceMemberInput = (team, count) => OnConfirmReplaceMemberInput?.Invoke(team, count) ?? true };
+    }
+
+    public Func<SyncConfirmation, bool>? OnConfirm { get; init; }
+    public Func<string, int, bool>? OnConfirmReplaceMemberInput { get; init; }
+    public string? ResultPath { get; init; }
+    public int ReplaceMemberInputConfirmationCount => _inputConfirmation.ConfirmationCount;
+    public string WarningTitle => _notifications.WarningTitle;
+    public string? PickMemberFile(string? initialDirectory) => _filePicker.PickMemberFile(initialDirectory);
+    public string? PickResultFile(string? initialDirectory, string teamName) => ResultPath;
+    public void ShowSuccess(string title, string message) => _notifications.ShowSuccess(title, message);
+    public void ShowWarning(string title, string message) => _notifications.ShowWarning(title, message);
+    public Task ShowErrorAsync(string message, string title = "エラー", Action? onClosed = null) =>
+        _notifications.ShowErrorAsync(message, title, onClosed);
+    public Task<bool> ConfirmSyncAsync(SyncConfirmation confirmation, CancellationToken cancellationToken = default) =>
+        _syncConfirmation.ConfirmSyncAsync(confirmation, cancellationToken);
+    public Task<bool> ConfirmReplaceMemberInputAsync(string teamName, int memberCount,
+        CancellationToken cancellationToken = default) =>
+        _inputConfirmation.ConfirmReplaceMemberInputAsync(teamName, memberCount, cancellationToken);
 }
 
 internal sealed class FakeTeamsGateway : ITeamsGateway

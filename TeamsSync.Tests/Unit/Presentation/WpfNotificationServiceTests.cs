@@ -1,0 +1,40 @@
+using Microsoft.Extensions.Logging;
+using TeamsSync.Presentation.Services;
+
+namespace TeamsSync.Tests.Unit.Presentation;
+
+public sealed class WpfNotificationServiceTests
+{
+    [Fact]
+    public async Task ShowErrorSafelyAsync_表示と終了処理の例外を記録して呼び出し元へ伝播しない()
+    {
+        var logger = new RecordingLogger();
+        var callbackCalled = false;
+
+        await WpfNotificationService.ShowErrorSafelyAsync(
+            () => throw new InvalidOperationException("dialog failed"),
+            "エラー", () =>
+            {
+                callbackCalled = true;
+                throw new InvalidOperationException("callback failed");
+            }, logger);
+
+        Assert.True(callbackCalled);
+        Assert.Equal(2, logger.Exceptions.Count);
+        Assert.Collection(logger.Exceptions,
+            exception => Assert.Equal("dialog failed", exception.Message),
+            exception => Assert.Equal("callback failed", exception.Message));
+    }
+
+    private sealed class RecordingLogger : ILogger
+    {
+        public List<Exception> Exceptions { get; } = [];
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
+            Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (exception is not null) Exceptions.Add(exception);
+        }
+    }
+}

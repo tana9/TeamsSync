@@ -1,7 +1,7 @@
 using TeamsSync.Domain.Teams;
 using TeamsSync.Infrastructure.Files;
 
-namespace TeamsSync.Tests.Unit.Infrastructure;
+namespace TeamsSync.Tests.Integration.Infrastructure;
 
 public sealed class SyncResultWriterTests : IDisposable
 {

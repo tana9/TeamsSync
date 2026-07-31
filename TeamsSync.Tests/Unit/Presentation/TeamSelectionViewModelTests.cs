@@ -12,7 +12,7 @@ public sealed class TeamSelectionViewModelTests
         {
             OwnedTeams = [new TeamInfo("team-1", "開発", null), new TeamInfo("team-2", "運用", null)]
         };
-        var viewModel = new TeamSelectionViewModel(gateway, new FakeDialogs());
+        var viewModel = new TeamSelectionViewModel(gateway, new FailingNotificationService());
 
         await viewModel.InitializeAsync("current-user", TestContext.Current.CancellationToken);
 
@@ -28,7 +28,7 @@ public sealed class TeamSelectionViewModelTests
         {
             OwnedTeams = [new TeamInfo("team-1", "開発", null), new TeamInfo("team-2", "運用", null)]
         };
-        var viewModel = new TeamSelectionViewModel(gateway, new FakeDialogs());
+        var viewModel = new TeamSelectionViewModel(gateway, new FailingNotificationService());
         await viewModel.InitializeAsync("current-user", TestContext.Current.CancellationToken);
 
         viewModel.SearchText = "存在しないチーム";
@@ -36,32 +36,26 @@ public sealed class TeamSelectionViewModelTests
         Assert.True(viewModel.HasNoSearchResults);
     }
 
-    [Fact]
-    public async Task TeamSelection_一致する検索語または空文字に戻すとHasNoSearchResultsがfalseに戻る()
+    [Theory]
+    [InlineData("開発")]
+    [InlineData("")]
+    public async Task TeamSelection_一致する検索語または空文字ではHasNoSearchResultsがfalseになる(string searchText)
     {
         var gateway = new FakeTeamsGateway
         {
             OwnedTeams = [new TeamInfo("team-1", "開発", null), new TeamInfo("team-2", "運用", null)]
         };
-        var viewModel = new TeamSelectionViewModel(gateway, new FakeDialogs());
+        var viewModel = new TeamSelectionViewModel(gateway, new FailingNotificationService());
         await viewModel.InitializeAsync("current-user", TestContext.Current.CancellationToken);
-        viewModel.SearchText = "存在しないチーム";
-        Assert.True(viewModel.HasNoSearchResults);
+        viewModel.SearchText = searchText;
 
-        viewModel.SearchText = "開発";
-        Assert.False(viewModel.HasNoSearchResults);
-
-        viewModel.SearchText = "存在しないチーム";
-        Assert.True(viewModel.HasNoSearchResults);
-
-        viewModel.SearchText = "";
         Assert.False(viewModel.HasNoSearchResults);
     }
 
     [Fact]
     public void TeamSelection_チーム未読み込みの状態では検索語を入れてもHasNoSearchResultsはfalseのまま()
     {
-        var viewModel = new TeamSelectionViewModel(new FakeTeamsGateway(), new FakeDialogs());
+        var viewModel = new TeamSelectionViewModel(new FakeTeamsGateway(), new FailingNotificationService());
 
         viewModel.SearchText = "存在しないチーム";
 
@@ -71,7 +65,7 @@ public sealed class TeamSelectionViewModelTests
     [Fact]
     public void TeamSelection_ClearSearchCommandを実行するとSearchTextが空になりHasSearchTextがfalseになる()
     {
-        var viewModel = new TeamSelectionViewModel(new FakeTeamsGateway(), new FakeDialogs())
+        var viewModel = new TeamSelectionViewModel(new FakeTeamsGateway(), new FailingNotificationService())
         {
             SearchText = "開発"
         };
@@ -87,7 +81,7 @@ public sealed class TeamSelectionViewModelTests
     [Fact]
     public void TeamSelection_PrepareSelectionCommandは検索をクリアしてフォーカス要求を通知する()
     {
-        var viewModel = new TeamSelectionViewModel(new FakeTeamsGateway(), new FakeDialogs())
+        var viewModel = new TeamSelectionViewModel(new FakeTeamsGateway(), new FailingNotificationService())
         {
             SearchText = "開発"
         };

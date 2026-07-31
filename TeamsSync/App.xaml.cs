@@ -71,21 +71,9 @@ public partial class App : System.Windows.Application
     {
         if (_host is not null)
         {
-            var logger = _host.Services.GetService<ILogger<App>>();
-            try
-            {
-                logger?.LogInformation("TeamsSyncを終了します");
-                await _host.StopAsync(TimeSpan.FromSeconds(5));
-            }
-            catch (Exception ex)
-            {
-                logger?.LogError(ex, "TeamsSyncの終了処理に失敗しました");
-            }
-            finally
-            {
-                _host.Dispose();
-                _host = null;
-            }
+            var host = _host;
+            _host = null;
+            await AppHostShutdown.StopAndDisposeAsync(host, host.Services.GetService<ILogger<App>>());
         }
 
         base.OnExit(e);

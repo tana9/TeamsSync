@@ -4,7 +4,7 @@ using System.IO.Compression;
 using ClosedXML.Excel;
 using TeamsSync.Infrastructure.Files;
 
-namespace TeamsSync.Tests.Unit.Infrastructure;
+namespace TeamsSync.Tests.Integration.Infrastructure;
 
 public sealed class MemberFileReaderTests : IDisposable
 {

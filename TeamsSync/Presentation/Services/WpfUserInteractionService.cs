@@ -318,9 +318,9 @@ public sealed class WpfNotificationService(
     }
 
     /// <summary>エラー内容を選択・コピー可能なテキストボックス付きダイアログで表示する。</summary>
-    public async Task ShowErrorAsync(string message, string title = "エラー", Action? onClosed = null)
+    public Task ShowErrorAsync(string message, string title = "エラー", Action? onClosed = null)
     {
-        try
+        return ShowErrorSafelyAsync(async () =>
         {
             var textBox = new TextBox
             {
@@ -361,6 +361,15 @@ public sealed class WpfNotificationService(
                 CloseButtonText = "閉じる"
             };
             await WpfSyncConfirmationService.ShowRestoringFocusAsync(contentDialogs, dialog, CancellationToken.None);
+        }, title, onClosed, logger);
+    }
+
+    internal static async Task ShowErrorSafelyAsync(Func<Task> showDialog, string title,
+        Action? onClosed, Microsoft.Extensions.Logging.ILogger logger)
+    {
+        try
+        {
+            await showDialog();
         }
         catch (Exception ex)
         {
