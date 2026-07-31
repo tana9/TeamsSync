@@ -67,7 +67,7 @@
                  スクロール不要、小さいときだけ上段がスクロールして下段の最低高さを確保する。
                  SyncActionBarView(進捗バー・結果パネル)は状況によって高さが数十pxから200px超まで
                  変動するため、固定オフセットではなくSyncActionBarViewのActualHeightをマルチバインディングで
-                 実測し、下段カードの最低保証分(MinHeight=208+上マージン12+SyncActionBarView上マージン8=228、
+                 実測し、下段カードの最低保証分(MinHeight=208+SyncActionBarView上マージン8=216、
                  いずれも固定値でこの先も変わらない前提)だけを固定のConverterParameterとして扱う。
                  SyncActionBarViewはGrid上*行ではなくAuto行で、その実測高さは自身のコンテンツ量だけで
                  決まり上段ScrollViewerのMaxHeightには依存しないため、循環参照は発生しない。 -->
@@ -77,7 +77,7 @@
             <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
                 <ScrollViewer.MaxHeight>
-                    <MultiBinding Converter="{StaticResource HeightMinusOffsetConverter}" ConverterParameter="228">
+                    <MultiBinding Converter="{StaticResource HeightMinusOffsetConverter}" ConverterParameter="216">
                         <Binding ElementName="ContentGrid" Path="ActualHeight" />
                         <Binding ElementName="SyncActionBar" Path="ActualHeight" />
                     </MultiBinding>
@@ -111,11 +111,15 @@
                                 Title="{Binding SyncWorkspace.RemovalWarningTitle}"
                                 Message="{Binding SyncWorkspace.RemovalWarningMessage}"
                                 Severity="{Binding SyncWorkspace.RemovalSeverity}"
+                                Margin="0,0,0,12"
                                 IsClosable="False" AutomationProperties.LiveSetting="Assertive" />
                 </StackPanel>
             </ScrollViewer>
 
-            <ui:Card Grid.Row="1" Padding="12" MinHeight="208" Margin="0,12,16,0"
+            <!-- 手順3(直前カードまたは削除警告InfoBar)の下マージンだけでカード間隔(12px)を確保するため、
+                 ここでは上マージンを付けない。以前は両側に12pxずつ付けており、他のカード間(12px)の
+                 2倍の間隔になっていた。 -->
+            <ui:Card Grid.Row="1" Padding="12" MinHeight="208" Margin="0,0,16,0"
                      VerticalAlignment="Stretch" VerticalContentAlignment="Stretch"
                      Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                      BorderBrush="{DynamicResource CardStrokeColorDefaultSolidBrush}" BorderThickness="1">
