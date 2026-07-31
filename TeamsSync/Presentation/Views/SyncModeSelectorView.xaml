@@ -23,7 +23,19 @@
                          VerticalAlignment="Center" Margin="0,0,24,0">
                 <StackPanel Orientation="Horizontal">
                     <ui:SymbolIcon Symbol="PersonAdd24" FontSize="14" Margin="0,0,4,0"
-                                   AutomationProperties.Name="" />
+                                   AutomationProperties.Name="">
+                        <ui:SymbolIcon.Style>
+                            <Style TargetType="ui:SymbolIcon">
+                                <Setter Property="Foreground" Value="{DynamicResource SystemFillColorSuccessBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsEnabled, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                                 Value="False">
+                                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ui:SymbolIcon.Style>
+                    </ui:SymbolIcon>
                     <TextBlock Text="追加のみ（既存メンバーを維持）" />
                 </StackPanel>
             </RadioButton>
@@ -33,10 +45,20 @@
                          VerticalAlignment="Center" Margin="0,0,24,0">
                 <StackPanel Orientation="Horizontal">
                     <ui:SymbolIcon Symbol="PersonDelete24" FontSize="14" Margin="0,0,4,0"
-                                   Foreground="{DynamicResource SystemFillColorCautionBrush}"
-                                   AutomationProperties.Name="" />
-                    <TextBlock Text="指定メンバーを削除" FontWeight="SemiBold"
-                               Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+                                   AutomationProperties.Name="">
+                        <ui:SymbolIcon.Style>
+                            <Style TargetType="ui:SymbolIcon">
+                                <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCautionBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsEnabled, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                                 Value="False">
+                                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ui:SymbolIcon.Style>
+                    </ui:SymbolIcon>
+                    <TextBlock Text="指定メンバーを削除" />
                 </StackPanel>
             </RadioButton>
             <RadioButton IsChecked="{Binding IsFullSyncSelected, Mode=TwoWay}"
@@ -45,10 +67,20 @@
                          VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal">
                     <ui:SymbolIcon Symbol="ArrowSync24" FontSize="14" Margin="0,0,4,0"
-                                   AutomationProperties.Name=""
-                                   Foreground="{DynamicResource SystemFillColorCautionBrush}" />
-                    <TextBlock Text="完全同期（リスト外を削除）" FontWeight="SemiBold"
-                               Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+                                   AutomationProperties.Name="">
+                        <ui:SymbolIcon.Style>
+                            <Style TargetType="ui:SymbolIcon">
+                                <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsEnabled, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                                 Value="False">
+                                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ui:SymbolIcon.Style>
+                    </ui:SymbolIcon>
+                    <TextBlock Text="完全同期（リスト外を削除）" />
                 </StackPanel>
             </RadioButton>
         </WrapPanel>
