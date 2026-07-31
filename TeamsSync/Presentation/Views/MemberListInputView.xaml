@@ -64,7 +64,7 @@
                         <ui:Button x:Name="BrowseButton" Content="_ファイルを選択"
                                    Command="{Binding BrowseCommand}"
                                    Icon="{ui:SymbolIcon Symbol=FolderOpen24}"
-                                   Appearance="Secondary" ToolTip="ファイルを選択 (Ctrl+O)"
+                                   Appearance="Secondary" ToolTip="ファイルを選択"
                                    AutomationProperties.Name="メンバーリストファイルを選択" />
                         <ui:Button Content="キャンセル" Command="{Binding CancelLoadCommand}"
                                    Margin="0,8,0,0" Appearance="Secondary"

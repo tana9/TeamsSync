@@ -42,7 +42,7 @@
                  (MainWindow.xaml参照)、カード1〜3をスクロールしていてもこのボタンは常に見える。 -->
             <ui:Button Grid.Column="3" Content="差分を_確認" Command="{Binding PreviewCommand}"
                        Icon="{ui:SymbolIcon Symbol=PreviewLink24}" Margin="12,0,0,0"
-                       ToolTip="同期差分を確認 (Ctrl+P)"
+                       ToolTip="同期差分を確認"
                        AutomationProperties.Name="同期差分を確認">
                 <!-- 同期モードは既定値があり選択操作が不要なため、Step3が現在の操作の間はボタンを強調する。 -->
                 <ui:Button.Style>

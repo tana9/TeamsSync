@@ -36,10 +36,6 @@
         </Style>
     </ui:FluentWindow.Resources>
     <ui:FluentWindow.InputBindings>
-        <KeyBinding Key="O" Modifiers="Control" Command="{Binding MemberFile.BrowseCommand}" />
-        <KeyBinding Key="P" Modifiers="Control" Command="{Binding SyncWorkspace.PreviewCommand}" />
-        <KeyBinding Key="Enter" Modifiers="Control" Command="{Binding SyncWorkspace.ExecuteSyncCommand}" />
-        <KeyBinding Key="S" Modifiers="Control" Command="{Binding SyncWorkspace.SaveResultCommand}" />
         <KeyBinding Key="Escape" Command="{Binding SyncWorkspace.CancelCommand}" />
     </ui:FluentWindow.InputBindings>
     <Grid>
