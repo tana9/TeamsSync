@@ -60,8 +60,29 @@ public sealed class WpfFilePickerService : IFilePickerService
 
 /// <summary>同期実行前の最終確認ダイアログをWPF-UIのContentDialogとして表示する。</summary>
 public sealed class WpfSyncConfirmationService(
-    IContentDialogService contentDialogs) : ISyncConfirmationService
+    IContentDialogService contentDialogs) : ISyncConfirmationService, IMemberInputConfirmationService
 {
+    /// <inheritdoc />
+    public async Task<bool> ConfirmReplaceMemberInputAsync(string teamName, int memberCount,
+        CancellationToken cancellationToken = default)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = "現在の入力を置き換えますか？",
+            Content = new TextBlock
+            {
+                Text = $"現在のファイルまたはテキスト入力を、{teamName}の一般メンバー{memberCount}名で置き換えます。",
+                TextWrapping = TextWrapping.Wrap,
+                MinWidth = 320
+            },
+            PrimaryButtonText = "置き換える",
+            CloseButtonText = "キャンセル",
+            DefaultButton = ContentDialogButton.Close
+        };
+        return await ShowRestoringFocusAsync(contentDialogs, dialog, cancellationToken) ==
+               ContentDialogResult.Primary;
+    }
+
     /// <summary>
     /// 対象チーム・件数内訳・入力元を表示する確認ダイアログを表示する。
     /// </summary>

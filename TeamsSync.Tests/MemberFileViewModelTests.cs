@@ -270,4 +270,161 @@ public sealed class MemberFileViewModelTests
 
         Assert.True(focusRequested);
     }
+
+    [Fact]
+    public async Task MemberFile_現在の一般メンバーだけをアドレス順で取り込む()
+    {
+        var gateway = new FakeTeamsGateway
+        {
+            Members =
+            [
+                new TeamMember("owner", "owner-id", "Owner", "owner@example.com", true),
+                new TeamMember("b", "b-id", "B", "B@example.com", false),
+                new TeamMember("a", "a-id", "A", "a@example.com", false),
+                new TeamMember("a2", "a-id", "A", "A@example.com", false)
+            ]
+        };
+        var dialogs = new FakeDialogs();
+        var viewModel = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
+            new FakePreferences(), dialogs, dialogs, gateway, dialogs);
+        viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発", null));
+        viewModel.SelectedInputIndex = 1;
+
+        await viewModel.ImportCurrentMembersCommand.ExecuteAsync(null);
+
+        Assert.Equal(1, viewModel.SelectedInputIndex);
+        Assert.Equal($"A <a@example.com>{Environment.NewLine}B <B@example.com>", viewModel.PastedText);
+        Assert.Equal(["a@example.com", "B@example.com"], viewModel.Document!.Addresses);
+        Assert.Equal("Teamsから取り込み: 開発", viewModel.Document.SourceName);
+        Assert.DoesNotContain("owner@example.com", viewModel.PastedText);
+        Assert.Equal(0, dialogs.ReplaceMemberInputConfirmationCount);
+    }
+
+    [Fact]
+    public async Task MemberFile_既存入力の置き換えを拒否すると内容を維持する()
+    {
+        var gateway = new FakeTeamsGateway
+        {
+            Members = [new TeamMember("new", "new-id", "New", "new@example.com", false)]
+        };
+        var dialogs = new FakeDialogs { OnConfirmReplaceMemberInput = (_, _) => false };
+        var viewModel = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
+            new FakePreferences(), dialogs, dialogs, gateway, dialogs)
+        {
+            SelectedInputIndex = 1,
+            PastedText = "old@example.com"
+        };
+        await viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
+        var originalDocument = viewModel.Document;
+        viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発", null));
+
+        await viewModel.ImportCurrentMembersCommand.ExecuteAsync(null);
+
+        Assert.Equal(1, dialogs.ReplaceMemberInputConfirmationCount);
+        Assert.Equal("old@example.com", viewModel.PastedText);
+        Assert.Same(originalDocument, viewModel.Document);
+    }
+
+    [Fact]
+    public async Task MemberFile_一般メンバーが0人なら既存入力を維持する()
+    {
+        var gateway = new FakeTeamsGateway
+        {
+            Members = [new TeamMember("owner", "owner-id", "Owner", "owner@example.com", true)]
+        };
+        var dialogs = new FakeDialogs();
+        var viewModel = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
+            new FakePreferences(), dialogs, dialogs, gateway, dialogs)
+        {
+            SelectedInputIndex = 1,
+            PastedText = "old@example.com"
+        };
+        await viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
+        var originalDocument = viewModel.Document;
+        viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発", null));
+
+        await viewModel.ImportCurrentMembersCommand.ExecuteAsync(null);
+
+        Assert.Equal("old@example.com", viewModel.PastedText);
+        Assert.Same(originalDocument, viewModel.Document);
+        Assert.Contains("一般メンバー", dialogs.WarningTitle);
+    }
+
+    [Fact]
+    public async Task MemberFile_現在メンバー取得のキャンセル時は既存入力を維持する()
+    {
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var gateway = new FakeTeamsGateway
+        {
+            OnGetMembers = async (_, cancellationToken) =>
+            {
+                started.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                return [];
+            }
+        };
+        var dialogs = new FakeDialogs();
+        var viewModel = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
+            new FakePreferences(), dialogs, dialogs, gateway, dialogs)
+        {
+            SelectedInputIndex = 1,
+            PastedText = "old@example.com"
+        };
+        await viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
+        var originalDocument = viewModel.Document;
+        viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発", null));
+
+        var importing = viewModel.ImportCurrentMembersCommand.ExecuteAsync(null);
+        await started.Task;
+        viewModel.CancelImportCurrentMembersCommand.Execute(null);
+        await importing;
+
+        Assert.Equal("old@example.com", viewModel.PastedText);
+        Assert.Same(originalDocument, viewModel.Document);
+        Assert.False(viewModel.IsImportingMembers);
+    }
+
+    [Fact]
+    public async Task MemberFile_現在メンバー取得失敗時は既存入力を維持する()
+    {
+        var gateway = new FakeTeamsGateway
+        {
+            OnGetMembers = (_, _) => Task.FromException<IReadOnlyList<TeamMember>>(
+                new InvalidOperationException("Graph failed"))
+        };
+        var dialogs = new FakeDialogs();
+        var notifications = new RecordingNotificationService();
+        var viewModel = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
+            new FakePreferences(), dialogs, notifications, gateway, dialogs)
+        {
+            SelectedInputIndex = 1,
+            PastedText = "old@example.com"
+        };
+        await viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
+        var originalDocument = viewModel.Document;
+        viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発", null));
+
+        await viewModel.ImportCurrentMembersCommand.ExecuteAsync(null);
+
+        Assert.Equal("old@example.com", viewModel.PastedText);
+        Assert.Same(originalDocument, viewModel.Document);
+        Assert.Equal("現在のメンバーを取り込めませんでした", notifications.ErrorTitle);
+    }
+
+    [Fact]
+    public void MemberFile_チーム未選択または入力無効時は現在メンバーを取り込めない()
+    {
+        var gateway = new FakeTeamsGateway();
+        var dialogs = new FakeDialogs();
+        var viewModel = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
+            new FakePreferences(), dialogs, dialogs, gateway, dialogs);
+
+        Assert.False(viewModel.ImportCurrentMembersCommand.CanExecute(null));
+        viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発", null));
+        Assert.False(viewModel.ImportCurrentMembersCommand.CanExecute(null));
+        viewModel.SelectedInputIndex = 1;
+        Assert.True(viewModel.ImportCurrentMembersCommand.CanExecute(null));
+        viewModel.SetEnabled(false);
+        Assert.False(viewModel.ImportCurrentMembersCommand.CanExecute(null));
+    }
 }

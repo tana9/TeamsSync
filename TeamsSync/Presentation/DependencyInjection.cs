@@ -20,7 +20,11 @@ public static class DependencyInjection
         services.AddSingleton<IContentDialogService, ContentDialogService>();
         services.AddSingleton<ISnackbarService, SnackbarService>();
         services.AddSingleton<IFilePickerService, WpfFilePickerService>();
-        services.AddSingleton<ISyncConfirmationService, WpfSyncConfirmationService>();
+        services.AddSingleton<WpfSyncConfirmationService>();
+        services.AddSingleton<ISyncConfirmationService>(provider =>
+            provider.GetRequiredService<WpfSyncConfirmationService>());
+        services.AddSingleton<IMemberInputConfirmationService>(provider =>
+            provider.GetRequiredService<WpfSyncConfirmationService>());
         services.AddSingleton<INotificationService, WpfNotificationService>();
         services.AddSingleton<IUserInteractionHost, WpfUserInteractionHost>();
         services.AddSingleton<IManualService, WpfManualService>();

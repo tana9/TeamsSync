@@ -105,6 +105,7 @@ public partial class MainWindowViewModel : ObservableObject
     /// <summary>選択中のチーム・メンバーリストの内容を同期ワークスペースへ反映する。</summary>
     private void UpdateSyncContext()
     {
+        MemberFile.SetSelectedTeam(TeamSelection.SelectedTeam);
         SyncWorkspace.SetContext(TeamSelection.SelectedTeam, MemberFile.Document, SignIn.IsSignedIn,
             SignIn.TenantId, SignIn.CurrentUserId);
     }

@@ -35,8 +35,8 @@ public sealed class MemberTextParser : IMemberTextParser
                 throw new InvalidDataException($"{index + 1}行目は{MaximumLineLength:N0}文字以内で入力してください。");
         }
 
-        var values = lines.Select(line => line.Trim())
-            .Where(line => !string.IsNullOrWhiteSpace(line))
+        var values = lines.Select((line, index) => ParseLine(line, index + 1))
+            .Where(value => !string.IsNullOrWhiteSpace(value))
             .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         if (values.Count == 0)
             throw new InvalidDataException("氏名またはメールアドレスを1行に1件入力してください。");
@@ -47,5 +47,25 @@ public sealed class MemberTextParser : IMemberTextParser
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(normalizedText)));
         return new MemberListDocument(values, "貼り付け入力.txt", "", DateTime.Now,
             "テキスト貼り付け", "1行1ユーザー", hash);
+    }
+
+    /// <summary>`表示名 &lt;メールアドレス&gt;`形式の場合は山括弧内だけを識別子として返す。</summary>
+    private static string ParseLine(string line, int lineNumber)
+    {
+        var value = line.Trim();
+        if (value.Length == 0) return "";
+        var containsBracket = value.Contains('<') || value.Contains('>');
+        if (!containsBracket) return value;
+
+        var open = value.LastIndexOf('<');
+        if (open <= 0 || !value.EndsWith('>') || value.IndexOf('<') != open ||
+            value.IndexOf('>') != value.Length - 1)
+            throw new InvalidDataException(
+                $"{lineNumber}行目の表示名とメールアドレスの形式が正しくありません。表示名 <メールアドレス> の形式で入力してください。");
+
+        var address = value[(open + 1)..^1].Trim();
+        if (address.Length == 0)
+            throw new InvalidDataException($"{lineNumber}行目の山括弧内にメールアドレスを入力してください。");
+        return address;
     }
 }

@@ -174,9 +174,12 @@ internal sealed class FakeResultWriter : ISyncResultWriter
     }
 }
 
-internal sealed class FakeDialogs : IFilePickerService, ISyncConfirmationService, INotificationService
+internal sealed class FakeDialogs : IFilePickerService, ISyncConfirmationService,
+    IMemberInputConfirmationService, INotificationService
 {
     public Func<SyncConfirmation, bool>? OnConfirm { get; init; }
+    public Func<string, int, bool>? OnConfirmReplaceMemberInput { get; init; }
+    public int ReplaceMemberInputConfirmationCount { get; private set; }
     public string? ResultPath { get; init; }
     public string WarningTitle { get; private set; } = "";
 
@@ -209,6 +212,13 @@ internal sealed class FakeDialogs : IFilePickerService, ISyncConfirmationService
     {
         return Task.FromResult(OnConfirm?.Invoke(confirmation) ?? true);
     }
+
+    public Task<bool> ConfirmReplaceMemberInputAsync(string teamName, int memberCount,
+        CancellationToken cancellationToken = default)
+    {
+        ReplaceMemberInputConfirmationCount++;
+        return Task.FromResult(OnConfirmReplaceMemberInput?.Invoke(teamName, memberCount) ?? true);
+    }
 }
 
 internal sealed class FakeTeamsGateway : ITeamsGateway
@@ -220,6 +230,7 @@ internal sealed class FakeTeamsGateway : ITeamsGateway
     public List<(string TeamId, string MembershipId)> Removed { get; } = [];
     public Func<string, string, CancellationToken, Task>? OnAdd { get; set; }
     public Func<string, string, CancellationToken, Task>? OnRemove { get; set; }
+    public Func<string, CancellationToken, Task<IReadOnlyList<TeamMember>>>? OnGetMembers { get; set; }
 
     public Task<(string Id, string DisplayName, string UserPrincipalName)> GetMeAsync(
         CancellationToken cancellationToken = default)
@@ -236,7 +247,7 @@ internal sealed class FakeTeamsGateway : ITeamsGateway
     public Task<IReadOnlyList<TeamMember>> GetTeamMembersAsync(string teamId,
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(Members);
+        return OnGetMembers?.Invoke(teamId, cancellationToken) ?? Task.FromResult(Members);
     }
 
     public Task<IReadOnlyList<DirectoryUser>> FindUsersAsync(string identifier,

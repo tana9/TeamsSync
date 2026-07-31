@@ -27,6 +27,14 @@ public interface ISyncConfirmationService
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>現在のチームメンバーを既存の入力へ上書きする前に確認する。</summary>
+public interface IMemberInputConfirmationService
+{
+    /// <summary>既存入力を置き換えてよいか確認し、利用者が続行を選んだ場合にtrueを返す。</summary>
+    Task<bool> ConfirmReplaceMemberInputAsync(string teamName, int memberCount,
+        CancellationToken cancellationToken = default);
+}
+
 /// <summary>成功・警告・エラーをユーザーへ通知する。</summary>
 public interface INotificationService
 {

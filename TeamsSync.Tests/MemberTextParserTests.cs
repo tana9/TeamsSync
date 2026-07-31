@@ -28,6 +28,24 @@ public sealed class MemberTextParserTests
         Assert.Equal(first.ContentSha256, second.ContentSha256);
     }
 
+    [Fact]
+    public void Parse_表示名付きの行は山括弧内のメールアドレスだけを使用する()
+    {
+        var document = _parser.Parse(
+            "山田 太郎 <taro@example.com>\n鈴木 花子 <hanako@example.com>\ntaro@example.com");
+
+        Assert.Equal(["taro@example.com", "hanako@example.com"], document.Addresses);
+    }
+
+    [Theory]
+    [InlineData("山田 太郎 <taro@example.com")]
+    [InlineData("山田 太郎 taro@example.com>")]
+    [InlineData("山田 太郎 <>")]
+    public void Parse_不正な表示名付き形式を拒否する(string text)
+    {
+        Assert.Throws<InvalidDataException>(() => _parser.Parse(text));
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData(" \r\n ")]

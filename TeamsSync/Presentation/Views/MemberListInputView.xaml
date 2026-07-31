@@ -38,6 +38,15 @@
         <TabControl Grid.Column="1" AutomationProperties.Name="メンバー入力方法"
                     SelectedIndex="{Binding SelectedInputIndex}">
             <TabItem Header="ファイル">
+                <TabItem.Style>
+                    <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsImportingMembers}" Value="True">
+                                <Setter Property="IsEnabled" Value="False" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TabItem.Style>
                 <Grid MinHeight="140" Margin="8,4">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
@@ -101,13 +110,25 @@
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
-                        <ui:ProgressRing Grid.Column="1" Width="16" Height="16" Margin="8,0"
-                                         IsIndeterminate="True"
-                                         Visibility="{Binding IsParsing, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                         AutomationProperties.Name="貼り付け入力を解析中" />
-                        <ui:Button Grid.Column="1" Content="入力を_反映" Command="{Binding ApplyPastedTextInputCommand}"
-                                   Margin="32,0,0,0" Appearance="Secondary"
-                                   AutomationProperties.Name="貼り付け入力を反映" />
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <ui:ProgressRing Width="16" Height="16" Margin="8,0" IsIndeterminate="True"
+                                             Visibility="{Binding IsImportingMembers, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                             AutomationProperties.Name="現在のチームメンバーを取得中" />
+                            <ui:Button Content="現在のメンバーを取り込む" Command="{Binding ImportCurrentMembersCommand}"
+                                       Icon="{ui:SymbolIcon Symbol=PeopleTeam24}" Appearance="Secondary"
+                                       ToolTip="選択中チームの一般メンバーをテキスト入力へ取り込みます"
+                                       AutomationProperties.Name="現在の一般メンバーを入力リストへ取り込む" />
+                            <ui:Button Content="キャンセル" Command="{Binding CancelImportCurrentMembersCommand}"
+                                       Margin="8,0,0,0" Appearance="Secondary"
+                                       Visibility="{Binding IsImportingMembers, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                       AutomationProperties.Name="現在のメンバーの取り込みをキャンセル" />
+                            <ui:ProgressRing Width="16" Height="16" Margin="8,0" IsIndeterminate="True"
+                                             Visibility="{Binding IsParsing, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                             AutomationProperties.Name="貼り付け入力を解析中" />
+                            <ui:Button Content="入力を_反映" Command="{Binding ApplyPastedTextInputCommand}"
+                                       Margin="8,0,0,0" Appearance="Secondary"
+                                       AutomationProperties.Name="貼り付け入力を反映" />
+                        </StackPanel>
                     </Grid>
                 </Grid>
             </TabItem>

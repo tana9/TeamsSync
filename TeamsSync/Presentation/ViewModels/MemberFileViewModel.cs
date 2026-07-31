@@ -13,13 +13,17 @@ namespace TeamsSync.Presentation.ViewModels;
 public partial class MemberFileViewModel : ObservableObject
 {
     private readonly IFilePickerService _filePicker;
+    private readonly IMemberInputConfirmationService? _inputConfirmation;
     private readonly INotificationService _notifications;
     private readonly IUserPreferences _preferences;
     private readonly IMemberListReader _reader;
     private readonly IMemberTextParser _textParser;
+    private readonly ITeamsGateway? _teamsGateway;
     private bool _enabled = true;
     private MemberListDocument? _fileDocument;
     private CancellationTokenSource? _loadCancellation;
+    private CancellationTokenSource? _importCancellation;
+    private TeamInfo? _selectedTeam;
 
     /// <summary>ファイル入力の状態説明テキスト。</summary>
     [ObservableProperty] public partial string FileInfoText { get; set; } = "ファイルを選択するか、ここへドロップしてください";
@@ -36,6 +40,9 @@ public partial class MemberFileViewModel : ObservableObject
     /// <summary>ファイルを読み込み中かどうか。</summary>
     [ObservableProperty] public partial bool IsLoadingFile { get; set; }
 
+    /// <summary>現在のチームメンバーを取得中かどうか。</summary>
+    [ObservableProperty] public partial bool IsImportingMembers { get; set; }
+
     /// <summary>貼り付け入力の解析でエラーが発生したかどうか。</summary>
     [ObservableProperty] public partial bool IsPasteError { get; set; }
 
@@ -47,13 +54,16 @@ public partial class MemberFileViewModel : ObservableObject
 
     /// <summary>コンストラクター。</summary>
     public MemberFileViewModel(IMemberListReader reader, IMemberTextParser textParser,
-        IUserPreferences preferences, IFilePickerService filePicker, INotificationService notifications)
+        IUserPreferences preferences, IFilePickerService filePicker, INotificationService notifications,
+        ITeamsGateway? teamsGateway = null, IMemberInputConfirmationService? inputConfirmation = null)
     {
         _reader = reader;
         _textParser = textParser;
         _preferences = preferences;
         _filePicker = filePicker;
         _notifications = notifications;
+        _teamsGateway = teamsGateway;
+        _inputConfirmation = inputConfirmation;
     }
 
     /// <summary>現在有効なメンバーリスト文書(未確定の場合はnull)。</summary>
@@ -77,6 +87,14 @@ public partial class MemberFileViewModel : ObservableObject
         BrowseCommand.NotifyCanExecuteChanged();
         LoadDroppedFileCommand.NotifyCanExecuteChanged();
         ApplyPastedTextInputCommand.NotifyCanExecuteChanged();
+        ImportCurrentMembersCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>現在選択されているチームを設定し、メンバー取り込みコマンドの状態を更新する。</summary>
+    public void SetSelectedTeam(TeamInfo? team)
+    {
+        _selectedTeam = team;
+        ImportCurrentMembersCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>ファイル読込関連コマンドのCanExecute状態を再評価させる。</summary>
@@ -92,6 +110,7 @@ public partial class MemberFileViewModel : ObservableObject
     {
         ApplySelectedInput();
         ApplyPastedTextInputCommand.NotifyCanExecuteChanged();
+        ImportCurrentMembersCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>貼り付けテキストの変更を検知し、反映前の文書を無効化して状態を更新する。</summary>
@@ -266,6 +285,103 @@ public partial class MemberFileViewModel : ObservableObject
     private bool CanApplyPastedText()
     {
         return _enabled && !IsParsing && SelectedInputIndex == 1 && !string.IsNullOrWhiteSpace(PastedText);
+    }
+
+    /// <summary>選択中チームの一般メンバーを取得し、テキスト入力として反映する。</summary>
+    [RelayCommand(CanExecute = nameof(CanImportCurrentMembers))]
+    private async Task ImportCurrentMembersAsync()
+    {
+        if (_selectedTeam is null || _teamsGateway is null) return;
+        var team = _selectedTeam;
+        _importCancellation?.Cancel();
+        _importCancellation?.Dispose();
+        var cts = new CancellationTokenSource();
+        _importCancellation = cts;
+        IsImportingMembers = true;
+        ImportCurrentMembersCommand.NotifyCanExecuteChanged();
+        CancelImportCurrentMembersCommand.NotifyCanExecuteChanged();
+        try
+        {
+            StatusChanged?.Invoke($"{team.DisplayName}の現在の一般メンバーを取得しています…", false);
+            var members = await _teamsGateway.GetTeamMembersAsync(team.Id, cts.Token);
+            var importedMembers = members
+                .Where(member => !member.IsOwner && !string.IsNullOrWhiteSpace(member.Email))
+                .GroupBy(member => member.Email.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .OrderBy(member => member.Email, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (importedMembers.Count == 0)
+            {
+                _notifications.ShowWarning("取り込める一般メンバーがいません",
+                    $"{team.DisplayName}には、メールアドレスを取得できる一般メンバーがいません。現在の入力は維持します。");
+                StatusChanged?.Invoke("現在の入力を維持しました", false);
+                return;
+            }
+
+            var hasExistingInput = Document is not null || _fileDocument is not null ||
+                                   !string.IsNullOrWhiteSpace(PastedText);
+            if (hasExistingInput && _inputConfirmation is not null &&
+                !await _inputConfirmation.ConfirmReplaceMemberInputAsync(
+                    team.DisplayName, importedMembers.Count, cts.Token))
+                return;
+
+            var text = string.Join(Environment.NewLine, importedMembers.Select(FormatImportedMember));
+            var document = _textParser.Parse(text) with
+            {
+                FileName = $"Teamsから取り込み - {team.DisplayName}",
+                SourceName = $"Teamsから取り込み: {team.DisplayName}"
+            };
+            SelectedInputIndex = 1;
+            PastedText = text;
+            Document = document;
+            IsPasteError = false;
+            PasteInfoText = $"{document.Addresses.Count}件 • Teamsから取り込み: {team.DisplayName}";
+            NotifyDocumentChanged();
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+            StatusChanged?.Invoke("現在のメンバーの取り込みをキャンセルしました。以前の入力は維持しています", false);
+        }
+        catch (Exception ex)
+        {
+            _notifications.ShowError(ex.Message, "現在のメンバーを取り込めませんでした");
+            StatusChanged?.Invoke("現在のメンバーを取得できなかったため、以前の入力を維持しました", true);
+        }
+        finally
+        {
+            IsImportingMembers = false;
+            if (ReferenceEquals(_importCancellation, cts)) _importCancellation = null;
+            cts.Dispose();
+            ImportCurrentMembersCommand.NotifyCanExecuteChanged();
+            CancelImportCurrentMembersCommand.NotifyCanExecuteChanged();
+        }
+    }
+
+    private bool CanImportCurrentMembers()
+    {
+        return _enabled && !IsLoadingFile && !IsParsing && !IsImportingMembers &&
+               SelectedInputIndex == 1 && _selectedTeam is not null && _teamsGateway is not null;
+    }
+
+    /// <summary>実行中の現在メンバー取り込みをキャンセルする。</summary>
+    [RelayCommand(CanExecute = nameof(CanCancelImportCurrentMembers))]
+    private void CancelImportCurrentMembers()
+    {
+        _importCancellation?.Cancel();
+    }
+
+    private bool CanCancelImportCurrentMembers() =>
+        IsImportingMembers && _importCancellation is not null;
+
+    /// <summary>取り込んだメンバーを、編集時に人物を識別できる`表示名 &lt;メールアドレス&gt;`形式へ整形する。</summary>
+    private static string FormatImportedMember(TeamMember member)
+    {
+        var displayName = new string(member.DisplayName
+            .Select(character => char.IsControl(character) || character is '<' or '>' ? ' ' : character)
+            .ToArray()).Trim();
+        return string.IsNullOrWhiteSpace(displayName)
+            ? member.Email.Trim()
+            : $"{displayName} <{member.Email.Trim()}>";
     }
 
     /// <summary><see cref="DocumentChanged"/>を発行し、成功時は件数をステータスとして通知する。</summary>
