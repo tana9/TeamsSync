@@ -36,12 +36,12 @@ public sealed class BusyOperationRunner(
             if (specific is { } result)
             {
                 reportStatus(result.Status, true);
-                notifications.ShowError(ex.Message, result.DialogTitle);
+                await notifications.ShowErrorAsync(ex.Message, result.DialogTitle);
             }
             else
             {
                 reportStatus("エラーが発生しました。詳細はダイアログを確認してください", true);
-                notifications.ShowError(ex.Message);
+                await notifications.ShowErrorAsync(ex.Message);
             }
 
             return false;

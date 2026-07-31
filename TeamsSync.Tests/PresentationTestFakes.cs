@@ -96,11 +96,12 @@ internal sealed class RecordingNotificationService : INotificationService
         WarningMessage = message;
     }
 
-    public void ShowError(string message, string title = "エラー", Action? onClosed = null)
+    public Task ShowErrorAsync(string message, string title = "エラー", Action? onClosed = null)
     {
         ErrorMessage = message;
         ErrorTitle = title;
         onClosed?.Invoke();
+        return Task.CompletedTask;
     }
 }
 
@@ -202,7 +203,7 @@ internal sealed class FakeDialogs : IFilePickerService, ISyncConfirmationService
         WarningTitle = title;
     }
 
-    public void ShowError(string message, string title = "エラー", Action? onClosed = null)
+    public Task ShowErrorAsync(string message, string title = "エラー", Action? onClosed = null)
     {
         throw new XunitException(message);
     }

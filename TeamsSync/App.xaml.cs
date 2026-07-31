@@ -44,6 +44,11 @@ public partial class App : System.Windows.Application
                 .AddApplication()
                 .AddInfrastructure(builder.Configuration)
                 .AddPresentation();
+            builder.ConfigureContainer(new DefaultServiceProviderFactory(new ServiceProviderOptions
+            {
+                ValidateOnBuild = true,
+                ValidateScopes = true
+            }));
 
             _host = builder.Build();
             await _host.StartAsync();
@@ -62,20 +67,26 @@ public partial class App : System.Windows.Application
     /// <summary>
     /// 終了時にホストを停止・破棄し、リソースを解放する。
     /// </summary>
-    protected override void OnExit(ExitEventArgs e)
+    protected override async void OnExit(ExitEventArgs e)
     {
         if (_host is not null)
+        {
+            var logger = _host.Services.GetService<ILogger<App>>();
             try
             {
-                _host.Services.GetService<ILogger<App>>()?
-                    .LogInformation("TeamsSyncを終了します");
-                _host.StopAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+                logger?.LogInformation("TeamsSyncを終了します");
+                await _host.StopAsync(TimeSpan.FromSeconds(5));
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "TeamsSyncの終了処理に失敗しました");
             }
             finally
             {
                 _host.Dispose();
                 _host = null;
             }
+        }
 
         base.OnExit(e);
     }

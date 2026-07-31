@@ -48,7 +48,7 @@ public interface INotificationService
     // ShowErrorはダイアログの表示完了を待たずに呼び出し元へ戻るため、ダイアログが閉じてから
     // フォーカスを移動させたい場合などはここで受け取る。
     /// <summary>エラーダイアログを表示する。</summary>
-    void ShowError(string message, string title = "エラー", Action? onClosed = null);
+    Task ShowErrorAsync(string message, string title = "エラー", Action? onClosed = null);
 }
 
 /// <summary>ダイアログ・スナックバーの表示先ホストをWPFのコンテンツホストへ結び付ける。</summary>

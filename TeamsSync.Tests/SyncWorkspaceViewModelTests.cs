@@ -7,6 +7,30 @@ namespace TeamsSync.Tests;
 public sealed class SyncWorkspaceViewModelTests
 {
     [Fact]
+    public async Task SyncWorkspace_確認ダイアログ失敗を通知して例外をUIへ伝播しない()
+    {
+        var gateway = new FakeTeamsGateway();
+        gateway.Users["new@example.com"] =
+            new DirectoryUser("new-user", "New", "new@example.com", "new@example.com");
+        var notifications = new RecordingNotificationService();
+        var confirmation = new FakeDialogs
+        {
+            OnConfirm = _ => throw new InvalidOperationException("dialog failed")
+        };
+        var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+            new FakeResultWriter(), new FakePreferences(), new FakeDialogs(), confirmation, notifications);
+        viewModel.SetContext(new TeamInfo("team-1", "開発", null),
+            new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
+                new DateTime(2026, 8, 1), "CSV", "email"), true);
+        await viewModel.PreviewCommand.ExecuteAsync(null);
+
+        await viewModel.ExecuteSyncCommand.ExecuteAsync(null);
+
+        Assert.Equal("同期を実行できませんでした", notifications.ErrorTitle);
+        Assert.Equal("dialog failed", notifications.ErrorMessage);
+    }
+
+    [Fact]
     public async Task SyncWorkspace_結果保存失敗を通知して例外を伝播しない()
     {
         var gateway = new FakeTeamsGateway();

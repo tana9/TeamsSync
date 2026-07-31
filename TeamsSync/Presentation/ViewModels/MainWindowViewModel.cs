@@ -94,7 +94,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     /// <summary>利用者向けマニュアルを開く。</summary>
     [RelayCommand]
-    private void OpenManual()
+    private async Task OpenManualAsync()
     {
         try
         {
@@ -102,7 +102,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            _dialogs.ShowError(ex.Message, "マニュアルを開けませんでした");
+            await _dialogs.ShowErrorAsync(ex.Message, "マニュアルを開けませんでした");
         }
     }
 

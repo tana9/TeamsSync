@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Automation;
+using Microsoft.Extensions.Logging;
 using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.Win32;
@@ -301,7 +302,8 @@ public sealed class WpfManualService : IManualService
 /// <summary>スナックバー・ダイアログを用いて成功・警告・エラーをユーザーへ通知する。</summary>
 public sealed class WpfNotificationService(
     ISnackbarService snackbars,
-    IContentDialogService contentDialogs) : INotificationService
+    IContentDialogService contentDialogs,
+    Microsoft.Extensions.Logging.ILogger<WpfNotificationService> logger) : INotificationService
 {
     /// <summary>成功通知をスナックバーで5秒間表示する。</summary>
     public void ShowSuccess(string title, string message)
@@ -316,7 +318,7 @@ public sealed class WpfNotificationService(
     }
 
     /// <summary>エラー内容を選択・コピー可能なテキストボックス付きダイアログで表示する。</summary>
-    public async void ShowError(string message, string title = "エラー", Action? onClosed = null)
+    public async Task ShowErrorAsync(string message, string title = "エラー", Action? onClosed = null)
     {
         try
         {
@@ -360,13 +362,20 @@ public sealed class WpfNotificationService(
             };
             await WpfSyncConfirmationService.ShowRestoringFocusAsync(contentDialogs, dialog, CancellationToken.None);
         }
-        catch (InvalidOperationException)
+        catch (Exception ex)
         {
-            // 既に別のダイアログを表示中などで表示できない場合は無視する(エラー自体は呼び出し元でログ済み)。
+            logger.LogError(ex, "エラーダイアログを表示できませんでした。Title={Title}", title);
         }
         finally
         {
-            onClosed?.Invoke();
+            try
+            {
+                onClosed?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "エラーダイアログ終了後の処理に失敗しました。Title={Title}", title);
+            }
         }
     }
 }

@@ -353,13 +353,25 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanExecuteSync))]
     private async Task ExecuteSyncAsync()
     {
-        if (_plan is null || _document is null ||
-            !await _confirmation.ConfirmSyncAsync(new SyncConfirmation(
-                _plan, _document.FileName, $"{InputSummary}{Environment.NewLine}{InputPreview}"))) return;
+        try
+        {
+            if (_plan is null || _document is null ||
+                !await _confirmation.ConfirmSyncAsync(new SyncConfirmation(
+                    _plan, _document.FileName, $"{InputSummary}{Environment.NewLine}{InputPreview}"))) return;
 
-        if (!await RevalidateBeforeExecuteAsync()) return;
+            if (!await RevalidateBeforeExecuteAsync()) return;
 
-        await RunSyncAndReconcileAsync();
+            await RunSyncAndReconcileAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            StatusChanged?.Invoke("処理を中止しました", false);
+        }
+        catch (Exception ex)
+        {
+            StatusChanged?.Invoke("同期を実行できませんでした。詳細はダイアログを確認してください", true);
+            await _notifications.ShowErrorAsync(ex.Message, "同期を実行できませんでした");
+        }
     }
 
     // 実行直前にチームメンバーを再取得し、プレビュー作成後に構成が変わっていないか確認する。
@@ -389,7 +401,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusChanged?.Invoke("再検証に失敗しました。詳細はダイアログを確認してください", true);
-            _notifications.ShowError(ex.Message);
+            await _notifications.ShowErrorAsync(ex.Message);
             return false;
         }
         finally
@@ -540,7 +552,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
     /// <summary>保存先を選択し、直近の同期実行結果をCSVとして書き出す。</summary>
     [RelayCommand(CanExecute = nameof(CanSaveResult))]
-    private void SaveResult()
+    private async Task SaveResultAsync()
     {
         if (_lastResult is null || _lastExecutedPlan is null) return;
         var path = _filePicker.PickResultFile(_preferences.LastFolder, _lastExecutedPlan.Team.DisplayName);
@@ -564,7 +576,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            _notifications.ShowError(ex.Message, "結果を保存できませんでした");
+            await _notifications.ShowErrorAsync(ex.Message, "結果を保存できませんでした");
         }
     }
 

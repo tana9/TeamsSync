@@ -200,7 +200,8 @@ public partial class MemberFileViewModel : ObservableObject
             StatusChanged?.Invoke("ファイルを読み込めなかったため、以前の同期差分を無効化しました", true);
             // ダイアログが閉じる前にフォーカスを移動すると裏でフォーカスが奪われてしまうため、
             // ダイアログを閉じた後(onClosed)にInputFocusRequestedを発火する。
-            _notifications.ShowError(ex.Message, "ファイル読込エラー", () => InputFocusRequested?.Invoke());
+            await _notifications.ShowErrorAsync(ex.Message, "ファイル読込エラー",
+                () => InputFocusRequested?.Invoke());
         }
         finally
         {
@@ -352,7 +353,7 @@ public partial class MemberFileViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            _notifications.ShowError(ex.Message, "現在のメンバーを取り込めませんでした");
+            await _notifications.ShowErrorAsync(ex.Message, "現在のメンバーを取り込めませんでした");
             StatusChanged?.Invoke("現在のメンバーを取得できなかったため、以前の入力を維持しました", true);
         }
         finally
