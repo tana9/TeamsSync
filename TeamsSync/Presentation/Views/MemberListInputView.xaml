@@ -127,6 +127,7 @@
                                              AutomationProperties.Name="貼り付け入力を解析中" />
                             <ui:Button Content="入力を_反映" Command="{Binding ApplyPastedTextInputCommand}"
                                        Margin="8,0,0,0" Appearance="Secondary"
+                                       Icon="{ui:SymbolIcon Symbol=CheckmarkCircle24}"
                                        AutomationProperties.Name="貼り付け入力を反映" />
                         </StackPanel>
                     </Grid>
