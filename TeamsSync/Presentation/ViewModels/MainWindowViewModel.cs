@@ -17,12 +17,12 @@ public partial class MainWindowViewModel : ObservableObject
 
     public string WindowTitle { get; } = $"TeamsSync {Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}";
 
-    [ObservableProperty] private string accountText = "未サインイン";
-    [ObservableProperty] private bool inputsEnabled = true;
-    [ObservableProperty] private bool isBusy;
-    [ObservableProperty] private bool isSignedIn;
-    [ObservableProperty] private bool isStatusError;
-    [ObservableProperty] private string statusText = "サインインしてください";
+    [ObservableProperty] public partial string AccountText { get; set; } = "未サインイン";
+    [ObservableProperty] public partial bool InputsEnabled { get; set; } = true;
+    [ObservableProperty] public partial bool IsBusy { get; set; }
+    [ObservableProperty] public partial bool IsSignedIn { get; set; }
+    [ObservableProperty] public partial bool IsStatusError { get; set; }
+    [ObservableProperty] public partial string StatusText { get; set; } = "サインインしてください";
 
     public MainWindowViewModel(IAuthenticationService authentication, ITeamsGateway teamsGateway,
         INotificationService dialogs, IManualService manual, IUserPreferences preferences,

@@ -34,33 +34,33 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     private TaskCompletionSource? _syncCompletion;
     private TeamInfo? _team;
     private string? _tenantId;
-    [ObservableProperty] private bool isBusy;
-    [ObservableProperty] private bool isRemovalWarningOpen;
-    [ObservableProperty] private bool isSyncing;
-    [ObservableProperty] private int previewProgressMaximum = 1;
-    [ObservableProperty] private int previewProgressValue;
-    [ObservableProperty] private int progressMaximum = 1;
-    [ObservableProperty] private string progressText = "";
-    [ObservableProperty] private int progressValue;
-    [ObservableProperty] private InfoBarSeverity removalSeverity = InfoBarSeverity.Warning;
-    [ObservableProperty] private string removalWarningMessage = "";
-    [ObservableProperty] private string removalWarningTitle = "";
+    [ObservableProperty] public partial bool IsBusy { get; set; }
+    [ObservableProperty] public partial bool IsRemovalWarningOpen { get; set; }
+    [ObservableProperty] public partial bool IsSyncing { get; set; }
+    [ObservableProperty] public partial int PreviewProgressMaximum { get; set; } = 1;
+    [ObservableProperty] public partial int PreviewProgressValue { get; set; }
+    [ObservableProperty] public partial int ProgressMaximum { get; set; } = 1;
+    [ObservableProperty] public partial string ProgressText { get; set; } = "";
+    [ObservableProperty] public partial int ProgressValue { get; set; }
+    [ObservableProperty] public partial InfoBarSeverity RemovalSeverity { get; set; } = InfoBarSeverity.Warning;
+    [ObservableProperty] public partial string RemovalWarningMessage { get; set; } = "";
+    [ObservableProperty] public partial string RemovalWarningTitle { get; set; } = "";
 
     // 「3 同期モード」「差分確認・実行」の手順が完了しているかを画面の手順表示へ伝えるための状態。
     // HasPlanは差分確認済みか(モード変更で差分をクリアするとfalseに戻る)、
     // HasSyncResultは一度でも同期を実行したかを表す。
-    [ObservableProperty] private bool hasPlan;
-    [ObservableProperty] private bool hasSyncResult;
+    [ObservableProperty] public partial bool HasPlan { get; set; }
+    [ObservableProperty] public partial bool HasSyncResult { get; set; }
 
     // Snackbar(一時通知)が消えた後も成功・失敗・未反映件数を画面内に残すための実行結果サマリー。
-    [ObservableProperty] private int resultSuccessCount;
-    [ObservableProperty] private int resultFailureCount;
-    [ObservableProperty] private bool resultCancelled;
-    [ObservableProperty] private int resultRemainingCount = -1; // -1: 最終状態を未確認(再取得前または再取得失敗)
+    [ObservableProperty] public partial int ResultSuccessCount { get; set; }
+    [ObservableProperty] public partial int ResultFailureCount { get; set; }
+    [ObservableProperty] public partial bool ResultCancelled { get; set; }
+    [ObservableProperty] public partial int ResultRemainingCount { get; set; } = -1; // -1: 最終状態を未確認(再取得前または再取得失敗)
 
-    [ObservableProperty] private ChangeFilter selectedFilter;
-    [ObservableProperty] private SyncModeOption selectedMode;
-    [ObservableProperty] private string summaryText = "";
+    [ObservableProperty] public partial ChangeFilter SelectedFilter { get; set; }
+    [ObservableProperty] public partial SyncModeOption SelectedMode { get; set; }
+    [ObservableProperty] public partial string SummaryText { get; set; } = "";
 
     public SyncWorkspaceViewModel(TeamSyncService syncService, ISyncResultWriter resultWriter,
         IUserPreferences preferences, IFilePickerService filePicker,
@@ -74,11 +74,11 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         _notifications = notifications;
         _busyRunner = new BusyOperationRunner(_notifications,
             (message, isError) => StatusChanged?.Invoke(message, isError), value => IsBusy = value);
-        selectedFilter = Filters[0];
-        selectedMode = Modes[0];
         ChangesView = CollectionViewSource.GetDefaultView(Changes);
         ChangesView.Filter = FilterChange;
         Changes.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasChanges));
+        SelectedFilter = Filters[0];
+        SelectedMode = Modes[0];
     }
 
     public ObservableCollection<SyncChangeRowViewModel> Changes { get; } = [];

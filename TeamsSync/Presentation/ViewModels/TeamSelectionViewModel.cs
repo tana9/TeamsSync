@@ -16,10 +16,10 @@ public partial class TeamSelectionViewModel : ObservableObject
     private readonly ITeamsGateway _teamsGateway;
     private string? _currentUserId;
     private bool _externallyBusy;
-    [ObservableProperty] private bool isBusy;
-    [ObservableProperty] private string searchText = "";
+    [ObservableProperty] public partial bool IsBusy { get; set; }
+    [ObservableProperty] public partial string SearchText { get; set; } = "";
 
-    [ObservableProperty] private TeamInfo? selectedTeam;
+    [ObservableProperty] public partial TeamInfo? SelectedTeam { get; set; }
 
     public TeamSelectionViewModel(ITeamsGateway teamsGateway, INotificationService dialogs)
     {

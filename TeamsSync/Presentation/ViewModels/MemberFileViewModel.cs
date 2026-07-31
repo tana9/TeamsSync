@@ -16,15 +16,15 @@ public partial class MemberFileViewModel : ObservableObject
     private bool _enabled = true;
     private MemberListDocument? _fileDocument;
     private CancellationTokenSource? _loadCancellation;
-    [ObservableProperty] private string fileInfoText = "ファイルを選択するか、ここへドロップしてください";
-    [ObservableProperty] private string filePath = "";
-    [ObservableProperty] private string pasteInfoText = "1行につき1ユーザー（氏名またはメールアドレス）";
-    [ObservableProperty] private bool isParsing;
-    [ObservableProperty] private bool isLoadingFile;
-    [ObservableProperty] private bool isPasteError;
-    [ObservableProperty] private string pastedText = "";
+    [ObservableProperty] public partial string FileInfoText { get; set; } = "ファイルを選択するか、ここへドロップしてください";
+    [ObservableProperty] public partial string FilePath { get; set; } = "";
+    [ObservableProperty] public partial string PasteInfoText { get; set; } = "1行につき1ユーザー（氏名またはメールアドレス）";
+    [ObservableProperty] public partial bool IsParsing { get; set; }
+    [ObservableProperty] public partial bool IsLoadingFile { get; set; }
+    [ObservableProperty] public partial bool IsPasteError { get; set; }
+    [ObservableProperty] public partial string PastedText { get; set; } = "";
 
-    [ObservableProperty] private int selectedInputIndex;
+    [ObservableProperty] public partial int SelectedInputIndex { get; set; }
 
     public MemberFileViewModel(IMemberListReader reader, IMemberTextParser textParser,
         IUserPreferences preferences, IFilePickerService filePicker, INotificationService notifications)
