@@ -15,16 +15,35 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         IProgress<int>? progress = null)
     {
         var current = await teamsGateway.GetTeamMembersAsync(team.Id, cancellationToken);
+        var resolutions = await ResolveAddressesAsync(addresses, current, progress, cancellationToken);
 
+        var (resolved, changes) = ClassifyResolutions(resolutions);
+        if (mode == SyncMode.FullSync)
+            changes.AddRange(ComputeRemovals(current, resolved, changes));
+
+        var snapshot = BuildMembershipSnapshot(current);
+        var plan = new SyncPlan(team, changes, addresses, current.Count(x => !x.IsOwner), snapshot, mode);
+        _logger.LogInformation("同期差分を作成しました。TeamId={TeamId}, Add={Add}, Remove={Remove}, Errors={Errors}",
+            team.Id, plan.AddCount, plan.RemoveCount, plan.ErrorCount);
+        return plan;
+    }
+
+    private async Task<AddressResolution[]> ResolveAddressesAsync(IReadOnlyList<string> addresses,
+        IReadOnlyList<TeamMember> current, IProgress<int>? progress, CancellationToken cancellationToken)
+    {
         using var concurrency = new SemaphoreSlim(AddressResolutionConcurrency);
         var resolvedCount = 0;
-        var resolutions = await Task.WhenAll(addresses.Select(async address =>
+        return await Task.WhenAll(addresses.Select(async address =>
         {
             var resolution = await ResolveAddressAsync(address, current, concurrency, cancellationToken);
             progress?.Report(Interlocked.Increment(ref resolvedCount));
             return resolution;
         }));
+    }
 
+    private static (Dictionary<string, DirectoryUser> Resolved, List<SyncChange> Changes) ClassifyResolutions(
+        IReadOnlyList<AddressResolution> resolutions)
+    {
         var resolved = new Dictionary<string, DirectoryUser>(StringComparer.OrdinalIgnoreCase);
         var desiredUserIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var changes = new List<SyncChange>();
@@ -66,26 +85,30 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
             }
         }
 
+        return (resolved, changes);
+    }
+
+    private static IEnumerable<SyncChange> ComputeRemovals(IReadOnlyList<TeamMember> current,
+        Dictionary<string, DirectoryUser> resolved, IReadOnlyList<SyncChange> changes)
+    {
         var wantedIds = resolved.Values.Select(x => x.Id)
             .Concat(changes.Where(x => x.Kind is ChangeKind.Keep or ChangeKind.Protected)
                 .Select(x => x.UserId!))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        if (mode == SyncMode.FullSync)
-            foreach (var member in current.Where(x => !x.IsOwner && !wantedIds.Contains(x.UserId)))
-                changes.Add(new SyncChange(ChangeKind.Remove, member.DisplayName, member.Email,
-                    "リストにないため削除します", member.UserId, member.MembershipId));
+        return current.Where(x => !x.IsOwner && !wantedIds.Contains(x.UserId))
+            .Select(member => new SyncChange(ChangeKind.Remove, member.DisplayName, member.Email,
+                "リストにないため削除します", member.UserId, member.MembershipId));
+    }
 
-        var snapshot = current
+    private static List<TeamMembershipSnapshot> BuildMembershipSnapshot(IReadOnlyList<TeamMember> current)
+    {
+        return current
             .Select(member => new TeamMembershipSnapshot(
                 member.MembershipId, member.UserId, member.IsOwner))
             .OrderBy(member => member.MembershipId, StringComparer.OrdinalIgnoreCase)
             .ThenBy(member => member.UserId, StringComparer.OrdinalIgnoreCase)
             .ToList();
-        var plan = new SyncPlan(team, changes, addresses, current.Count(x => !x.IsOwner), snapshot, mode);
-        _logger.LogInformation("同期差分を作成しました。TeamId={TeamId}, Add={Add}, Remove={Remove}, Errors={Errors}",
-            team.Id, plan.AddCount, plan.RemoveCount, plan.ErrorCount);
-        return plan;
     }
 
     private async Task<AddressResolution> ResolveAddressAsync(string address, IReadOnlyList<TeamMember> current,
@@ -198,41 +221,18 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         {
             if (cancellationToken.IsCancellationRequested)
             {
-                _logger.LogWarning("SyncCancelled Success={SuccessCount} Failure={FailureCount}",
-                    results.Count(result => result.Succeeded), results.Count(result => !result.Succeeded));
+                LogSyncCancelled(results);
                 return new SyncExecutionResult(results, true);
             }
 
             var change = operations[i];
             progress?.Report(new SyncProgress(i, operations.Count, change.Kind, change.Email));
-            var targetObjectId = change.Kind == ChangeKind.Add ? change.UserId : change.MembershipId;
-            _logger.LogInformation("MemberOperationStarted Kind={Kind} TargetObjectId={TargetObjectId}",
-                change.Kind, targetObjectId);
-            try
+            var cancelled = await ExecuteChangeAsync(plan.Team.Id, change, i, operations.Count, progress, results,
+                cancellationToken);
+            if (cancelled)
             {
-                if (change.Kind == ChangeKind.Add)
-                    await teamsGateway.AddMemberAsync(plan.Team.Id, change.UserId!, cancellationToken);
-                else
-                    await teamsGateway.RemoveMemberAsync(plan.Team.Id, change.MembershipId!, cancellationToken);
-                results.Add(new SyncOperationResult(change.Kind, change.Email, true, null));
-                _logger.LogInformation("MemberOperationSucceeded Kind={Kind} TargetObjectId={TargetObjectId}",
-                    change.Kind, targetObjectId);
-                progress?.Report(new SyncProgress(i + 1, operations.Count, change.Kind, change.Email));
-                if (i < operations.Count - 1)
-                    await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.LogWarning("SyncCancelled Success={SuccessCount} Failure={FailureCount}",
-                    results.Count(result => result.Succeeded), results.Count(result => !result.Succeeded));
+                LogSyncCancelled(results);
                 return new SyncExecutionResult(results, true);
-            }
-            catch (Exception ex)
-            {
-                results.Add(new SyncOperationResult(change.Kind, change.Email, false, ex.Message));
-                _logger.LogWarning(
-                    "MemberOperationFailed Kind={Kind} TargetObjectId={TargetObjectId} ErrorType={ErrorType}",
-                    change.Kind, targetObjectId, ex.GetType().Name);
             }
         }
 
@@ -240,6 +240,48 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         _logger.LogInformation("SyncCompleted Success={SuccessCount} Failure={FailureCount}",
             result.SuccessCount, result.FailureCount);
         return result;
+    }
+
+    // 成功結果はdelay(スロットリング)前にresultsへ積むため、delay中にキャンセルされても
+    // 直前の操作の成功結果は失われない。戻り値はキャンセルされたかどうかのみを表す。
+    private async Task<bool> ExecuteChangeAsync(string teamId, SyncChange change, int index, int totalOperations,
+        IProgress<SyncProgress>? progress, List<SyncOperationResult> results, CancellationToken cancellationToken)
+    {
+        var targetObjectId = change.Kind == ChangeKind.Add ? change.UserId : change.MembershipId;
+        _logger.LogInformation("MemberOperationStarted Kind={Kind} TargetObjectId={TargetObjectId}",
+            change.Kind, targetObjectId);
+        try
+        {
+            if (change.Kind == ChangeKind.Add)
+                await teamsGateway.AddMemberAsync(teamId, change.UserId!, cancellationToken);
+            else
+                await teamsGateway.RemoveMemberAsync(teamId, change.MembershipId!, cancellationToken);
+            results.Add(new SyncOperationResult(change.Kind, change.Email, true, null));
+            _logger.LogInformation("MemberOperationSucceeded Kind={Kind} TargetObjectId={TargetObjectId}",
+                change.Kind, targetObjectId);
+            progress?.Report(new SyncProgress(index + 1, totalOperations, change.Kind, change.Email));
+            if (index < totalOperations - 1)
+                await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
+            return false;
+        }
+        catch (OperationCanceledException)
+        {
+            return true;
+        }
+        catch (Exception ex)
+        {
+            results.Add(new SyncOperationResult(change.Kind, change.Email, false, ex.Message));
+            _logger.LogWarning(
+                "MemberOperationFailed Kind={Kind} TargetObjectId={TargetObjectId} ErrorType={ErrorType}",
+                change.Kind, targetObjectId, ex.GetType().Name);
+            return false;
+        }
+    }
+
+    private void LogSyncCancelled(IReadOnlyList<SyncOperationResult> results)
+    {
+        _logger.LogWarning("SyncCancelled Success={SuccessCount} Failure={FailureCount}",
+            results.Count(result => result.Succeeded), results.Count(result => !result.Succeeded));
     }
 
     private static bool PlansAreEquivalent(SyncPlan preview, SyncPlan latest)

@@ -92,6 +92,28 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
         IReadOnlyList<int> batch, bool[] ownership, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        var membersByIndex = await SendBatchWithRetryAsync(candidates, batch, cancellationToken);
+
+        foreach (var index in batch)
+        {
+            var team = candidates[index];
+            var members = membersByIndex.TryGetValue(index, out var resolved)
+                ? resolved
+                : await FetchMembersIndividuallyAsync(team, cancellationToken);
+
+            var isOwner = members.Any(member =>
+                member.IsOwner && string.Equals(member.UserId, currentUserId,
+                    StringComparison.OrdinalIgnoreCase));
+            _ownershipCache[(currentUserId, team.Id)] = isOwner;
+            ownership[index] = isOwner;
+        }
+    }
+
+    // バッチ送信とスロットリング再試行のみを担当し、最終的に取得できなかった項目は
+    // 呼び出し元(ResolveOwnershipBatchAsync)の個別フォールバックに委ねる。
+    private async Task<Dictionary<int, List<TeamMember>>> SendBatchWithRetryAsync(IReadOnlyList<TeamInfo> candidates,
+        IReadOnlyList<int> batch, CancellationToken cancellationToken)
+    {
         var membersByIndex = new Dictionary<int, List<TeamMember>>();
         var pending = batch.ToList();
 
@@ -138,27 +160,15 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
             }
         }
 
-        foreach (var index in batch)
-        {
-            var team = candidates[index];
-            List<TeamMember> members;
-            if (membersByIndex.TryGetValue(index, out var resolved))
-            {
-                members = resolved;
-            }
-            else
-            {
-                logger.LogWarning(
-                    "バッチ内のメンバー取得に失敗したため個別に再取得します。TeamId={TeamId}", team.Id);
-                members = (await GetTeamMembersAsync(team.Id, cancellationToken)).ToList();
-            }
+        return membersByIndex;
+    }
 
-            var isOwner = members.Any(member =>
-                member.IsOwner && string.Equals(member.UserId, currentUserId,
-                    StringComparison.OrdinalIgnoreCase));
-            _ownershipCache[(currentUserId, team.Id)] = isOwner;
-            ownership[index] = isOwner;
-        }
+    private async Task<List<TeamMember>> FetchMembersIndividuallyAsync(TeamInfo team,
+        CancellationToken cancellationToken)
+    {
+        logger.LogWarning(
+            "バッチ内のメンバー取得に失敗したため個別に再取得します。TeamId={TeamId}", team.Id);
+        return (await GetTeamMembersAsync(team.Id, cancellationToken)).ToList();
     }
 
     private async Task<List<TeamMember>> ParseBatchMemberResponseAsync(JsonElement response,

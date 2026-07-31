@@ -65,83 +65,13 @@ public sealed class WpfSyncConfirmationService(
         // MinWidthのみを指定して折り返しに任せ、縦方向はScrollViewerへ収めて200%表示でも
         // 「同期を実行」ボタンが画面外に押し出されないようにする。
         var content = new StackPanel { MinWidth = 340 };
+        content.Children.Add(BuildHeaderBlock(plan));
+        if (plan.RemoveCount > 0) content.Children.Add(BuildRemovalWarningBox(plan));
+        content.Children.Add(BuildCountsSection(plan));
+        foreach (var child in BuildInputSourceBlocks(confirmation)) content.Children.Add(child);
 
-        content.Children.Add(new TextBlock
-        {
-            Text = $"対象チーム: {plan.Team.DisplayName}",
-            FontWeight = FontWeights.SemiBold, FontSize = 14, TextWrapping = TextWrapping.Wrap
-        });
-        content.Children.Add(new TextBlock
-        {
-            Text =
-                $"同期モード: {(plan.Mode == SyncMode.AddOnly ? "追加のみ（既存メンバーを維持）" : "完全同期（リスト外を削除）")}",
-            Margin = new Thickness(0, 4, 0, 0), TextWrapping = TextWrapping.Wrap
-        });
-
-        // 削除は取り消せない操作のため、件数情報の中で最も目立つ位置・書式(枠線+強調色+アイコン)で表示する。
-        if (plan.RemoveCount > 0)
-        {
-            var removalBox = new Border
-            {
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(4),
-                Padding = new Thickness(10, 8, 10, 8),
-                Margin = new Thickness(0, 12, 0, 0)
-            };
-            removalBox.SetResourceReference(Border.BorderBrushProperty, "SystemFillColorCriticalBrush");
-            removalBox.SetResourceReference(Border.BackgroundProperty, "ControlFillColorSecondaryBrush");
-            var removalPanel = new StackPanel { Orientation = Orientation.Horizontal };
-            var removalIcon = new SymbolIcon { Symbol = SymbolRegular.Warning24, FontSize = 16, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 8, 0) };
-            removalIcon.SetResourceReference(SymbolIcon.ForegroundProperty, "SystemFillColorCriticalBrush");
-            var removalText = new TextBlock
-            {
-                Text = $"削除 {plan.RemoveCount}名 — リストにない一般メンバーを削除します（所有者は削除されません）",
-                FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap
-            };
-            removalText.SetResourceReference(TextBlock.ForegroundProperty, "SystemFillColorCriticalBrush");
-            removalPanel.Children.Add(removalIcon);
-            removalPanel.Children.Add(removalText);
-            removalBox.Child = removalPanel;
-            content.Children.Add(removalBox);
-        }
-
-        content.Children.Add(new TextBlock
-        {
-            Text = $"追加 {plan.AddCount}名",
-            FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 0), TextWrapping = TextWrapping.Wrap
-        });
-        var secondaryCounts = new TextBlock
-        {
-            Text = $"変更なし {plan.KeepCount}名 ／ 所有者保護 {plan.ProtectedCount}名",
-            Margin = new Thickness(0, 2, 0, 0), TextWrapping = TextWrapping.Wrap
-        };
-        secondaryCounts.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
-        content.Children.Add(secondaryCounts);
-
-        var inputFileText = new TextBlock
-        {
-            Text = $"入力元: {confirmation.FileName}",
-            FontSize = 12, Margin = new Thickness(0, 12, 0, 0), TextWrapping = TextWrapping.Wrap
-        };
-        inputFileText.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
-        content.Children.Add(inputFileText);
-        var inputSummaryText = new TextBlock
-        {
-            Text = confirmation.InputSummary, FontSize = 12, TextWrapping = TextWrapping.Wrap
-        };
-        inputSummaryText.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
-        content.Children.Add(inputSummaryText);
-
-        CheckBox? acknowledgement = null;
-        if (plan.RemoveCount > 0)
-        {
-            acknowledgement = new CheckBox
-            {
-                Content = plan.IsLargeRemoval ? "大量削除の対象を確認しました" : "削除対象を確認しました",
-                Margin = new Thickness(0, 16, 0, 0)
-            };
-            content.Children.Add(acknowledgement);
-        }
+        var acknowledgement = plan.RemoveCount > 0 ? BuildAcknowledgementCheckbox(plan) : null;
+        if (acknowledgement is not null) content.Children.Add(acknowledgement);
 
         var scrollViewer = new ScrollViewer
         {
@@ -167,6 +97,95 @@ public sealed class WpfSyncConfirmationService(
         }
 
         return await ShowRestoringFocusAsync(contentDialogs, dialog, cancellationToken) == ContentDialogResult.Primary;
+    }
+
+    private static UIElement BuildHeaderBlock(SyncPlan plan)
+    {
+        var panel = new StackPanel();
+        panel.Children.Add(new TextBlock
+        {
+            Text = $"対象チーム: {plan.Team.DisplayName}",
+            FontWeight = FontWeights.SemiBold, FontSize = 14, TextWrapping = TextWrapping.Wrap
+        });
+        panel.Children.Add(new TextBlock
+        {
+            Text =
+                $"同期モード: {(plan.Mode == SyncMode.AddOnly ? "追加のみ（既存メンバーを維持）" : "完全同期（リスト外を削除）")}",
+            Margin = new Thickness(0, 4, 0, 0), TextWrapping = TextWrapping.Wrap
+        });
+        return panel;
+    }
+
+    // 削除は取り消せない操作のため、件数情報の中で最も目立つ位置・書式(枠線+強調色+アイコン)で表示する。
+    private static Border BuildRemovalWarningBox(SyncPlan plan)
+    {
+        var removalBox = new Border
+        {
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(10, 8, 10, 8),
+            Margin = new Thickness(0, 12, 0, 0)
+        };
+        removalBox.SetResourceReference(Border.BorderBrushProperty, "SystemFillColorCriticalBrush");
+        removalBox.SetResourceReference(Border.BackgroundProperty, "ControlFillColorSecondaryBrush");
+        var removalPanel = new StackPanel { Orientation = Orientation.Horizontal };
+        var removalIcon = new SymbolIcon { Symbol = SymbolRegular.Warning24, FontSize = 16, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 8, 0) };
+        removalIcon.SetResourceReference(SymbolIcon.ForegroundProperty, "SystemFillColorCriticalBrush");
+        var removalText = new TextBlock
+        {
+            Text = $"削除 {plan.RemoveCount}名 — リストにない一般メンバーを削除します（所有者は削除されません）",
+            FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap
+        };
+        removalText.SetResourceReference(TextBlock.ForegroundProperty, "SystemFillColorCriticalBrush");
+        removalPanel.Children.Add(removalIcon);
+        removalPanel.Children.Add(removalText);
+        removalBox.Child = removalPanel;
+        return removalBox;
+    }
+
+    private static UIElement BuildCountsSection(SyncPlan plan)
+    {
+        var panel = new StackPanel();
+        panel.Children.Add(new TextBlock
+        {
+            Text = $"追加 {plan.AddCount}名",
+            FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 0), TextWrapping = TextWrapping.Wrap
+        });
+        var secondaryCounts = new TextBlock
+        {
+            Text = $"変更なし {plan.KeepCount}名 ／ 所有者保護 {plan.ProtectedCount}名",
+            Margin = new Thickness(0, 2, 0, 0), TextWrapping = TextWrapping.Wrap
+        };
+        secondaryCounts.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
+        panel.Children.Add(secondaryCounts);
+        return panel;
+    }
+
+    private static IEnumerable<UIElement> BuildInputSourceBlocks(SyncConfirmation confirmation)
+    {
+        var inputFileText = new TextBlock
+        {
+            Text = $"入力元: {confirmation.FileName}",
+            FontSize = 12, Margin = new Thickness(0, 12, 0, 0), TextWrapping = TextWrapping.Wrap
+        };
+        inputFileText.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
+        yield return inputFileText;
+
+        var inputSummaryText = new TextBlock
+        {
+            Text = confirmation.InputSummary, FontSize = 12, TextWrapping = TextWrapping.Wrap
+        };
+        inputSummaryText.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
+        yield return inputSummaryText;
+    }
+
+    private static CheckBox BuildAcknowledgementCheckbox(SyncPlan plan)
+    {
+        return new CheckBox
+        {
+            Content = plan.IsLargeRemoval ? "大量削除の対象を確認しました" : "削除対象を確認しました",
+            Margin = new Thickness(0, 16, 0, 0)
+        };
     }
 
     // ContentDialogHostはウィンドウ内オーバーレイであり、通常のモーダルウィンドウと違って
