@@ -21,10 +21,15 @@ public partial class SignInViewModel : ObservableObject
     [ObservableProperty] public partial string AccountText { get; set; } = "未サインイン";
 
     /// <summary>サインイン・サインアウト処理の実行中かどうか。</summary>
-    [ObservableProperty] public partial bool IsBusy { get; set; }
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SignInCommand), nameof(SignOutCommand))]
+    public partial bool IsBusy { get; set; }
 
     /// <summary>サインイン済みかどうか。</summary>
-    [ObservableProperty] public partial bool IsSignedIn { get; set; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsNotSignedIn))]
+    [NotifyCanExecuteChangedFor(nameof(SignInCommand), nameof(SignOutCommand))]
+    public partial bool IsSignedIn { get; set; }
 
     /// <summary>
     /// コンストラクター。<paramref name="initializeTeamsAsync"/>には、サインイン成功後に取得した
@@ -52,24 +57,11 @@ public partial class SignInViewModel : ObservableObject
     /// <summary>サインアウトが完了したときに発行される。</summary>
     public event Action? SignedOut;
 
-    /// <summary>サインイン状態の変化に応じて、関連プロパティの通知とコマンドの実行可否を再評価する。</summary>
-    partial void OnIsSignedInChanged(bool value)
-    {
-        OnPropertyChanged(nameof(IsNotSignedIn));
-        NotifyCommandStates();
-    }
-
-    /// <summary>処理中状態の変化に応じてコマンドの実行可否を再評価する。</summary>
-    partial void OnIsBusyChanged(bool value)
-    {
-        NotifyCommandStates();
-    }
-
     /// <summary>他画面の処理中状態を反映し、サインアウトコマンドの実行可否を再評価する。</summary>
     public void SetExternalBusy(bool value)
     {
         _externallyBusy = value;
-        NotifyCommandStates();
+        SignOutCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>対話型サインインを行い、自身の情報を取得してチーム選択を初期化する。</summary>
@@ -121,11 +113,5 @@ public partial class SignInViewModel : ObservableObject
             ? ("サインインできませんでした。Entra IDのアプリ登録設定を管理者に確認してください",
                 "Entra IDのアプリ登録設定を確認してください")
             : null;
-    }
-
-    private void NotifyCommandStates()
-    {
-        SignInCommand.NotifyCanExecuteChanged();
-        SignOutCommand.NotifyCanExecuteChanged();
     }
 }

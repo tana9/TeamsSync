@@ -52,7 +52,7 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
         var stopwatch = Stopwatch.StartNew();
         var cacheHits = 0;
         var ownership = new bool[candidates.Count];
-        var pendingIndexes = new List<int>();
+        List<int> pendingIndexes = [];
         for (var i = 0; i < candidates.Count; i++)
         {
             if (_ownershipCache.TryGetValue((currentUserId, candidates[i].Id), out var cached))
@@ -142,7 +142,7 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
                 Url: $"/teams/{candidates[index].Id}/members?$top=999")).ToList();
             var responses = await http.SendBatchAsync(requests, cancellationToken);
 
-            var retryable = new List<int>();
+            List<int> retryable = [];
             TimeSpan? retryAfter = null;
             foreach (var index in pending)
             {
@@ -325,7 +325,7 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
         return http.SendAsync(HttpMethod.Post, $"teams/{teamId}/members", new
         {
             odata_type = "#microsoft.graph.aadUserConversationMember",
-            roles = Array.Empty<string>(),
+            roles = (string[])[],
             user_odata_bind = $"https://graph.microsoft.com/v1.0/users('{userId}')"
         }, true, cancellationToken);
     }

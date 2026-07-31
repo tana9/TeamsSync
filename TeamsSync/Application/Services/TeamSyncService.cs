@@ -61,7 +61,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         IReadOnlyList<AddressResolution> resolutions)
     {
         var resolved = new Dictionary<string, DirectoryUser>(StringComparer.OrdinalIgnoreCase);
-        var changes = new List<SyncChange>();
+        List<SyncChange> changes = [];
         var rowIndexByUserId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         void AddOrMergeChange(string address, string userId, string? membershipId, string displayName,
@@ -271,7 +271,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
             ["ActorObjectId"] = context.ActorObjectId,
             ["SyncMode"] = plan.Mode
         });
-        var results = new List<SyncOperationResult>();
+        List<SyncOperationResult> results = [];
         var operations = plan.Changes.Where(x => x.Kind is ChangeKind.Add or ChangeKind.Remove).ToList();
         _logger.LogInformation(
             "SyncStarted Add={AddCount} Remove={RemoveCount} Keep={KeepCount} Protected={ProtectedCount}",

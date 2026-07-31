@@ -92,7 +92,7 @@ public sealed class MemberListReader : IMemberListReader
         using var stream = OpenShared(path);
         using var reader = new StreamReader(stream, encoding);
         using var csv = new CsvReader(reader, CsvReaderConfiguration);
-        var rows = new List<string[]>();
+        List<string[]> rows = [];
         while (csv.Read())
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -172,7 +172,7 @@ public sealed class MemberListReader : IMemberListReader
         if (columnCount > MaximumColumns)
             throw new InvalidDataException($"Excelの列数は{MaximumColumns:N0}列までです（{columnCount:N0}列）。");
 
-        var rows = new List<string[]>();
+        List<string[]> rows = [];
         foreach (var row in sheet.RowsUsed())
         {
             cancellationToken.ThrowIfCancellationRequested();

@@ -37,7 +37,7 @@ public sealed class GraphHttpClient(
     /// </summary>
     public async Task<List<JsonElement>> GetPagedAsync(string relative, CancellationToken cancellationToken)
     {
-        var result = new List<JsonElement>();
+        List<JsonElement> result = [];
         var next = relative;
         while (next is not null)
         {

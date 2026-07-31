@@ -310,12 +310,11 @@ TeamsSync の今後の改善項目。メンバー削除を伴うアプリケー�
 
 ### C#の書き方とMVVM Toolkit活用度を見直す
 
-- [ ] `GraphTeamsGateway.cs`の`Array.Empty<string>()`をコレクション式`[]`へ統一する
-- [ ] 各所に残る`new List<T>()`(7箇所)をコレクション式または対象型`new()`へ統一する
-- [ ] 単純な1対1のプロパティ転送(例: `SignInViewModel.OnIsSignedInChanged`の`IsNotSignedIn`通知)に
-      `[NotifyPropertyChangedFor]`の採用を検討する。ただし複数プロパティや`_externallyBusy`のような
-      非observableなフィールドを合わせて更新する箇所(`NotifyCommandStates`など)は、属性で完全には
-      置き換えられないため手動のままで問題ない
+- [x] `GraphTeamsGateway.cs`の`Array.Empty<string>()`をコレクション式`[]`へ統一する
+- [x] 各所に残る`new List<T>()`(7箇所)を、対象型を明示したコレクション式`[]`へ統一する
+- [x] `SignInViewModel`の`IsSignedIn`から`IsNotSignedIn`への通知に`[NotifyPropertyChangedFor]`を採用し、
+      `IsSignedIn`/`IsBusy`によるコマンド状態更新には`[NotifyCanExecuteChangedFor]`を採用する。
+      非observableな`_externallyBusy`の変更時だけは、影響を受ける`SignOutCommand`を手動通知する
 
 完了条件: 軽微なC#イディオムの取りこぼしが解消され、`[NotifyPropertyChangedFor]`/`[NotifyCanExecuteChangedFor]`の
 採用可否を単純な転送箇所について意図的に判断した状態になっている。
