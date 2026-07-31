@@ -1,6 +1,6 @@
 using TeamsSync.Infrastructure.Files;
 
-namespace TeamsSync.Tests;
+namespace TeamsSync.Tests.Unit.Application;
 
 public sealed class MemberTextParserTests
 {

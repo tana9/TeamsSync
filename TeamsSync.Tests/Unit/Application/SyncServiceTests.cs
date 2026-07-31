@@ -3,7 +3,7 @@ using TeamsSync.Application.Abstractions;
 using TeamsSync.Application.Services;
 using TeamsSync.Domain.Teams;
 
-namespace TeamsSync.Tests;
+namespace TeamsSync.Tests.Unit.Application;
 
 public sealed class SyncServiceTests
 {

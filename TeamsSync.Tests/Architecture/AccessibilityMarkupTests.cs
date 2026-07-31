@@ -1,6 +1,6 @@
 using System.Xml.Linq;
 
-namespace TeamsSync.Tests;
+namespace TeamsSync.Tests.Architecture;
 
 public sealed class AccessibilityMarkupTests
 {

@@ -5,7 +5,7 @@ using TeamsSync.Application.Abstractions;
 using TeamsSync.Infrastructure;
 using TeamsSync.Presentation;
 
-namespace TeamsSync.Tests;
+namespace TeamsSync.Tests.Architecture;
 
 public sealed class DependencyInjectionTests
 {

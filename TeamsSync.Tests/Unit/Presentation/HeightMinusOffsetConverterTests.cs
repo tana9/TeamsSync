@@ -1,7 +1,7 @@
 using System.Globalization;
 using TeamsSync.Presentation.Converters;
 
-namespace TeamsSync.Tests;
+namespace TeamsSync.Tests.Unit.Presentation;
 
 public sealed class HeightMinusOffsetConverterTests
 {

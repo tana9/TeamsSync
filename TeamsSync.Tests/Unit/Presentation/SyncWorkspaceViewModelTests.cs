@@ -2,7 +2,7 @@ using TeamsSync.Application.Services;
 using TeamsSync.Domain.Teams;
 using TeamsSync.Presentation.ViewModels;
 
-namespace TeamsSync.Tests;
+namespace TeamsSync.Tests.Unit.Presentation;
 
 public sealed class SyncWorkspaceViewModelTests
 {

@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using TeamsSync.Infrastructure.Settings;
 
-namespace TeamsSync.Tests;
+namespace TeamsSync.Tests.Unit.Infrastructure;
 
 public sealed class JsonUserPreferencesTests : IDisposable
 {

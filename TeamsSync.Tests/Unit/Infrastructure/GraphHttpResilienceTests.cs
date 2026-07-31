@@ -6,7 +6,7 @@ using TeamsSync.Application.Abstractions;
 using TeamsSync.Infrastructure;
 using TeamsSync.Infrastructure.Graph;
 
-namespace TeamsSync.Tests;
+namespace TeamsSync.Tests.Unit.Infrastructure;
 
 public sealed class GraphHttpResilienceTests
 {

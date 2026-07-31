@@ -6,12 +6,10 @@ using TeamsSync.Infrastructure.Files;
 using TeamsSync.Presentation.Services;
 using Xunit.Sdk;
 
-namespace TeamsSync.Tests;
+namespace TeamsSync.Tests.TestDoubles;
 
-// MainWindowViewModelTests / TeamSelectionViewModelTests / MemberFileViewModelTests /
-// SyncWorkspaceViewModelTestsの各テストクラスから共通して参照されるFakeクラス群とテストヘルパー。
-// 元はPresentationViewModelTests内のprivateなネストクラスだったが、テストファイルを対象VMごとに
-// 分割したことで複数のテストクラスから参照する必要が生じたため、このファイルへ集約している。
+// Presentation層のテストから共有する、外部依存を持たないテストダブルとDispatcherヘルパー。
+// 各テストは必要な振る舞いだけをプロパティやデリゲートで明示的に設定する。
 internal static class DispatcherTestHelper
 {
     // DispatcherSynchronizationContext配下でTask.Runを含む非同期処理を、その完了までテストスレッドをブロックして
