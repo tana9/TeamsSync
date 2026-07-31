@@ -93,10 +93,20 @@
                  目障りだったため、選択時の見た目を通常時とほぼ変わらないように抑える。 -->
             <ui:DataGrid.CellStyle>
                 <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+                    <Setter Property="VerticalContentAlignment" Value="Center" />
+                    <!-- 選択時に既定スタイルの境界線幅が変わると、セル内容が1pxずれて
+                         操作Badgeが動いて見えるため、通常時から幅を0に固定する。 -->
+                    <Setter Property="BorderThickness" Value="0" />
+                    <Setter Property="Padding" Value="0" />
+                    <!-- 選択行は背景色で判別できるため、操作Badgeへ重なる現在セルの
+                         細いフォーカス枠は表示しない。 -->
+                    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
                     <Style.Triggers>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter Property="Background" Value="Transparent" />
                             <Setter Property="BorderBrush" Value="Transparent" />
+                            <Setter Property="BorderThickness" Value="0" />
+                            <Setter Property="Padding" Value="0" />
                             <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
                         </Trigger>
                     </Style.Triggers>
