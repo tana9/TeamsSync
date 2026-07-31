@@ -111,12 +111,6 @@ public sealed record SyncPlan(
 
     /// <summary>未解決の変更が1件以上あるかどうか。</summary>
     public bool HasErrors => ErrorCount > 0;
-
-    /// <summary>現メンバー数に対する削除件数の比率。</summary>
-    public double RemoveRatio => CurrentMemberCount == 0 ? 0 : (double)RemoveCount / CurrentMemberCount;
-
-    /// <summary>削除件数または削除比率が大きく、大量削除の確認を要するかどうか。</summary>
-    public bool IsLargeRemoval => RemoveCount >= 10 || RemoveRatio >= 0.5;
 }
 
 /// <summary>プレビュー時点のプランが最新の状態と一致しているかどうかの再検証結果。</summary>

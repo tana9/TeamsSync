@@ -62,7 +62,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     /// <summary>同期実行の進捗の現在値。</summary>
     [ObservableProperty] public partial int ProgressValue { get; set; }
 
-    /// <summary>削除警告InfoBarの重要度(大量削除時はError)。</summary>
+    /// <summary>削除警告InfoBarの重要度。</summary>
     [ObservableProperty] public partial InfoBarSeverity RemovalSeverity { get; set; } = InfoBarSeverity.Warning;
 
     /// <summary>削除警告InfoBarの本文。</summary>
@@ -618,11 +618,9 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         SummaryText =
             $"追加 {plan.AddCount} / 削除 {plan.RemoveCount} / 変更なし {plan.KeepCount} / 所有者 {plan.ProtectedCount} / エラー {plan.ErrorCount}";
         IsRemovalWarningOpen = plan.RemoveCount > 0;
-        RemovalWarningTitle = plan.IsLargeRemoval ? "大量削除の可能性があります" : "削除対象があります";
-        RemovalSeverity = plan.IsLargeRemoval ? InfoBarSeverity.Error : InfoBarSeverity.Warning;
-        RemovalWarningMessage = plan.IsLargeRemoval
-            ? $"現在のメンバーの {plan.RemoveRatio:P0}（{plan.RemoveCount}名）を削除します。入力列と削除対象を確認してください。"
-            : $"リストにない一般メンバー {plan.RemoveCount}名を削除します。";
+        RemovalWarningTitle = "削除対象があります";
+        RemovalSeverity = InfoBarSeverity.Warning;
+        RemovalWarningMessage = $"リストにない一般メンバー {plan.RemoveCount}名を削除します。";
         if (announceStatus)
         {
             StatusChanged?.Invoke(plan.HasErrors

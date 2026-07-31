@@ -63,8 +63,7 @@ public sealed class WpfSyncConfirmationService(
     IContentDialogService contentDialogs) : ISyncConfirmationService
 {
     /// <summary>
-    /// 対象チーム・件数内訳・入力元を表示する確認ダイアログを表示する。削除がある場合は
-    /// 確認チェックボックスへの同意があるまで実行ボタンを無効化する。
+    /// 対象チーム・件数内訳・入力元を表示する確認ダイアログを表示する。
     /// </summary>
     public async Task<bool> ConfirmSyncAsync(SyncConfirmation confirmation,
         CancellationToken cancellationToken = default)
@@ -80,9 +79,6 @@ public sealed class WpfSyncConfirmationService(
         content.Children.Add(BuildCountsSection(plan));
         foreach (var child in BuildInputSourceBlocks(confirmation)) content.Children.Add(child);
 
-        var acknowledgement = plan.RemoveCount > 0 ? BuildAcknowledgementCheckbox(plan) : null;
-        if (acknowledgement is not null) content.Children.Add(acknowledgement);
-
         var scrollViewer = new ScrollViewer
         {
             Content = content,
@@ -93,20 +89,39 @@ public sealed class WpfSyncConfirmationService(
 
         var dialog = new ContentDialog
         {
-            Title = plan.IsLargeRemoval ? "大量削除の確認" : "同期の最終確認",
+            Title = BuildTitle(),
             Content = scrollViewer,
             PrimaryButtonText = "同期を実行",
             CloseButtonText = "キャンセル",
-            DefaultButton = ContentDialogButton.Close,
-            IsPrimaryButtonEnabled = acknowledgement is null
+            DefaultButton = ContentDialogButton.Close
         };
-        if (acknowledgement is not null)
-        {
-            acknowledgement.Checked += (_, _) => dialog.IsPrimaryButtonEnabled = true;
-            acknowledgement.Unchecked += (_, _) => dialog.IsPrimaryButtonEnabled = false;
-        }
 
         return await ShowRestoringFocusAsync(contentDialogs, dialog, cancellationToken) == ContentDialogResult.Primary;
+    }
+
+    // タイトルだけでは一見して確認ダイアログと見分けがつかないため、エラーダイアログ(WpfNotificationService.ShowError)
+    // と同様にアイコンを添えて、ひと目で「実行前の確認」だと分かるようにする。AutomationProperties.Nameは
+    // Titleオブジェクト全体に付け、読み上げがアイコン分だけ冗長にならないようにする。
+    private static UIElement BuildTitle()
+    {
+        const string titleText = "同期の最終確認";
+        var titlePanel = new StackPanel { Orientation = Orientation.Horizontal };
+        AutomationProperties.SetName(titlePanel, titleText);
+        var titleIcon = new SymbolIcon
+        {
+            Symbol = SymbolRegular.QuestionCircle24,
+            FontSize = 20,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 8, 0)
+        };
+        var titleTextBlock = new TextBlock
+        {
+            Text = titleText, FontWeight = FontWeights.SemiBold, FontSize = 20,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        titlePanel.Children.Add(titleIcon);
+        titlePanel.Children.Add(titleTextBlock);
+        return titlePanel;
     }
 
     /// <summary>対象チーム名と同期モードを表示するヘッダー部分を組み立てる。</summary>
@@ -191,16 +206,6 @@ public sealed class WpfSyncConfirmationService(
         };
         inputSummaryText.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
         yield return inputSummaryText;
-    }
-
-    /// <summary>削除対象を確認したことを同意させるチェックボックスを組み立てる。</summary>
-    private static CheckBox BuildAcknowledgementCheckbox(SyncPlan plan)
-    {
-        return new CheckBox
-        {
-            Content = plan.IsLargeRemoval ? "大量削除の対象を確認しました" : "削除対象を確認しました",
-            Margin = new Thickness(0, 16, 0, 0)
-        };
     }
 
     // ContentDialogHostはウィンドウ内オーバーレイであり、通常のモーダルウィンドウと違って

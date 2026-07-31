@@ -420,25 +420,6 @@ public sealed class SyncServiceTests
     }
 
     [Fact]
-    public async Task BuildPlan_FlagsRemovalOfHalfOrMoreAsLargeRemoval()
-    {
-        var graph = new FakeGraphService
-        {
-            Members =
-            [
-                Member("owner", "owner", "Owner", "owner@example.com", true),
-                Member("one", "one", "One", "one@example.com"),
-                Member("two", "two", "Two", "two@example.com")
-            ]
-        };
-        var plan = await new TeamSyncService(graph).BuildPlanAsync(Team, ["one@example.com"],
-            TestContext.Current.CancellationToken);
-        Assert.True(plan.IsLargeRemoval);
-        Assert.Equal(1, plan.RemoveCount);
-        Assert.Equal(2, plan.CurrentMemberCount);
-    }
-
-    [Fact]
     public async Task Execute_ReturnsCancelledBeforeChangingTeam()
     {
         var graph = new FakeGraphService();
