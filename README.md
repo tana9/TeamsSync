@@ -138,6 +138,22 @@ user2@contoso.com
 dotnet test TeamsSync.slnx
 ```
 
+### 実テナントなしでUIを確認する
+
+開発専用の`TeamsSync.UiHarness`は、本番のView・ViewModelをそのまま利用し、認証とGraph APIだけをデモ実装へ差し替えます。Microsoft 365へ接続せず、実チームを変更することなく画面を操作できます。
+
+```powershell
+task ui-harness
+```
+
+または次のコマンドで起動します。
+
+```powershell
+dotnet run --project TeamsSync.UiHarness/TeamsSync.UiHarness.csproj
+```
+
+起動時にダミーアカウントで自動サインインします。UI確認用チームには、所有者、一般メンバー、長い表示名のメンバーが含まれます。`new.member@example.com`と`second.new@example.com`は追加候補として使用できます。Harness内の追加・削除はメモリ上のデモデータだけを変更し、終了すると初期状態へ戻ります。
+
 リリース候補の確認は[リリース前チェックリスト](docs/RELEASE_CHECKLIST.md)に従ってください。
 ## アーキテクチャ
 

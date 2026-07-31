@@ -1,4 +1,5 @@
 <Solution>
     <Project Path="TeamsSync/TeamsSync.csproj"/>
     <Project Path="TeamsSync.Tests/TeamsSync.Tests.csproj"/>
+    <Project Path="TeamsSync.UiHarness/TeamsSync.UiHarness.csproj"/>
 </Solution>

@@ -5,7 +5,7 @@
                  xmlns:behaviors="clr-namespace:TeamsSync.Presentation.Behaviors"
                  xmlns:views="clr-namespace:TeamsSync.Presentation.Views"
                  Title="{Binding WindowTitle}" Height="920" Width="1180" MinHeight="600" MinWidth="800"
-                 Icon="pack://application:,,,/Resources/AppIcon.ico"
+                 Icon="pack://application:,,,/TeamsSync;component/Resources/AppIcon.ico"
                  WindowStartupLocation="CenterScreen" WindowCornerPreference="Round"
                  UseLayoutRounding="True">
     <ui:FluentWindow.Resources>
@@ -45,7 +45,7 @@
 
         <ui:TitleBar Grid.Row="0" Title="{Binding WindowTitle}" ShowMinimize="True" ShowMaximize="True" ShowClose="True">
             <ui:TitleBar.Icon>
-                <ui:ImageIcon Source="pack://application:,,,/Resources/AppIcon.ico" />
+                <ui:ImageIcon Source="pack://application:,,,/TeamsSync;component/Resources/AppIcon.ico" />
             </ui:TitleBar.Icon>
         </ui:TitleBar>
 

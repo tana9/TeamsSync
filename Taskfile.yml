@@ -45,6 +45,11 @@ tasks:
     cmds:
       - dotnet test {{.SOLUTION}} -c Release --no-restore
 
+  ui-harness:
+    desc: 実テナントへ接続せず、デモデータで本番UIを起動します
+    cmds:
+      - dotnet run --project TeamsSync.UiHarness/TeamsSync.UiHarness.csproj
+
   clean-publish:
     internal: true
     cmds:
