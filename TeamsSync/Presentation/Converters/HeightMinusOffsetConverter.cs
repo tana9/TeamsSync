@@ -10,8 +10,16 @@ namespace TeamsSync.Presentation.Converters;
 // values[0]=ContentGridのActualHeight、values[1]=SyncActionBarViewのActualHeightを受け取り、
 // そこからConverterParameter(下段カードの最低保証分など、変動しない固定の予約分)を差し引いた
 // 残りを上段ScrollViewerの上限として使う。
+/// <summary>
+/// コンテナの高さからアクションバーの実高さと固定予約分を差し引き、上段スクロール領域の
+/// MaxHeightを動的に算出するマルチバインディング用コンバータ。
+/// </summary>
 public sealed class HeightMinusOffsetConverter : IMultiValueConverter
 {
+    /// <summary>
+    /// values[0]=コンテナのActualHeight、values[1]=アクションバーのActualHeightから、
+    /// ConverterParameterで指定した固定予約分を差し引いた残り高さ(0以上)を返す。
+    /// </summary>
     public object Convert(object?[] values, Type targetType, object? parameter, CultureInfo culture)
     {
         var containerHeight = values.Length > 0 && values[0] is double d0 ? d0 : 0;
@@ -20,6 +28,7 @@ public sealed class HeightMinusOffsetConverter : IMultiValueConverter
         return Math.Max(0, containerHeight - actionBarHeight - reservedHeight);
     }
 
+    /// <summary>このコンバータは片方向専用のためサポートしない。</summary>
     public object[] ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture)
     {
         throw new NotSupportedException();

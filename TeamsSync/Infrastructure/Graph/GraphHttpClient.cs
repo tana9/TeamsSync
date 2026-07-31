@@ -20,6 +20,9 @@ public sealed class GraphHttpClient(
     public const string WriteHttpClientName = "MicrosoftGraph.Write";
     private static readonly Uri GraphBase = new("https://graph.microsoft.com/v1.0/");
 
+    /// <summary>
+    /// GETリクエストを送信し、レスポンスボディをJSONとして解析する。
+    /// </summary>
     public async Task<JsonDocument> GetAsync(string relative, CancellationToken cancellationToken,
         bool expectedNotFound = false)
     {
@@ -29,6 +32,9 @@ public sealed class GraphHttpClient(
         return await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
     }
 
+    /// <summary>
+    /// <c>@odata.nextLink</c>を辿りながら全ページを取得し、<c>value</c>配列の要素をまとめて返す。
+    /// </summary>
     public async Task<List<JsonElement>> GetPagedAsync(string relative, CancellationToken cancellationToken)
     {
         var result = new List<JsonElement>();
@@ -46,6 +52,10 @@ public sealed class GraphHttpClient(
         return result;
     }
 
+    /// <summary>
+    /// 更新系リクエストを送信する。<paramref name="replaceNames"/>がtrueの場合、
+    /// C#では使えない<c>@odata.type</c>/<c>user@odata.bind</c>相当のプロパティ名へ置換する。
+    /// </summary>
     public async Task SendAsync(HttpMethod method, string relative, object? body = null, bool replaceNames = false,
         CancellationToken cancellationToken = default)
     {
@@ -57,6 +67,10 @@ public sealed class GraphHttpClient(
             CreateRequest(method, relative, json), WriteHttpClientName, cancellationToken);
     }
 
+    /// <summary>
+    /// 複数のGETリクエストを<c>$batch</c>エンドポイントへまとめて送信し、リクエストIDごとの
+    /// レスポンスを返す。
+    /// </summary>
     public async Task<Dictionary<string, JsonElement>> SendBatchAsync(
         IReadOnlyList<(string Id, string Url)> requests, CancellationToken cancellationToken)
     {
@@ -72,6 +86,10 @@ public sealed class GraphHttpClient(
             .ToDictionary(r => Required(r, "id"), r => r.Clone());
     }
 
+    /// <summary>
+    /// 相対/絶対URLからGraph向けの<see cref="HttpRequestMessage"/>を組み立てる。
+    /// Graph以外のホストへのリクエストは拒否する。
+    /// </summary>
     private HttpRequestMessage CreateRequest(HttpMethod method, string relative, string? json = null)
     {
         var uri = Uri.TryCreate(relative, UriKind.Absolute, out var absolute)
@@ -88,6 +106,10 @@ public sealed class GraphHttpClient(
         return request;
     }
 
+    /// <summary>
+    /// アクセストークンと診断用ヘッダーを付与してリクエストを1回送信し、失敗時は
+    /// <see cref="GraphException"/>へ変換する。
+    /// </summary>
     private async Task<HttpResponseMessage> SendOnceAsync(HttpRequestMessage request,
         string clientName, CancellationToken cancellationToken, bool expectedNotFound = false)
     {
@@ -116,11 +138,13 @@ public sealed class GraphHttpClient(
             requestId, returnedClientRequestId);
     }
 
+    /// <summary>レスポンスヘッダーの最初の値を取得する(存在しない場合はnull)。</summary>
     private static string? Header(HttpResponseMessage response, string name)
     {
         return response.Headers.TryGetValues(name, out var values) ? values.FirstOrDefault() : null;
     }
 
+    /// <summary>JSON要素から文字列プロパティを取得する。存在しない場合は例外をスローする。</summary>
     public static string Required(JsonElement element, string name)
     {
         return element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
@@ -128,6 +152,7 @@ public sealed class GraphHttpClient(
             : throw new InvalidDataException($"{name} がありません。");
     }
 
+    /// <summary>JSON要素から文字列プロパティを取得する。存在しない場合はnullを返す。</summary>
     public static string? Optional(JsonElement element, string name)
     {
         return element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
@@ -136,13 +161,19 @@ public sealed class GraphHttpClient(
     }
 }
 
+/// <summary>Microsoft Graph API呼び出しが失敗したことを表す例外。</summary>
 public sealed class GraphException(
     HttpStatusCode statusCode,
     string message,
     string? requestId = null,
     string? clientRequestId = null) : Exception(message)
 {
+    /// <summary>レスポンスのHTTPステータスコード。</summary>
     public HttpStatusCode StatusCode { get; } = statusCode;
+
+    /// <summary>Graph側の診断用リクエストID(取得できた場合)。</summary>
     public string? RequestId { get; } = requestId;
+
+    /// <summary>クライアント側で発行した診断用リクエストID。</summary>
     public string? ClientRequestId { get; } = clientRequestId;
 }

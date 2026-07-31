@@ -3,8 +3,10 @@ using TeamsSync.Presentation.ViewModels;
 
 namespace TeamsSync.Presentation.Views;
 
+/// <summary>メンバーリストの入力(ファイル選択・ドロップ・テキスト貼り付け)を行うView。</summary>
 public partial class MemberListInputView
 {
+    /// <summary>コンストラクター。DataContext変更に合わせてViewModelのイベント購読を切り替える。</summary>
     public MemberListInputView()
     {
         InitializeComponent();
@@ -12,12 +14,14 @@ public partial class MemberListInputView
         Unloaded += (_, _) => Subscribe(DataContext as MemberFileViewModel, false);
     }
 
+    /// <summary>DataContextの変更に合わせて、旧ViewModelの購読を解除し新ViewModelを購読する。</summary>
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         Subscribe(e.OldValue as MemberFileViewModel, false);
         Subscribe(e.NewValue as MemberFileViewModel, true);
     }
 
+    /// <summary>ViewModelの<see cref="MemberFileViewModel.InputFocusRequested"/>イベントを購読/解除する。</summary>
     private void Subscribe(MemberFileViewModel? viewModel, bool subscribe)
     {
         if (viewModel is null) return;

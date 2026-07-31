@@ -5,11 +5,19 @@ using TeamsSync.Domain.Teams;
 
 namespace TeamsSync.Application.Services;
 
+/// <summary>
+/// 入力アドレス一覧と現メンバーを突き合わせて同期プランを作成し、そのプランに基づいて
+/// メンバーの追加・削除を実行する。
+/// </summary>
 public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSyncService>? logger = null)
 {
     private const int AddressResolutionConcurrency = 15;
     private readonly ILogger<TeamSyncService> _logger = logger ?? NullLogger<TeamSyncService>.Instance;
 
+    /// <summary>
+    /// 入力アドレス一覧を現メンバーおよびディレクトリと突き合わせて解決し、
+    /// 追加・削除・維持・エラーの各変更内容をまとめた同期プランを作成する。
+    /// </summary>
     public async Task<SyncPlan> BuildPlanAsync(TeamInfo team, IReadOnlyList<string> addresses,
         CancellationToken cancellationToken = default, SyncMode mode = SyncMode.FullSync,
         IProgress<int>? progress = null)
@@ -28,6 +36,9 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         return plan;
     }
 
+    /// <summary>
+    /// 入力アドレス一覧を、同時実行数を制限しつつ並行して解決する。
+    /// </summary>
     private async Task<AddressResolution[]> ResolveAddressesAsync(IReadOnlyList<string> addresses,
         IReadOnlyList<TeamMember> current, IProgress<int>? progress, CancellationToken cancellationToken)
     {
@@ -41,6 +52,10 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         }));
     }
 
+    /// <summary>
+    /// アドレスごとの解決結果を、追加・維持・保護・エラーの各<see cref="SyncChange"/>へ分類する。
+    /// 同一ユーザーが重複指定された場合は2件目以降を重複扱いにする。
+    /// </summary>
     private static (Dictionary<string, DirectoryUser> Resolved, List<SyncChange> Changes) ClassifyResolutions(
         IReadOnlyList<AddressResolution> resolutions)
     {
@@ -88,6 +103,10 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         return (resolved, changes);
     }
 
+    /// <summary>
+    /// 完全同期モード用に、入力リストに含まれない一般メンバー(所有者を除く)を
+    /// 削除対象の<see cref="SyncChange"/>として列挙する。
+    /// </summary>
     private static IEnumerable<SyncChange> ComputeRemovals(IReadOnlyList<TeamMember> current,
         Dictionary<string, DirectoryUser> resolved, IReadOnlyList<SyncChange> changes)
     {
@@ -101,6 +120,9 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
                 "リストにないため削除します", member.UserId, member.MembershipId));
     }
 
+    /// <summary>
+    /// 再検証(<see cref="RevalidatePlanAsync"/>)で使う、現メンバーシップのスナップショットを作成する。
+    /// </summary>
     private static List<TeamMembershipSnapshot> BuildMembershipSnapshot(IReadOnlyList<TeamMember> current)
     {
         return current
@@ -111,6 +133,10 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
             .ToList();
     }
 
+    /// <summary>
+    /// 1件のアドレスを解決する。現メンバーの中に一致があればそれを優先し、
+    /// なければ同時実行数を制限しつつディレクトリ検索(<see cref="ITeamsGateway.FindUsersAsync"/>)を行う。
+    /// </summary>
     private async Task<AddressResolution> ResolveAddressAsync(string address, IReadOnlyList<TeamMember> current,
         SemaphoreSlim concurrency, CancellationToken cancellationToken)
     {
@@ -130,6 +156,10 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         }
     }
 
+    /// <summary>
+    /// メールアドレスまたは正規化した氏名で現メンバーから一致を探す。
+    /// 複数一致した場合は特定不能としてエラーにする。
+    /// </summary>
     private static AddressResolution? TryResolveFromCurrentMembers(string address, IReadOnlyList<TeamMember> current)
     {
         var existingMatches = current.Where(member =>
@@ -143,6 +173,9 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
             : null;
     }
 
+    /// <summary>
+    /// ディレクトリ検索の候補から一意なユーザーを特定し、既に別アドレスでメンバーかどうかを判定する。
+    /// </summary>
     private static AddressResolution ResolveFromCandidates(string address,
         IReadOnlyList<DirectoryUser> candidates, IReadOnlyList<TeamMember> current)
     {
@@ -163,14 +196,23 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
             : new AddressResolution(ResolutionOutcome.NewUser, address, User: user);
     }
 
+    /// <summary>1件のアドレス解決の結果種別。</summary>
     private enum ResolutionOutcome
     {
+        /// <summary>解決に失敗した。</summary>
         Error,
+
+        /// <summary>現メンバーの中に一意な一致があった。</summary>
         ExistingSingle,
+
+        /// <summary>ディレクトリ検索で一致した、現メンバーにいない新規ユーザー。</summary>
         NewUser,
+
+        /// <summary>ディレクトリ検索で一致したユーザーが、別のアドレスで既に現メンバーだった。</summary>
         SameUserDifferentAddress
     }
 
+    /// <summary>1件のアドレス解決結果を保持する内部データ。</summary>
     private sealed record AddressResolution(
         ResolutionOutcome Outcome,
         string Address,
@@ -178,6 +220,10 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         DirectoryUser? User = null,
         string? ErrorMessage = null);
 
+    /// <summary>
+    /// プレビュー済みのプランが最新の状態と一致しているかどうかを再検証する。
+    /// 実行までの間にメンバーシップが変化していた場合は最新のプランを返す。
+    /// </summary>
     public async Task<SyncPlanRevalidation> RevalidatePlanAsync(SyncPlan preview,
         CancellationToken cancellationToken = default, SyncMode mode = SyncMode.FullSync)
     {
@@ -186,6 +232,10 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         return new SyncPlanRevalidation(PlansAreEquivalent(preview, latest), latest);
     }
 
+    /// <summary>
+    /// 実行済みプランと同じチーム・入力アドレスに対して、実行後の実際の状態を反映した
+    /// 新しいプランを作成する(実行結果の確認用)。
+    /// </summary>
     public Task<SyncPlan> ReconcileAsync(SyncPlan executedPlan,
         CancellationToken cancellationToken = default)
     {
@@ -193,6 +243,10 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
             cancellationToken, executedPlan.Mode);
     }
 
+    /// <summary>
+    /// 同期プランに含まれる追加・削除操作を順に実行する。未解決の変更がある場合、
+    /// または追加のみモードで削除が含まれる場合は例外をスローする。
+    /// </summary>
     public async Task<SyncExecutionResult> ExecuteAsync(SyncPlan plan,
         IProgress<SyncProgress>? progress = null, CancellationToken cancellationToken = default,
         SyncAuditContext? auditContext = null)
@@ -242,8 +296,11 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         return result;
     }
 
-    // 成功結果はdelay(スロットリング)前にresultsへ積むため、delay中にキャンセルされても
-    // 直前の操作の成功結果は失われない。戻り値はキャンセルされたかどうかのみを表す。
+    /// <summary>
+    /// 1件の追加・削除操作を実行し、結果を<paramref name="results"/>へ追加する。
+    /// 成功結果はスロットリング用のdelay前にresultsへ積むため、delay中にキャンセルされても
+    /// 直前の操作の成功結果は失われない。戻り値はキャンセルされたかどうかのみを表す。
+    /// </summary>
     private async Task<bool> ExecuteChangeAsync(string teamId, SyncChange change, int index, int totalOperations,
         IProgress<SyncProgress>? progress, List<SyncOperationResult> results, CancellationToken cancellationToken)
     {
@@ -278,12 +335,19 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         }
     }
 
+    /// <summary>
+    /// キャンセルによる同期中断を、成功・失敗件数とともに警告ログへ出力する。
+    /// </summary>
     private void LogSyncCancelled(IReadOnlyList<SyncOperationResult> results)
     {
         _logger.LogWarning("SyncCancelled Success={SuccessCount} Failure={FailureCount}",
             results.Count(result => result.Succeeded), results.Count(result => !result.Succeeded));
     }
 
+    /// <summary>
+    /// 2つのプランが、同期モード・メンバーシップのスナップショット・
+    /// 追加/削除/保護/エラーの各操作内容の点で同一かどうかを判定する。
+    /// </summary>
     private static bool PlansAreEquivalent(SyncPlan preview, SyncPlan latest)
     {
         if (preview.Mode != latest.Mode) return false;

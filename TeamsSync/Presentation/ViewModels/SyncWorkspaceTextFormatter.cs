@@ -7,6 +7,7 @@ namespace TeamsSync.Presentation.ViewModels;
 // 状態を持たないstaticメソッド群として分離し、ViewModel側の計算プロパティから呼び出す形にしている。
 public static class SyncWorkspaceTextFormatter
 {
+    /// <summary>同期実行結果の要約テキスト(中止・一部失敗・完了)を組み立てる。</summary>
     public static string BuildResultSummaryText(bool cancelled, int successCount, int failureCount)
     {
         var processedCount = successCount + failureCount;
@@ -17,11 +18,13 @@ public static class SyncWorkspaceTextFormatter
                 : $"同期完了 — 成功 {successCount}件";
     }
 
+    /// <summary>未反映の残り件数を示すテキストを組み立てる(負数の場合は空文字)。</summary>
     public static string BuildResultRemainingText(int remainingCount)
     {
         return remainingCount < 0 ? "" : $"未反映 {remainingCount}件";
     }
 
+    /// <summary>入力元・検出列・件数を示す要約テキストを組み立てる。</summary>
     public static string BuildInputSummary(MemberListDocument? document)
     {
         return document is null
@@ -29,6 +32,7 @@ public static class SyncWorkspaceTextFormatter
             : $"入力: {document.SourceName} • 列: {document.DetectedColumn} • {document.Addresses.Count}件";
     }
 
+    /// <summary>入力アドレスの先頭数件をプレビュー表示するテキストを組み立てる。</summary>
     public static string BuildInputPreview(MemberListDocument? document)
     {
         return document is null
@@ -36,6 +40,7 @@ public static class SyncWorkspaceTextFormatter
             : $"先頭: {string.Join(" / ", document.Addresses.Take(5))}";
     }
 
+    /// <summary>検出された列がメールアドレスではなく氏名の列かどうかを判定する。</summary>
     public static bool IsNameColumn(MemberListDocument? document)
     {
         return document is not null &&
@@ -43,6 +48,7 @@ public static class SyncWorkspaceTextFormatter
                    document.DetectedColumn.Replace("_", "").Replace(" ", "").ToLowerInvariant());
     }
 
+    /// <summary>差分未確認時に表示する案内メッセージを、現在の状態に応じて組み立てる。</summary>
     public static string BuildEmptyStateMessage(bool signedIn, TeamInfo? team, MemberListDocument? document)
     {
         return !signedIn
@@ -54,6 +60,7 @@ public static class SyncWorkspaceTextFormatter
                     : "「差分を確認」を押してください";
     }
 
+    /// <summary>差分確認中の進捗テキストを組み立てる。</summary>
     public static string BuildPreviewProgressText(int previewProgressValue, int previewProgressMaximum)
     {
         return previewProgressValue > 0
@@ -61,6 +68,10 @@ public static class SyncWorkspaceTextFormatter
             : "確認しています…";
     }
 
+    /// <summary>
+    /// 同期を実行できない理由を、実行中・他処理中・未サインイン・未選択・未確認・エラーあり・
+    /// 変更なしの優先順位で判定して返す。実行可能な場合は「同期を実行できます」を返す。
+    /// </summary>
     public static string BuildSyncUnavailableReason(bool isSyncing, bool isBusy, bool externallyBusy,
         bool signedIn, TeamInfo? team, MemberListDocument? document, SyncPlan? plan)
     {
@@ -77,6 +88,7 @@ public static class SyncWorkspaceTextFormatter
 
     // 差分一覧(changes)の内容から、フィルターごとの該当件数をChangeFilter.Countへ反映する。
     // 呼び出し元(ViewModel)はこの後にCollectionViewSourceのRefreshとHasErrorsの変更通知を行う。
+    /// <summary>差分一覧の内容から、フィルターごとの該当件数を計算して反映する。</summary>
     public static void UpdateFilterCounts(IReadOnlyList<ChangeFilter> filters,
         IReadOnlyCollection<SyncChangeRowViewModel> changes)
     {
@@ -89,6 +101,7 @@ public static class SyncWorkspaceTextFormatter
     // メンバーリストの再指定などで差分が無効化されたときは、古い件数を0件と表示するのではなく
     // 件数表示自体を消す(未確認状態に戻す)。0件表示だと「差分を確認した結果0件だった」と
     // 誤解されるおそれがあるため。
+    /// <summary>すべてのフィルターの件数表示を未確認状態(-1)へ戻す。</summary>
     public static void ClearFilterCounts(IReadOnlyList<ChangeFilter> filters)
     {
         foreach (var filter in filters)

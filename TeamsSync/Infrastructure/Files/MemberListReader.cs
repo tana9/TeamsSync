@@ -8,6 +8,9 @@ using TeamsSync.Domain.Teams;
 
 namespace TeamsSync.Infrastructure.Files;
 
+/// <summary>
+/// CSV(.csv)またはExcel(.xlsx)のメンバーリストファイルを読み込み、アドレス一覧へ変換する。
+/// </summary>
 public sealed class MemberListReader : IMemberListReader
 {
     // 想定外に大きい／壊れたファイルを早期に拒否するための上限。
@@ -30,6 +33,10 @@ public sealed class MemberListReader : IMemberListReader
     // Excelなどが排他的にファイルを開いている場合のWin32エラーコード(ERROR_SHARING_VIOLATION)に対応するHResult。
     private const int SharingViolationHResult = unchecked((int)0x80070020);
 
+    /// <summary>
+    /// 指定したパスのファイルを拡張子に応じてCSV/Excelとして読み込み、アドレス列を抽出する。
+    /// 読込前後でファイル内容のハッシュを比較し、読込中の変更を検知する。
+    /// </summary>
     public MemberListDocument Read(string path, CancellationToken cancellationToken)
     {
         try
@@ -66,6 +73,7 @@ public sealed class MemberListReader : IMemberListReader
         }
     }
 
+    /// <summary>CSVファイルを解析し、アドレス候補列を抽出する。</summary>
     private static (IEnumerable<string>, string, string) ReadCsv(string path, CancellationToken cancellationToken)
     {
         var encoding = DetectCsvEncoding(path);
@@ -93,6 +101,10 @@ public sealed class MemberListReader : IMemberListReader
         return (extracted.Values, "CSV", extracted.Column);
     }
 
+    /// <summary>
+    /// BOMからCSVファイルの文字コードを判定する。BOMがない場合はUTF-8として妥当かを検証し、
+    /// 妥当でなければShift-JIS(コードページ932)にフォールバックする。
+    /// </summary>
     private static Encoding DetectCsvEncoding(string path)
     {
         // BOMの判定は先頭数バイトだけで足りるため、File.ReadAllBytesでファイル全体を読み込まない
@@ -135,6 +147,7 @@ public sealed class MemberListReader : IMemberListReader
         }
     }
 
+    /// <summary>Excelファイルの先頭ワークシートを解析し、アドレス候補列を抽出する。</summary>
     private static (IEnumerable<string>, string, string) ReadExcel(string path, CancellationToken cancellationToken)
     {
         ValidateExcelArchive(path, cancellationToken);
@@ -163,6 +176,9 @@ public sealed class MemberListReader : IMemberListReader
         return (extracted.Values, sheet.Name, extracted.Column);
     }
 
+    /// <summary>
+    /// Excel(.xlsx)をZipアーカイブとして展開後サイズを検証し、Zip爆弾的な入力を拒否する。
+    /// </summary>
     private static void ValidateExcelArchive(string path, CancellationToken cancellationToken)
     {
         using var stream = OpenShared(path);
@@ -178,6 +194,9 @@ public sealed class MemberListReader : IMemberListReader
         }
     }
 
+    /// <summary>
+    /// ヘッダー行からアドレス列(またはフォールバックの氏名列)を推定し、その列の値を抽出する。
+    /// </summary>
     private static (IEnumerable<string> Values, string Column) ExtractColumn(IReadOnlyList<string[]> rows)
     {
         if (rows.Count == 0) return ([], "1列目");
@@ -188,6 +207,9 @@ public sealed class MemberListReader : IMemberListReader
         return (rows.Skip(hasHeader ? 1 : 0).Where(r => r.Length > column).Select(r => r[column]), label);
     }
 
+    /// <summary>
+    /// ヘッダー名からメールアドレス列を優先的に探し、なければ氏名列を含む候補列を探す。
+    /// </summary>
     private static int FindPreferredColumn(IReadOnlyList<string> headers)
     {
         var addressIndex = headers.Select(NormalizeHeader).ToList().FindIndex(
@@ -198,6 +220,7 @@ public sealed class MemberListReader : IMemberListReader
                 header => HeaderNames.Contains(header, StringComparer.OrdinalIgnoreCase));
     }
 
+    /// <summary>ファイル内容のSHA-256ハッシュを16進文字列で計算する。</summary>
     private static string ComputeSha256(string path)
     {
         using var stream = OpenShared(path);
@@ -208,11 +231,13 @@ public sealed class MemberListReader : IMemberListReader
     // File.OpenRead既定のFileShare.ReadWriteへ緩め、他プロセスの読み書きを妨げないようにする。
     // 完全排他(FileShare.None)のロックはこれでも読めないため、読込前後のSHA256比較(Read参照)で
     // 途中変更を検知して安全側に倒す。
+    /// <summary>他プロセスによる読み書きを妨げないよう共有モードでファイルを開く。</summary>
     private static FileStream OpenShared(string path)
     {
         return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
     }
 
+    /// <summary>ヘッダー名の表記揺れ(前後空白・アンダースコア・空白・大文字小文字)を吸収する。</summary>
     private static string NormalizeHeader(string value)
     {
         return value.Trim().Replace("_", "").Replace(" ", "").ToLowerInvariant();

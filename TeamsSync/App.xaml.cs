@@ -11,10 +11,17 @@ using TeamsSync.Presentation.Views;
 
 namespace TeamsSync;
 
+/// <summary>
+/// アプリケーションのエントリポイント。Generic Hostを構築し、DI・設定・ロギングを
+/// 初期化したうえでメインウィンドウを表示する。
+/// </summary>
 public partial class App : System.Windows.Application
 {
     private IHost? _host;
 
+    /// <summary>
+    /// 起動時にホストを構築し、設定の読み込みとDIコンテナの初期化を行ってからメインウィンドウを表示する。
+    /// </summary>
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -52,6 +59,9 @@ public partial class App : System.Windows.Application
         }
     }
 
+    /// <summary>
+    /// 終了時にホストを停止・破棄し、リソースを解放する。
+    /// </summary>
     protected override void OnExit(ExitEventArgs e)
     {
         if (_host is not null)

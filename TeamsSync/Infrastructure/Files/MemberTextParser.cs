@@ -5,12 +5,19 @@ using TeamsSync.Domain.Teams;
 
 namespace TeamsSync.Infrastructure.Files;
 
+/// <summary>
+/// テキストとして貼り付けられた氏名・メールアドレスの一覧を解析し、アドレス一覧へ変換する。
+/// </summary>
 public sealed class MemberTextParser : IMemberTextParser
 {
     public const int MaximumEntries = 5000;
     public const int MaximumTextLength = 500_000;
     public const int MaximumLineLength = 512;
 
+    /// <summary>
+    /// 貼り付けテキストを1行1件として検証・解析する。タブ・制御文字・行長超過・件数超過は
+    /// <see cref="InvalidDataException"/>として拒否する。
+    /// </summary>
     public MemberListDocument Parse(string text)
     {
         if (text.Length > MaximumTextLength)

@@ -6,6 +6,10 @@ using TeamsSync.Presentation.Services;
 
 namespace TeamsSync.Presentation.ViewModels;
 
+/// <summary>
+/// メンバーリストの入力(ファイル選択・ドラッグ&ドロップ・テキスト貼り付け)を管理し、
+/// 解析結果の<see cref="MemberListDocument"/>を保持する。
+/// </summary>
 public partial class MemberFileViewModel : ObservableObject
 {
     private readonly IFilePickerService _filePicker;
@@ -16,16 +20,32 @@ public partial class MemberFileViewModel : ObservableObject
     private bool _enabled = true;
     private MemberListDocument? _fileDocument;
     private CancellationTokenSource? _loadCancellation;
+
+    /// <summary>ファイル入力の状態説明テキスト。</summary>
     [ObservableProperty] public partial string FileInfoText { get; set; } = "ファイルを選択するか、ここへドロップしてください";
+
+    /// <summary>選択中のファイルパス。</summary>
     [ObservableProperty] public partial string FilePath { get; set; } = "";
+
+    /// <summary>テキスト貼り付け入力の状態説明テキスト。</summary>
     [ObservableProperty] public partial string PasteInfoText { get; set; } = "1行につき1ユーザー（氏名またはメールアドレス）";
+
+    /// <summary>貼り付けテキストを解析中かどうか。</summary>
     [ObservableProperty] public partial bool IsParsing { get; set; }
+
+    /// <summary>ファイルを読み込み中かどうか。</summary>
     [ObservableProperty] public partial bool IsLoadingFile { get; set; }
+
+    /// <summary>貼り付け入力の解析でエラーが発生したかどうか。</summary>
     [ObservableProperty] public partial bool IsPasteError { get; set; }
+
+    /// <summary>テキスト貼り付け入力欄の内容。</summary>
     [ObservableProperty] public partial string PastedText { get; set; } = "";
 
+    /// <summary>選択中の入力方法(0=ファイル、1=テキスト貼り付け)。</summary>
     [ObservableProperty] public partial int SelectedInputIndex { get; set; }
 
+    /// <summary>コンストラクター。</summary>
     public MemberFileViewModel(IMemberListReader reader, IMemberTextParser textParser,
         IUserPreferences preferences, IFilePickerService filePicker, INotificationService notifications)
     {
@@ -36,14 +56,21 @@ public partial class MemberFileViewModel : ObservableObject
         _notifications = notifications;
     }
 
+    /// <summary>現在有効なメンバーリスト文書(未確定の場合はnull)。</summary>
     public MemberListDocument? Document { get; private set; }
+
+    /// <summary><see cref="Document"/>が変化したときに発行される。</summary>
     public event Action? DocumentChanged;
+
+    /// <summary>ステータスメッセージを通知するために発行される。</summary>
     public event Action<string, bool>? StatusChanged;
 
     // ファイル読込またはテキスト解析が失敗したときに1回だけ発行する。
     // Viewはこれを受けて、選択中の入力方法(ファイル/貼り付け)に応じた修正対象へフォーカスを移す。
+    /// <summary>入力エラー発生時、修正対象へフォーカスを移すために発行される。</summary>
     public event Action? InputFocusRequested;
 
+    /// <summary>外部の状態に応じて、この画面の入力操作を有効/無効にする。</summary>
     public void SetEnabled(bool value)
     {
         _enabled = value;
@@ -52,6 +79,7 @@ public partial class MemberFileViewModel : ObservableObject
         ApplyPastedTextInputCommand.NotifyCanExecuteChanged();
     }
 
+    /// <summary>ファイル読込関連コマンドのCanExecute状態を再評価させる。</summary>
     private void NotifyFileLoadCommandsCanExecuteChanged()
     {
         BrowseCommand.NotifyCanExecuteChanged();
@@ -59,12 +87,14 @@ public partial class MemberFileViewModel : ObservableObject
         CancelLoadCommand.NotifyCanExecuteChanged();
     }
 
+    /// <summary>入力方法の切り替えに応じて、有効な文書を切り替える。</summary>
     partial void OnSelectedInputIndexChanged(int value)
     {
         ApplySelectedInput();
         ApplyPastedTextInputCommand.NotifyCanExecuteChanged();
     }
 
+    /// <summary>貼り付けテキストの変更を検知し、反映前の文書を無効化して状態を更新する。</summary>
     partial void OnPastedTextChanged(string value)
     {
         if (SelectedInputIndex != 1) return;
@@ -77,6 +107,7 @@ public partial class MemberFileViewModel : ObservableObject
         ApplyPastedTextInputCommand.NotifyCanExecuteChanged();
     }
 
+    /// <summary>ファイル選択ダイアログを表示し、選ばれたファイルを読み込む。</summary>
     [RelayCommand(CanExecute = nameof(CanLoad))]
     private async Task Browse()
     {
@@ -84,6 +115,7 @@ public partial class MemberFileViewModel : ObservableObject
         if (path is not null) await Load(path);
     }
 
+    /// <summary>ドラッグ&ドロップされたファイルを読み込む。</summary>
     [RelayCommand(CanExecute = nameof(CanLoad))]
     private async Task LoadDroppedFile(string? path)
     {
@@ -99,6 +131,10 @@ public partial class MemberFileViewModel : ObservableObject
 
     // CSV/Excelの解析は行数・列数によって時間がかかりうるため、貼り付け入力(ApplyPastedTextInputAsync)と同様に
     // UIスレッド外(Task.Run)で実行し、IsLoadingFileで処理中表示、CancellationTokenSourceでキャンセルを可能にする。
+    /// <summary>
+    /// 指定したパスのファイルをUIスレッド外で読み込み、成功時は<see cref="Document"/>と
+    /// 前回フォルダー設定を更新する。失敗・キャンセル時は状態を適切にロールバックする。
+    /// </summary>
     private async Task Load(string path)
     {
         _loadCancellation?.Cancel();
@@ -156,6 +192,7 @@ public partial class MemberFileViewModel : ObservableObject
         }
     }
 
+    /// <summary>実行中のファイル読込をキャンセルする。</summary>
     [RelayCommand(CanExecute = nameof(CanCancelLoad))]
     private void CancelLoad()
     {
@@ -167,6 +204,7 @@ public partial class MemberFileViewModel : ObservableObject
         return IsLoadingFile && _loadCancellation is not null;
     }
 
+    /// <summary>選択中の入力方法に応じて<see cref="Document"/>をファイル文書または未反映状態へ切り替える。</summary>
     private void ApplySelectedInput()
     {
         if (SelectedInputIndex == 0)
@@ -184,6 +222,7 @@ public partial class MemberFileViewModel : ObservableObject
         }
     }
 
+    /// <summary>貼り付けテキストをUIスレッド外で解析し、成功時は<see cref="Document"/>へ反映する。</summary>
     [RelayCommand(CanExecute = nameof(CanApplyPastedText))]
     private async Task ApplyPastedTextInputAsync()
     {
@@ -229,6 +268,7 @@ public partial class MemberFileViewModel : ObservableObject
         return _enabled && !IsParsing && SelectedInputIndex == 1 && !string.IsNullOrWhiteSpace(PastedText);
     }
 
+    /// <summary><see cref="DocumentChanged"/>を発行し、成功時は件数をステータスとして通知する。</summary>
     private void NotifyDocumentChanged()
     {
         DocumentChanged?.Invoke();

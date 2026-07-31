@@ -6,11 +6,13 @@ using Wpf.Ui.Controls;
 
 namespace TeamsSync.Presentation.Views;
 
+/// <summary>アプリケーションのメインウィンドウ。</summary>
 public partial class MainWindow
 {
     private readonly MainWindowViewModel _viewModel;
     private bool _closeAfterCancellation;
 
+    /// <summary>コンストラクター。ダイアログ・スナックバーホストを登録し、テーマを適用する。</summary>
     public MainWindow(MainWindowViewModel viewModel, IUserInteractionHost interactionHost)
     {
         InitializeComponent();
@@ -21,6 +23,7 @@ public partial class MainWindow
         Closing += OnClosing;
     }
 
+    /// <summary>同期実行中はウィンドウを閉じる前にキャンセル完了を待ってから終了する。</summary>
     private async void OnClosing(object? sender, CancelEventArgs e)
     {
         if (_closeAfterCancellation || !_viewModel.SyncWorkspace.IsSyncing) return;

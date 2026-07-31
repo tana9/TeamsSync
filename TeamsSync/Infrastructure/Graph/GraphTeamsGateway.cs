@@ -9,6 +9,10 @@ using TeamsSync.Domain.Teams;
 
 namespace TeamsSync.Infrastructure.Graph;
 
+/// <summary>
+/// Microsoft Graph APIを介して、所有チームの判定、メンバー一覧の取得、
+/// ユーザー検索、メンバーの追加・削除を行う。
+/// </summary>
 public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGateway> logger) : ITeamsGateway
 {
     private const int OwnedTeamLookupConcurrency = 3;
@@ -23,6 +27,7 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
 
     private readonly ConcurrentDictionary<(string UserId, string TeamId), bool> _ownershipCache = new();
 
+    /// <summary>サインイン中のユーザー自身の情報を取得する。</summary>
     public async Task<(string Id, string DisplayName, string UserPrincipalName)> GetMeAsync(
         CancellationToken cancellationToken = default)
     {
@@ -31,6 +36,10 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
         return (Required(root, "id"), Required(root, "displayName"), Required(root, "userPrincipalName"));
     }
 
+    /// <summary>
+    /// サインイン中のユーザーが参加している全チームのうち、所有者になっているチームを判定して返す。
+    /// キャッシュ済みの判定結果を再利用しつつ、未判定のチームはバッチ取得で解決する。
+    /// </summary>
     public async Task<IReadOnlyList<TeamInfo>> GetOwnedTeamsAsync(string currentUserId,
         CancellationToken cancellationToken = default)
     {
@@ -88,6 +97,10 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
     // - それ以外(403・400など権限不足や不正要求): 待っても解決しないため、従来どおり
     //   GetTeamMembersAsyncで個別に再取得する。
     // - 再試行上限(MaxBatchAttempts)に達してもなお429/503の項目は、最終手段として個別取得へ回す。
+    /// <summary>
+    /// 1バッチ分の候補チームについて、メンバー一覧をバッチ取得(失敗分は個別フォールバック)したうえで
+    /// 所有者判定を行い、結果をキャッシュへ書き込む。
+    /// </summary>
     private async Task ResolveOwnershipBatchAsync(string currentUserId, IReadOnlyList<TeamInfo> candidates,
         IReadOnlyList<int> batch, bool[] ownership, CancellationToken cancellationToken)
     {
@@ -111,6 +124,10 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
 
     // バッチ送信とスロットリング再試行のみを担当し、最終的に取得できなかった項目は
     // 呼び出し元(ResolveOwnershipBatchAsync)の個別フォールバックに委ねる。
+    /// <summary>
+    /// バッチリクエストを送信し、429/503応答は待機のうえ再試行する。403/400等の応答や
+    /// 再試行上限に達した項目は結果に含めない。
+    /// </summary>
     private async Task<Dictionary<int, List<TeamMember>>> SendBatchWithRetryAsync(IReadOnlyList<TeamInfo> candidates,
         IReadOnlyList<int> batch, CancellationToken cancellationToken)
     {
@@ -163,6 +180,7 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
         return membersByIndex;
     }
 
+    /// <summary>バッチ取得できなかったチームのメンバー一覧を個別APIで再取得する。</summary>
     private async Task<List<TeamMember>> FetchMembersIndividuallyAsync(TeamInfo team,
         CancellationToken cancellationToken)
     {
@@ -171,6 +189,7 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
         return (await GetTeamMembersAsync(team.Id, cancellationToken)).ToList();
     }
 
+    /// <summary>バッチ応答1件分のメンバー一覧を解析し、ページングが必要な場合は続きも取得する。</summary>
     private async Task<List<TeamMember>> ParseBatchMemberResponseAsync(JsonElement response,
         CancellationToken cancellationToken)
     {
@@ -188,6 +207,7 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
 
     // Graphの$batchレスポンスは項目ごとに{"headers":{"Retry-After":"10"}}のようにヘッダーを個別に持つ。
     // 秒数のdelta-seconds形式のみ対応(Graphの429/503はHTTP-date形式を返さないため十分)。
+    /// <summary>バッチ応答項目のヘッダーからRetry-After(秒数)を解析する。</summary>
     private static TimeSpan? ParseRetryAfter(JsonElement response)
     {
         if (!response.TryGetProperty("headers", out var headers) || headers.ValueKind != JsonValueKind.Object)
@@ -212,8 +232,10 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
         return null;
     }
 
+    /// <summary>再試行の集中を避けるための、0～500msのランダムなジッター遅延。</summary>
     private static TimeSpan JitterDelay() => TimeSpan.FromMilliseconds(Random.Shared.Next(0, 500));
 
+    /// <summary>所有チーム判定のキャッシュを消去する。ユーザーIDを指定するとそのユーザー分のみ消去する。</summary>
     public void ClearOwnedTeamsCache(string? currentUserId = null)
     {
         foreach (var key in _ownershipCache.Keys)
@@ -222,6 +244,7 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
                 _ownershipCache.TryRemove(key, out _);
     }
 
+    /// <summary>指定したチームの現メンバー一覧を取得する。</summary>
     public async Task<IReadOnlyList<TeamMember>> GetTeamMembersAsync(string teamId,
         CancellationToken cancellationToken = default)
     {
@@ -229,6 +252,7 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
         return ParseTeamMembers(values);
     }
 
+    /// <summary>Graph応答のメンバー配列を<see cref="TeamMember"/>一覧へ変換する。</summary>
     private static List<TeamMember> ParseTeamMembers(IEnumerable<JsonElement> values)
     {
         return values.Select(x => new TeamMember(
@@ -241,6 +265,10 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
             .ToList();
     }
 
+    /// <summary>
+    /// 氏名またはメールアドレスからディレクトリ上のユーザーを検索する。
+    /// まず直接参照を試み、見つからない場合は<see cref="SearchUsersAsync"/>にフォールバックする。
+    /// </summary>
     public async Task<IReadOnlyList<DirectoryUser>> FindUsersAsync(string identifier,
         CancellationToken cancellationToken = default)
     {
@@ -260,6 +288,10 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
     // 直接参照(UPN/メールの完全一致)で見つからない場合のフォールバック。
     // 1) mail/UPNの完全一致フィルター、2) 表示名の全文検索、3) 表示名の前方一致、の順に緩めて試す。
     // 段階を分けることで、$search特有のあいまい一致による誤検出を最小限にしている。
+    /// <summary>
+    /// 直接参照で見つからなかった場合のフォールバック検索。メール/UPNの完全一致、
+    /// 表示名の全文検索、表示名の前方一致の順に段階的に緩めて試す。
+    /// </summary>
     private async Task<IReadOnlyList<DirectoryUser>> SearchUsersAsync(string identifier,
         CancellationToken cancellationToken)
     {
@@ -286,6 +318,7 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
             cancellationToken)).Where(user => UserIdentifier.NameEquals(user.DisplayName, identifier)).ToList();
     }
 
+    /// <summary>指定したユーザーをチームの一般メンバーとして追加する。</summary>
     public Task AddMemberAsync(string teamId, string userId, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("チームへのメンバー追加を実行します。TeamId={TeamId}", teamId);
@@ -297,6 +330,7 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
         }, true, cancellationToken);
     }
 
+    /// <summary>指定したメンバーシップをチームから削除する。</summary>
     public Task RemoveMemberAsync(string teamId, string membershipId, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("チームからのメンバー削除を実行します。TeamId={TeamId}", teamId);
@@ -304,18 +338,22 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
             $"teams/{teamId}/members/{Uri.EscapeDataString(membershipId)}", cancellationToken: cancellationToken);
     }
 
+    /// <summary>Graph応答のユーザー要素を<see cref="DirectoryUser"/>へ変換する。</summary>
     private static DirectoryUser ToDirectoryUser(JsonElement user)
     {
         return new DirectoryUser(Required(user, "id"), Required(user, "displayName"),
             Required(user, "userPrincipalName"), Optional(user, "mail"));
     }
 
+    /// <summary>Graph応答のユーザー配列を<see cref="DirectoryUser"/>一覧へ変換する。</summary>
     private static List<DirectoryUser> ToDirectoryUsers(IEnumerable<JsonElement> users)
     {
         return users.Select(ToDirectoryUser).ToList();
     }
 
+    /// <summary><see cref="GraphHttpClient.Required"/>への委譲。</summary>
     private static string Required(JsonElement element, string name) => GraphHttpClient.Required(element, name);
 
+    /// <summary><see cref="GraphHttpClient.Optional"/>への委譲。</summary>
     private static string? Optional(JsonElement element, string name) => GraphHttpClient.Optional(element, name);
 }

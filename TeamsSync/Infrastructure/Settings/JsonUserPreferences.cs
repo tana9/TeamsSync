@@ -4,17 +4,23 @@ using TeamsSync.Application.Abstractions;
 
 namespace TeamsSync.Infrastructure.Settings;
 
+/// <summary>
+/// ユーザー設定(最終利用フォルダーなど)をJSONファイルとして永続化する。
+/// 読み込みに失敗した場合は破損ファイルを退避し、初期値で継続する。
+/// </summary>
 public sealed class JsonUserPreferences : IUserPreferences
 {
     private readonly ILogger<JsonUserPreferences> _logger;
     private readonly string _path;
 
+    /// <summary>既定の保存先(%LocalAppData%\TeamsSync\preferences.json)を使用するコンストラクター。</summary>
     public JsonUserPreferences(ILogger<JsonUserPreferences> logger)
         : this(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "TeamsSync", "preferences.json"), logger)
     {
     }
 
+    /// <summary>保存先パスを指定できるコンストラクター(主にテスト用)。</summary>
     public JsonUserPreferences(string path, ILogger<JsonUserPreferences> logger)
     {
         _path = path;
@@ -22,15 +28,23 @@ public sealed class JsonUserPreferences : IUserPreferences
         Load();
     }
 
+    /// <summary>最後にファイル選択に使用したフォルダー。</summary>
     public string? LastFolder { get; set; }
+
+    /// <summary>設定の読み込み時に発生した警告メッセージ(なければnull)。</summary>
     public string? LoadWarning { get; private set; }
 
+    /// <summary>現在の設定値をJSONファイルへ書き出す。</summary>
     public void Save()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
         File.WriteAllText(_path, JsonSerializer.Serialize(new Data(LastFolder)));
     }
 
+    /// <summary>
+    /// 設定ファイルを読み込む。存在しない場合は何もせず、破損している場合は
+    /// バックアップを試みたうえで<see cref="LoadWarning"/>を設定する。
+    /// </summary>
     private void Load()
     {
         if (!File.Exists(_path)) return;
@@ -53,6 +67,7 @@ public sealed class JsonUserPreferences : IUserPreferences
         }
     }
 
+    /// <summary>破損した設定ファイルをタイムスタンプ付きの別名でコピーし、退避先のパスを返す。</summary>
     private string? TryBackup()
     {
         try
@@ -73,5 +88,6 @@ public sealed class JsonUserPreferences : IUserPreferences
         }
     }
 
+    /// <summary>JSONファイルへ書き出す設定データの形。</summary>
     private sealed record Data(string? LastFolder);
 }

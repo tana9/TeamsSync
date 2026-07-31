@@ -13,10 +13,12 @@ using TextBox = Wpf.Ui.Controls.TextBox;
 
 namespace TeamsSync.Presentation.Services;
 
+/// <summary>WPF-UIのダイアログ・スナックバー表示先ホストをメインウィンドウへ結び付ける。</summary>
 public sealed class WpfUserInteractionHost(
     IContentDialogService contentDialogs,
     ISnackbarService snackbars) : IUserInteractionHost
 {
+    /// <summary>ダイアログホストとスナックバー表示先を登録する。</summary>
     public void SetHosts(ContentDialogHost dialogHost, SnackbarPresenter snackbarPresenter)
     {
         contentDialogs.SetDialogHost(dialogHost);
@@ -24,8 +26,10 @@ public sealed class WpfUserInteractionHost(
     }
 }
 
+/// <summary>Win32の標準ファイルダイアログでメンバーリスト・同期結果ファイルを選択させる。</summary>
 public sealed class WpfFilePickerService : IFilePickerService
 {
+    /// <summary>メンバーリストファイル(CSV/Excel)を選択するダイアログを表示する。</summary>
     public string? PickMemberFile(string? initialDirectory)
     {
         var dialog = new OpenFileDialog
@@ -38,6 +42,7 @@ public sealed class WpfFilePickerService : IFilePickerService
         return dialog.ShowDialog() == true ? dialog.FileName : null;
     }
 
+    /// <summary>同期結果の保存先ファイルを選択するダイアログを表示する。既定のファイル名にチーム名・日時を含める。</summary>
     public string? PickResultFile(string? initialDirectory, string teamName)
     {
         var safeName = string.Concat(teamName.Select(c =>
@@ -53,9 +58,14 @@ public sealed class WpfFilePickerService : IFilePickerService
     }
 }
 
+/// <summary>同期実行前の最終確認ダイアログをWPF-UIのContentDialogとして表示する。</summary>
 public sealed class WpfSyncConfirmationService(
     IContentDialogService contentDialogs) : ISyncConfirmationService
 {
+    /// <summary>
+    /// 対象チーム・件数内訳・入力元を表示する確認ダイアログを表示する。削除がある場合は
+    /// 確認チェックボックスへの同意があるまで実行ボタンを無効化する。
+    /// </summary>
     public async Task<bool> ConfirmSyncAsync(SyncConfirmation confirmation,
         CancellationToken cancellationToken = default)
     {
@@ -99,6 +109,7 @@ public sealed class WpfSyncConfirmationService(
         return await ShowRestoringFocusAsync(contentDialogs, dialog, cancellationToken) == ContentDialogResult.Primary;
     }
 
+    /// <summary>対象チーム名と同期モードを表示するヘッダー部分を組み立てる。</summary>
     private static UIElement BuildHeaderBlock(SyncPlan plan)
     {
         var panel = new StackPanel();
@@ -117,6 +128,7 @@ public sealed class WpfSyncConfirmationService(
     }
 
     // 削除は取り消せない操作のため、件数情報の中で最も目立つ位置・書式(枠線+強調色+アイコン)で表示する。
+    /// <summary>削除件数を強調表示する警告ボックスを組み立てる。</summary>
     private static Border BuildRemovalWarningBox(SyncPlan plan)
     {
         var removalBox = new Border
@@ -143,6 +155,7 @@ public sealed class WpfSyncConfirmationService(
         return removalBox;
     }
 
+    /// <summary>追加・変更なし・所有者保護の件数を表示する部分を組み立てる。</summary>
     private static UIElement BuildCountsSection(SyncPlan plan)
     {
         var panel = new StackPanel();
@@ -161,6 +174,7 @@ public sealed class WpfSyncConfirmationService(
         return panel;
     }
 
+    /// <summary>入力元ファイル名と入力概要を表示するテキスト要素を列挙する。</summary>
     private static IEnumerable<UIElement> BuildInputSourceBlocks(SyncConfirmation confirmation)
     {
         var inputFileText = new TextBlock
@@ -179,6 +193,7 @@ public sealed class WpfSyncConfirmationService(
         yield return inputSummaryText;
     }
 
+    /// <summary>削除対象を確認したことを同意させるチェックボックスを組み立てる。</summary>
     private static CheckBox BuildAcknowledgementCheckbox(SyncPlan plan)
     {
         return new CheckBox
@@ -191,6 +206,9 @@ public sealed class WpfSyncConfirmationService(
     // ContentDialogHostはウィンドウ内オーバーレイであり、通常のモーダルウィンドウと違って
     // 閉じた後にフォーカスが自動復帰しない。呼び出し元のボタンへ確実に戻すため、表示前の
     // フォーカス要素を記録しておき、閉じた後に明示的に戻す。
+    /// <summary>
+    /// ダイアログを表示し、閉じた後に表示前フォーカスしていた要素へフォーカスを明示的に戻す。
+    /// </summary>
     internal static async Task<ContentDialogResult> ShowRestoringFocusAsync(
         IContentDialogService contentDialogs, ContentDialog dialog, CancellationToken cancellationToken)
     {
@@ -207,8 +225,10 @@ public sealed class WpfSyncConfirmationService(
     }
 }
 
+/// <summary>埋め込みリソースのマニュアルHTMLを一時フォルダーへ展開し、既定のブラウザーで開く。</summary>
 public sealed class WpfManualService : IManualService
 {
+    /// <summary>マニュアルHTMLを一時フォルダーへ展開し、既定のブラウザーで開く。</summary>
     public void OpenManual()
     {
         var path = Path.Combine(Path.GetTempPath(), "TeamsSync", "Manual.html");
@@ -225,20 +245,24 @@ public sealed class WpfManualService : IManualService
     }
 }
 
+/// <summary>スナックバー・ダイアログを用いて成功・警告・エラーをユーザーへ通知する。</summary>
 public sealed class WpfNotificationService(
     ISnackbarService snackbars,
     IContentDialogService contentDialogs) : INotificationService
 {
+    /// <summary>成功通知をスナックバーで5秒間表示する。</summary>
     public void ShowSuccess(string title, string message)
     {
         snackbars.Show(title, message, ControlAppearance.Success, TimeSpan.FromSeconds(5));
     }
 
+    /// <summary>警告通知をスナックバーで8秒間表示する。</summary>
     public void ShowWarning(string title, string message)
     {
         snackbars.Show(title, message, ControlAppearance.Caution, TimeSpan.FromSeconds(8));
     }
 
+    /// <summary>エラー内容を選択・コピー可能なテキストボックス付きダイアログで表示する。</summary>
     public async void ShowError(string message, string title = "エラー", Action? onClosed = null)
     {
         try
