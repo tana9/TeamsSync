@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.AddSingleton<IAuthenticationService, MsalAuthenticationService>();
         services.AddGraphHttpClients();
         services.AddSingleton<GraphHttpClient>();
+        services.AddSingleton<GraphSdkClient>();
         services.AddSingleton<ITeamsGateway, GraphTeamsGateway>();
         services.AddSingleton<IMemberListReader, MemberListReader>();
         services.AddSingleton<IMemberTextParser, MemberTextParser>();

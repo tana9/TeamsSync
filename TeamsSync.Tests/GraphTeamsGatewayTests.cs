@@ -625,7 +625,10 @@ public sealed class GraphTeamsGatewayTests
 
     private static HttpResponseMessage JsonResponse(string json)
     {
-        return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json) };
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json")
+        };
     }
 
     private static GraphTeamsGateway CreateGateway(HttpMessageHandler handler, out FakeAuthentication authentication,
@@ -635,7 +638,9 @@ public sealed class GraphTeamsGatewayTests
         var client = new HttpClient(handler);
         var http = new GraphHttpClient(new FakeHttpClientFactory(client), authentication,
             httpLogger ?? NullLogger<GraphHttpClient>.Instance);
-        return new GraphTeamsGateway(http, NullLogger<GraphTeamsGateway>.Instance);
+        var sdk = new GraphSdkClient(new FakeHttpClientFactory(client), authentication,
+            httpLogger ?? NullLogger<GraphHttpClient>.Instance);
+        return new GraphTeamsGateway(http, sdk, NullLogger<GraphTeamsGateway>.Instance);
     }
 
     private sealed class FakeHttpClientFactory(HttpClient client) : IHttpClientFactory

@@ -4,6 +4,9 @@ using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using GraphAadUserConversationMember = Microsoft.Graph.Models.AadUserConversationMember;
+using GraphConversationMember = Microsoft.Graph.Models.ConversationMember;
+using GraphUser = Microsoft.Graph.Models.User;
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Domain.Teams;
 
@@ -13,7 +16,7 @@ namespace TeamsSync.Infrastructure.Graph;
 /// Microsoft Graph APIを介して、所有チームの判定、メンバー一覧の取得、
 /// ユーザー検索、メンバーの追加・削除を行う。
 /// </summary>
-public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGateway> logger) : ITeamsGateway
+public sealed class GraphTeamsGateway(GraphHttpClient http, GraphSdkClient sdk, ILogger<GraphTeamsGateway> logger) : ITeamsGateway
 {
     private const int OwnedTeamLookupConcurrency = 3;
     private const int OwnedTeamBatchSize = 20;
@@ -31,9 +34,9 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
     public async Task<(string Id, string DisplayName, string UserPrincipalName)> GetMeAsync(
         CancellationToken cancellationToken = default)
     {
-        using var doc = await http.GetAsync("me?$select=id,displayName,userPrincipalName", cancellationToken);
-        var root = doc.RootElement;
-        return (Required(root, "id"), Required(root, "displayName"), Required(root, "userPrincipalName"));
+        var user = await sdk.GetMeAsync(cancellationToken);
+        return (Required(user.Id, "id"), Required(user.DisplayName, "displayName"),
+            Required(user.UserPrincipalName, "userPrincipalName"));
     }
 
     /// <summary>
@@ -45,9 +48,9 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
     {
         // me/joinedTeamsは$topクエリオプションを許可しない(400 "Query option 'Top' is not allowed")ため、
         // 既定ページサイズのまま@odata.nextLinkでページングする。
-        var teams = await http.GetPagedAsync("me/joinedTeams", cancellationToken);
+        var teams = await sdk.GetJoinedTeamsAsync(cancellationToken);
         var candidates = teams.Select(x => new TeamInfo(
-            Required(x, "id"), Required(x, "displayName"), Optional(x, "description"))).ToList();
+            Required(x.Id, "id"), Required(x.DisplayName, "displayName"), x.Description)).ToList();
 
         var stopwatch = Stopwatch.StartNew();
         var cacheHits = 0;
@@ -248,8 +251,7 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
     public async Task<IReadOnlyList<TeamMember>> GetTeamMembersAsync(string teamId,
         CancellationToken cancellationToken = default)
     {
-        var values = await http.GetPagedAsync($"teams/{teamId}/members?$top=999", cancellationToken);
-        return ParseTeamMembers(values);
+        return ParseTeamMembers(await sdk.GetTeamMembersAsync(teamId, cancellationToken));
     }
 
     /// <summary>Graph応答のメンバー配列を<see cref="TeamMember"/>一覧へ変換する。</summary>
@@ -265,6 +267,29 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
             .ToList();
     }
 
+    private static List<TeamMember> ParseTeamMembers(IEnumerable<GraphConversationMember> values)
+    {
+        return values.Select(member =>
+        {
+            var user = member as GraphAadUserConversationMember;
+            return new TeamMember(Required(member.Id, "id"),
+                Required(user?.UserId ?? AdditionalString(member, "userId"), "userId"),
+                member.DisplayName ?? "", user?.Email ?? AdditionalString(member, "email") ?? "",
+                member.Roles?.Any(role => role == "owner") == true);
+        }).ToList();
+    }
+
+    private static string? AdditionalString(GraphConversationMember member, string name)
+    {
+        if (!member.AdditionalData.TryGetValue(name, out var value)) return null;
+        return value switch
+        {
+            string text => text,
+            JsonElement element when element.ValueKind == JsonValueKind.String => element.GetString(),
+            _ => value?.ToString()
+        };
+    }
+
     /// <summary>
     /// 氏名またはメールアドレスからディレクトリ上のユーザーを検索する。
     /// まず直接参照を試み、見つからない場合は<see cref="SearchUsersAsync"/>にフォールバックする。
@@ -274,10 +299,8 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
     {
         try
         {
-            using var doc = await http.GetAsync(
-                $"users/{Uri.EscapeDataString(identifier)}?$select=id,displayName,userPrincipalName,mail",
-                cancellationToken, expectedNotFound: true);
-            return [ToDirectoryUser(doc.RootElement)];
+            var user = await sdk.GetUserAsync(identifier, cancellationToken);
+            return user is null ? [] : [ToDirectoryUser(user)];
         }
         catch (GraphException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
@@ -296,46 +319,36 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
         CancellationToken cancellationToken)
     {
         var escaped = identifier.Replace("'", "''");
-        var filter = Uri.EscapeDataString($"mail eq '{escaped}' or userPrincipalName eq '{escaped}'");
-        var addressMatches = ToDirectoryUsers(await http.GetPagedAsync(
-            $"users?$filter={filter}&$select=id,displayName,userPrincipalName,mail&$top=2",
-            cancellationToken));
+        var filter = $"mail eq '{escaped}' or userPrincipalName eq '{escaped}'";
+        var addressMatches = ToDirectoryUsers(await sdk.FindUsersAsync(filter, null, 2, cancellationToken));
         if (addressMatches.Count > 0) return addressMatches;
 
         var searchText = identifier.Replace("\\", "\\\\").Replace("\"", "\\\"");
-        var search = Uri.EscapeDataString($"\"displayName:{searchText}\"");
-        var nameMatches = ToDirectoryUsers(await http.GetPagedAsync(
-            $"users?$search={search}&$count=true&$select=id,displayName,userPrincipalName,mail&$top=25",
-            cancellationToken)).Where(user => UserIdentifier.NameEquals(user.DisplayName, identifier)).ToList();
+        var search = $"\"displayName:{searchText}\"";
+        var nameMatches = ToDirectoryUsers(await sdk.FindUsersAsync(null, search, 25, cancellationToken))
+            .Where(user => UserIdentifier.NameEquals(user.DisplayName, identifier)).ToList();
         if (nameMatches.Count > 0) return nameMatches;
 
         var normalized = UserIdentifier.NormalizeName(identifier);
         if (normalized.Length == 0) return [];
         var firstCharacter = StringInfo.GetNextTextElement(normalized).Replace("'", "''");
-        var nameFilter = Uri.EscapeDataString($"startswith(displayName,'{firstCharacter}')");
-        return ToDirectoryUsers(await http.GetPagedAsync(
-            $"users?$filter={nameFilter}&$select=id,displayName,userPrincipalName,mail&$top=100",
-            cancellationToken)).Where(user => UserIdentifier.NameEquals(user.DisplayName, identifier)).ToList();
+        var nameFilter = $"startswith(displayName,'{firstCharacter}')";
+        return ToDirectoryUsers(await sdk.FindUsersAsync(nameFilter, null, 100, cancellationToken))
+            .Where(user => UserIdentifier.NameEquals(user.DisplayName, identifier)).ToList();
     }
 
     /// <summary>指定したユーザーをチームの一般メンバーとして追加する。</summary>
     public Task AddMemberAsync(string teamId, string userId, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("チームへのメンバー追加を実行します。TeamId={TeamId}", teamId);
-        return http.SendAsync(HttpMethod.Post, $"teams/{teamId}/members", new
-        {
-            odata_type = "#microsoft.graph.aadUserConversationMember",
-            roles = (string[])[],
-            user_odata_bind = $"https://graph.microsoft.com/v1.0/users('{userId}')"
-        }, true, cancellationToken);
+        return sdk.AddMemberAsync(teamId, userId, cancellationToken);
     }
 
     /// <summary>指定したメンバーシップをチームから削除する。</summary>
     public Task RemoveMemberAsync(string teamId, string membershipId, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("チームからのメンバー削除を実行します。TeamId={TeamId}", teamId);
-        return http.SendAsync(HttpMethod.Delete,
-            $"teams/{teamId}/members/{Uri.EscapeDataString(membershipId)}", cancellationToken: cancellationToken);
+        return sdk.RemoveMemberAsync(teamId, membershipId, cancellationToken);
     }
 
     /// <summary>Graph応答のユーザー要素を<see cref="DirectoryUser"/>へ変換する。</summary>
@@ -350,6 +363,16 @@ public sealed class GraphTeamsGateway(GraphHttpClient http, ILogger<GraphTeamsGa
     {
         return users.Select(ToDirectoryUser).ToList();
     }
+
+    private static DirectoryUser ToDirectoryUser(GraphUser user) =>
+        new(Required(user.Id, "id"), Required(user.DisplayName, "displayName"),
+            Required(user.UserPrincipalName, "userPrincipalName"), user.Mail);
+
+    private static List<DirectoryUser> ToDirectoryUsers(IEnumerable<GraphUser> users) =>
+        users.Select(ToDirectoryUser).ToList();
+
+    private static string Required(string? value, string name) =>
+        value ?? throw new InvalidDataException($"{name} がありません。");
 
     /// <summary><see cref="GraphHttpClient.Required"/>への委譲。</summary>
     private static string Required(JsonElement element, string name) => GraphHttpClient.Required(element, name);
