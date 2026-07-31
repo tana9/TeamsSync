@@ -210,9 +210,6 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         }
     }
 
-    /// <summary><see cref="IsBusy"/>または<see cref="IsSyncing"/>が変化したときに発行される。</summary>
-    public event Action<bool>? ActivityChanged;
-
     /// <summary>ステータスメッセージを通知するために発行される。</summary>
     public event Action<string, bool>? StatusChanged;
 
@@ -264,17 +261,15 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             StatusChanged?.Invoke("同期モードを変更したため差分をクリアしました。「差分を確認」を再実行してください", false);
     }
 
-    /// <summary>処理中状態の変化を通知し、関連コマンドの実行可否を再評価する。</summary>
+    /// <summary>処理中状態の変化に応じて関連コマンドの実行可否を再評価する。</summary>
     partial void OnIsBusyChanged(bool value)
     {
-        ActivityChanged?.Invoke(value);
         NotifyCommandStates();
     }
 
-    /// <summary>同期実行中状態の変化を通知し、関連コマンドの実行可否を再評価する。</summary>
+    /// <summary>同期実行中状態の変化に応じて関連コマンドの実行可否を再評価する。</summary>
     partial void OnIsSyncingChanged(bool value)
     {
-        ActivityChanged?.Invoke(value);
         NotifyCommandStates();
     }
 

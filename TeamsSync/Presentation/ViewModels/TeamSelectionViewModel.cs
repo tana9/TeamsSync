@@ -52,14 +52,8 @@ public partial class TeamSelectionViewModel : ObservableObject
     public bool HasNoSearchResults =>
         !string.IsNullOrWhiteSpace(SearchText) && Teams.Count > 0 && !Teams.Any(MatchesSearch);
 
-    /// <summary><see cref="SelectedTeam"/>が変化したときに発行される。</summary>
-    public event Action? SelectionChanged;
-
     /// <summary>チーム選択欄へフォーカスを移すよう要求するために発行される。</summary>
     public event Action? SelectionFocusRequested;
-
-    /// <summary>チーム一覧の取得中かどうかが変化したときに発行される。</summary>
-    public event Action<bool>? ActivityChanged;
 
     /// <summary>ステータスメッセージを通知するために発行される。</summary>
     public event Action<string, bool>? StatusChanged;
@@ -86,12 +80,6 @@ public partial class TeamSelectionViewModel : ObservableObject
     {
         _externallyBusy = value;
         RefreshCommand.NotifyCanExecuteChanged();
-    }
-
-    /// <summary>選択チームの変更を呼び出し元へ通知する。</summary>
-    partial void OnSelectedTeamChanged(TeamInfo? value)
-    {
-        SelectionChanged?.Invoke();
     }
 
     /// <summary>検索テキストの変更に応じてビューを再フィルターし、関連プロパティを更新する。</summary>
@@ -154,7 +142,6 @@ public partial class TeamSelectionViewModel : ObservableObject
     {
         if (_currentUserId is null) return;
         IsBusy = true;
-        ActivityChanged?.Invoke(true);
         RefreshCommand.NotifyCanExecuteChanged();
         try
         {
@@ -171,7 +158,6 @@ public partial class TeamSelectionViewModel : ObservableObject
         finally
         {
             IsBusy = false;
-            ActivityChanged?.Invoke(false);
             RefreshCommand.NotifyCanExecuteChanged();
         }
     }

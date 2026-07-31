@@ -56,17 +56,23 @@ public partial class MainWindowViewModel : ObservableObject
         MemberFile = memberFile;
         SyncWorkspace = syncWorkspace;
 
-        TeamSelection.SelectionChanged += UpdateSyncContext;
-        TeamSelection.ActivityChanged += _ => UpdateAvailability();
+        // SelectedTeam/IsBusyはMVVM Toolkitの[ObservableProperty]が自動でPropertyChangedを発行するため、
+        // 専用のカスタムイベントを設けず、子ViewModelのPropertyChangedをプロパティ名でフィルターして購読する。
+        TeamSelection.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(TeamSelectionViewModel.SelectedTeam)) UpdateSyncContext();
+            if (e.PropertyName == nameof(TeamSelectionViewModel.IsBusy)) UpdateAvailability();
+        };
         TeamSelection.StatusChanged += SetStatus;
         MemberFile.DocumentChanged += UpdateSyncContext;
         MemberFile.StatusChanged += SetStatus;
-        SyncWorkspace.ActivityChanged += _ => UpdateAvailability();
         SyncWorkspace.StatusChanged += SetStatus;
         // 手順3(同期モード)・手順4(同期差分)の完了状態はSyncWorkspace側の状態から決まるため、
         // 該当プロパティが変わるたびに手順表示(各カード直下のブロッカーメッセージの表示条件)を更新する。
         SyncWorkspace.PropertyChanged += (_, e) =>
         {
+            if (e.PropertyName is nameof(SyncWorkspaceViewModel.IsBusy) or nameof(SyncWorkspaceViewModel.IsSyncing))
+                UpdateAvailability();
             if (e.PropertyName is nameof(SyncWorkspaceViewModel.HasPlan) or nameof(SyncWorkspaceViewModel.HasSyncResult))
                 NotifyWorkflowSteps();
         };
