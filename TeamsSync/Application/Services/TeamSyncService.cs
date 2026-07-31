@@ -25,7 +25,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         var current = await teamsGateway.GetTeamMembersAsync(team.Id, cancellationToken);
         var resolutions = await ResolveAddressesAsync(addresses, current, progress, cancellationToken);
 
-        var (resolved, changes) = ClassifyResolutions(resolutions);
+        var (resolved, changes) = ClassifyResolutions(resolutions, mode);
         if (mode == SyncMode.FullSync)
             changes.AddRange(ComputeRemovals(current, resolved, changes));
 
@@ -58,7 +58,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
     /// 最初の行のEmailへ表記を合流させて1行にまとめる。
     /// </summary>
     private static (Dictionary<string, DirectoryUser> Resolved, List<SyncChange> Changes) ClassifyResolutions(
-        IReadOnlyList<AddressResolution> resolutions)
+        IReadOnlyList<AddressResolution> resolutions, SyncMode mode)
     {
         var resolved = new Dictionary<string, DirectoryUser>(StringComparer.OrdinalIgnoreCase);
         List<SyncChange> changes = [];
@@ -87,19 +87,28 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
                     break;
                 case { Outcome: ResolutionOutcome.ExistingSingle, ExistingMember: { } existing }:
                     AddOrMergeChange(resolution.Address, existing.UserId, existing.MembershipId,
-                        existing.DisplayName, existing.IsOwner ? ChangeKind.Protected : ChangeKind.Keep,
-                        existing.IsOwner ? "所有者のため変更しません" : "既にメンバーです");
+                        existing.DisplayName,
+                        existing.IsOwner ? ChangeKind.Protected :
+                        mode == SyncMode.RemoveSpecified ? ChangeKind.Remove : ChangeKind.Keep,
+                        existing.IsOwner ? "所有者のため削除しません" :
+                        mode == SyncMode.RemoveSpecified ? "指定された一般メンバーを削除します" : "既にメンバーです");
                     break;
                 case { Outcome: ResolutionOutcome.SameUserDifferentAddress, ExistingMember: { } sameUser,
                     User: { } sameUserAccount }:
                     resolved[resolution.Address] = sameUserAccount;
                     AddOrMergeChange(resolution.Address, sameUser.UserId, sameUser.MembershipId,
-                        sameUser.DisplayName, sameUser.IsOwner ? ChangeKind.Protected : ChangeKind.Keep,
-                        sameUser.IsOwner ? "所有者のため変更しません" : "別のアドレスで既にメンバーです");
+                        sameUser.DisplayName,
+                        sameUser.IsOwner ? ChangeKind.Protected :
+                        mode == SyncMode.RemoveSpecified ? ChangeKind.Remove : ChangeKind.Keep,
+                        sameUser.IsOwner ? "所有者のため削除しません" :
+                        mode == SyncMode.RemoveSpecified ? "指定された一般メンバーを削除します" :
+                        "別のアドレスで既にメンバーです");
                     break;
                 case { Outcome: ResolutionOutcome.NewUser, User: { } user }:
                     resolved[resolution.Address] = user;
-                    AddOrMergeChange(resolution.Address, user.Id, null, user.DisplayName, ChangeKind.Add,
+                    AddOrMergeChange(resolution.Address, user.Id, null, user.DisplayName,
+                        mode == SyncMode.RemoveSpecified ? ChangeKind.NotMember : ChangeKind.Add,
+                        mode == SyncMode.RemoveSpecified ? "現在このチームに所属していません" :
                         "メンバーに追加します");
                     break;
             }
@@ -260,6 +269,8 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
             throw new InvalidOperationException("未解決ユーザーがあります。同期は実行できません。");
         if (plan.Mode == SyncMode.AddOnly && plan.RemoveCount > 0)
             throw new InvalidOperationException("追加のみモードではメンバーを削除できません。");
+        if (plan.Mode == SyncMode.RemoveSpecified && plan.AddCount > 0)
+            throw new InvalidOperationException("指定メンバー削除モードではメンバーを追加できません。");
         var context = auditContext ?? new SyncAuditContext(Guid.NewGuid(), "", "");
         using var auditScope = _logger.BeginScope(new Dictionary<string, object?>
         {
@@ -365,7 +376,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         {
             return plan.Changes
                 .Where(change => change.Kind is ChangeKind.Add or ChangeKind.Remove or
-                    ChangeKind.Protected or ChangeKind.Error)
+                    ChangeKind.Protected or ChangeKind.NotMember or ChangeKind.Error)
                 .Select(change => (change.Kind, change.UserId, change.MembershipId))
                 .OrderBy(change => change.Kind)
                 .ThenBy(change => change.UserId, StringComparer.OrdinalIgnoreCase)

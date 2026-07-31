@@ -107,6 +107,47 @@ public sealed class SyncWorkspaceViewModelTests
     }
 
     [Fact]
+    public async Task SyncWorkspace_指定メンバー削除では入力した一般メンバーだけを削除する()
+    {
+        var gateway = new FakeTeamsGateway
+        {
+            Members =
+            [
+                new TeamMember("target-membership", "target-user", "Target", "target@example.com", false),
+                new TeamMember("other-membership", "other-user", "Other", "other@example.com", false),
+                new TeamMember("owner-membership", "owner-user", "Owner", "owner@example.com", true)
+            ]
+        };
+        gateway.OnRemove = (_, membershipId, _) =>
+        {
+            gateway.Members = gateway.Members
+                .Where(member => member.MembershipId != membershipId).ToList();
+            return Task.CompletedTask;
+        };
+        var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+            new FakeResultWriter(), new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeDialogs());
+        viewModel.IsRemoveSpecifiedSelected = true;
+        viewModel.SetContext(new TeamInfo("team-1", "開発", null),
+            new MemberListDocument(["target@example.com", "owner@example.com"], "members.csv",
+                "C:\\members.csv", DateTime.Now, "CSV", "email"), true);
+
+        await viewModel.PreviewCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.IsRemoveSpecifiedSelected);
+        Assert.Single(viewModel.Changes, change => change.Kind == ChangeKind.Remove);
+        Assert.Single(viewModel.Changes, change => change.Kind == ChangeKind.Protected);
+        Assert.DoesNotContain(viewModel.Changes, change => change.Change.UserId == "other-user");
+        Assert.Contains("指定した一般メンバー", viewModel.RemovalWarningMessage);
+
+        await viewModel.ExecuteSyncCommand.ExecuteAsync(null);
+
+        Assert.Equal([("team-1", "target-membership")], gateway.Removed);
+        Assert.Empty(gateway.Added);
+        Assert.Contains(gateway.Members, member => member.UserId == "other-user");
+        Assert.Contains(gateway.Members, member => member.UserId == "owner-user");
+    }
+
+    [Fact]
     public async Task SyncWorkspace_確認済みの差分がある状態で同期モードを切り替えるとクリアを通知する()
     {
         var gateway = new FakeTeamsGateway();

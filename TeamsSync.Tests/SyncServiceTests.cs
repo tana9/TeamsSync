@@ -67,6 +67,72 @@ public sealed class SyncServiceTests
     }
 
     [Fact]
+    public async Task BuildPlan_RemoveSpecifiedDeletesOnlyListedNonOwners()
+    {
+        var graph = new FakeGraphService
+        {
+            Members =
+            [
+                Member("owner-membership", "owner-id", "Owner", "owner@example.com", true),
+                Member("first-membership", "first-id", "First", "first@example.com"),
+                Member("second-membership", "second-id", "Second", "second@example.com"),
+                Member("other-membership", "other-id", "Other", "other@example.com")
+            ]
+        };
+
+        var plan = await new TeamSyncService(graph).BuildPlanAsync(Team,
+            ["first@example.com", "second@example.com", "owner@example.com"],
+            TestContext.Current.CancellationToken, SyncMode.RemoveSpecified);
+
+        Assert.Equal(SyncMode.RemoveSpecified, plan.Mode);
+        Assert.Equal(2, plan.RemoveCount);
+        Assert.Equal(1, plan.ProtectedCount);
+        Assert.Equal(0, plan.AddCount);
+        Assert.DoesNotContain(plan.Changes, change => change.UserId == "other-id");
+
+        await new TeamSyncService(graph).ExecuteAsync(plan,
+            cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal(
+            [("team-1", "first-membership"), ("team-1", "second-membership")],
+            graph.Removed);
+        Assert.Empty(graph.Added);
+    }
+
+    [Fact]
+    public async Task BuildPlan_RemoveSpecifiedMarksDirectoryUserOutsideTeamAsNotMember()
+    {
+        var graph = new FakeGraphService();
+        graph.Users["outside@example.com"] =
+            new DirectoryUser("outside-id", "Outside", "outside@example.com", "outside@example.com");
+
+        var plan = await new TeamSyncService(graph).BuildPlanAsync(Team, ["outside@example.com"],
+            TestContext.Current.CancellationToken, SyncMode.RemoveSpecified);
+
+        var change = Assert.Single(plan.Changes);
+        Assert.Equal(ChangeKind.NotMember, change.Kind);
+        Assert.Equal(1, plan.NotMemberCount);
+        Assert.False(plan.HasErrors);
+        Assert.Equal(0, plan.RemoveCount);
+        Assert.Equal(0, plan.AddCount);
+    }
+
+    [Fact]
+    public async Task Execute_RejectsAdditionEmbeddedInRemoveSpecifiedPlan()
+    {
+        var graph = new FakeGraphService();
+        var plan = new SyncPlan(Team,
+            [new SyncChange(ChangeKind.Add, "New", "new@example.com", "", "new-id")],
+            [], Mode: SyncMode.RemoveSpecified);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            new TeamSyncService(graph).ExecuteAsync(plan,
+                cancellationToken: TestContext.Current.CancellationToken));
+
+        Assert.Empty(graph.Added);
+        Assert.Empty(graph.Removed);
+    }
+
+    [Fact]
     public async Task BuildPlan_アドレス解決の進捗を1件ごとに報告する()
     {
         var graph = new FakeGraphService

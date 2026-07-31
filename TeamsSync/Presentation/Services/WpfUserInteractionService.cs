@@ -76,6 +76,8 @@ public sealed class WpfSyncConfirmationService(
         var content = new StackPanel { MinWidth = 340 };
         content.Children.Add(BuildHeaderBlock(plan));
         if (plan.RemoveCount > 0) content.Children.Add(BuildRemovalWarningBox(plan));
+        if (plan.Mode == SyncMode.RemoveSpecified && plan.RemoveCount > 0)
+            content.Children.Add(BuildRemovalTargets(plan));
         content.Children.Add(BuildCountsSection(plan));
         foreach (var child in BuildInputSourceBlocks(confirmation)) content.Children.Add(child);
 
@@ -135,8 +137,12 @@ public sealed class WpfSyncConfirmationService(
         });
         panel.Children.Add(new TextBlock
         {
-            Text =
-                $"同期モード: {(plan.Mode == SyncMode.AddOnly ? "追加のみ（既存メンバーを維持）" : "完全同期（リスト外を削除）")}",
+            Text = $"同期モード: {plan.Mode switch
+            {
+                SyncMode.AddOnly => "追加のみ（既存メンバーを維持）",
+                SyncMode.RemoveSpecified => "指定メンバーを削除",
+                _ => "完全同期（リスト外を削除）"
+            }}",
             Margin = new Thickness(0, 4, 0, 0), TextWrapping = TextWrapping.Wrap
         });
         return panel;
@@ -160,7 +166,9 @@ public sealed class WpfSyncConfirmationService(
         removalIcon.SetResourceReference(SymbolIcon.ForegroundProperty, "SystemFillColorCriticalBrush");
         var removalText = new TextBlock
         {
-            Text = $"削除 {plan.RemoveCount}名 — リストにない一般メンバーを削除します（所有者は削除されません）",
+            Text = plan.Mode == SyncMode.RemoveSpecified
+                ? $"削除 {plan.RemoveCount}名 — 入力リストで指定した一般メンバーだけを削除します（所有者は削除されません）"
+                : $"削除 {plan.RemoveCount}名 — リストにない一般メンバーを削除します（所有者は削除されません）",
             FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap
         };
         removalText.SetResourceReference(TextBlock.ForegroundProperty, "SystemFillColorCriticalBrush");
@@ -168,6 +176,21 @@ public sealed class WpfSyncConfirmationService(
         removalPanel.Children.Add(removalText);
         removalBox.Child = removalPanel;
         return removalBox;
+    }
+
+    /// <summary>指定削除で実際に削除する対象者を、最終確認ダイアログへ一覧表示する。</summary>
+    private static UIElement BuildRemovalTargets(SyncPlan plan)
+    {
+        var targets = plan.Changes.Where(change => change.Kind == ChangeKind.Remove)
+            .Select(change => string.IsNullOrWhiteSpace(change.DisplayName)
+                ? change.Email
+                : $"{change.DisplayName}（{change.Email}）");
+        return new TextBlock
+        {
+            Text = $"削除対象:{Environment.NewLine}{string.Join(Environment.NewLine, targets.Select(target => $"・{target}"))}",
+            Margin = new Thickness(0, 10, 0, 0),
+            TextWrapping = TextWrapping.Wrap
+        };
     }
 
     /// <summary>追加・変更なし・所有者保護の件数を表示する部分を組み立てる。</summary>

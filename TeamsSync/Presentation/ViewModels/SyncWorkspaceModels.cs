@@ -71,7 +71,8 @@ public sealed record SyncChangeRowViewModel(SyncChange Change)
     public string KindLabel => Kind switch
     {
         ChangeKind.Add => "追加", ChangeKind.Remove => "削除", ChangeKind.Keep => "変更なし",
-        ChangeKind.Protected => "所有者保護", ChangeKind.Error => "エラー", _ => Kind.ToString()
+        ChangeKind.Protected => "所有者保護", ChangeKind.NotMember => "未所属",
+        ChangeKind.Error => "エラー", _ => Kind.ToString()
     };
 
     /// <summary>対象ユーザーの表示名。</summary>

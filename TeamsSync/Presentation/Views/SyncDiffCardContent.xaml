@@ -124,6 +124,10 @@
                                                 <Setter Property="Appearance" Value="Primary" />
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding Kind}"
+                                                         Value="{x:Static domain:ChangeKind.NotMember}">
+                                                <Setter Property="Appearance" Value="Secondary" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Kind}"
                                                          Value="{x:Static domain:ChangeKind.Error}">
                                                 <Setter Property="Appearance" Value="Caution" />
                                             </DataTrigger>

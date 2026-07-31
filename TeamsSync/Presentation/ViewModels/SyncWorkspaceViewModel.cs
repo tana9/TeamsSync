@@ -137,6 +137,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     public IReadOnlyList<SyncModeOption> Modes { get; } =
     [
         new(SyncMode.AddOnly, "追加のみ（既存メンバーを維持）"),
+        new(SyncMode.RemoveSpecified, "指定メンバーを削除"),
         new(SyncMode.FullSync, "完全同期（リスト外を削除）")
     ];
 
@@ -145,6 +146,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     [
         new("変更あり", null, true), new("すべて", null), new("追加", ChangeKind.Add),
         new("削除", ChangeKind.Remove), new("所有者", ChangeKind.Protected),
+        new("未所属", ChangeKind.NotMember),
         new("エラー", ChangeKind.Error), new("変更なし", ChangeKind.Keep)
     ];
 
@@ -206,7 +208,17 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         get => SelectedMode.Mode == SyncMode.FullSync;
         set
         {
-            if (value) SelectedMode = Modes[1];
+            if (value) SelectedMode = Modes.Single(mode => mode.Mode == SyncMode.FullSync);
+        }
+    }
+
+    /// <summary>ラジオボタン用に「指定メンバーを削除」モードが選択されているかどうかを表す。</summary>
+    public bool IsRemoveSpecifiedSelected
+    {
+        get => SelectedMode.Mode == SyncMode.RemoveSpecified;
+        set
+        {
+            if (value) SelectedMode = Modes.Single(mode => mode.Mode == SyncMode.RemoveSpecified);
         }
     }
 
@@ -254,6 +266,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     partial void OnSelectedModeChanged(SyncModeOption value)
     {
         OnPropertyChanged(nameof(IsAddOnlySelected));
+        OnPropertyChanged(nameof(IsRemoveSpecifiedSelected));
         OnPropertyChanged(nameof(IsFullSyncSelected));
         var hadPlan = _plan is not null;
         InvalidatePlan();
@@ -616,11 +629,13 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         HasPlan = true;
         ReplaceChanges(plan.Changes);
         SummaryText =
-            $"追加 {plan.AddCount} / 削除 {plan.RemoveCount} / 変更なし {plan.KeepCount} / 所有者 {plan.ProtectedCount} / エラー {plan.ErrorCount}";
+            $"追加 {plan.AddCount} / 削除 {plan.RemoveCount} / 変更なし {plan.KeepCount} / 所有者 {plan.ProtectedCount} / 未所属 {plan.NotMemberCount} / エラー {plan.ErrorCount}";
         IsRemovalWarningOpen = plan.RemoveCount > 0;
         RemovalWarningTitle = "削除対象があります";
         RemovalSeverity = InfoBarSeverity.Warning;
-        RemovalWarningMessage = $"リストにない一般メンバー {plan.RemoveCount}名を削除します。";
+        RemovalWarningMessage = plan.Mode == SyncMode.RemoveSpecified
+            ? $"入力リストで指定した一般メンバー {plan.RemoveCount}名を削除します。"
+            : $"リストにない一般メンバー {plan.RemoveCount}名を削除します。";
         if (announceStatus)
         {
             StatusChanged?.Invoke(plan.HasErrors

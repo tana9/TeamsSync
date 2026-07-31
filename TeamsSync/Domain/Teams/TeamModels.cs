@@ -43,6 +43,9 @@ public enum ChangeKind
     /// <summary>所有者のため保護され、変更されない。</summary>
     Protected,
 
+    /// <summary>指定削除の対象として入力されたが、現在はチームに所属していない。</summary>
+    NotMember,
+
     /// <summary>アドレスの解決に失敗した(未解決)。</summary>
     Error
 }
@@ -52,6 +55,9 @@ public enum SyncMode
 {
     /// <summary>追加のみを行い、リストにない既存メンバーは維持する。</summary>
     AddOnly,
+
+    /// <summary>入力リストで指定した一般メンバーだけを削除する。</summary>
+    RemoveSpecified,
 
     /// <summary>完全同期。リストにない一般メンバーを削除する。</summary>
     FullSync
@@ -105,6 +111,9 @@ public sealed record SyncPlan(
 
     /// <summary>所有者として保護された件数。</summary>
     public int ProtectedCount => Changes.Count(x => x.Kind == ChangeKind.Protected);
+
+    /// <summary>指定削除の入力に含まれる、チーム未所属ユーザーの件数。</summary>
+    public int NotMemberCount => Changes.Count(x => x.Kind == ChangeKind.NotMember);
 
     /// <summary>未解決(エラー)の件数。</summary>
     public int ErrorCount => Changes.Count(x => x.Kind == ChangeKind.Error);
