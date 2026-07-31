@@ -15,6 +15,8 @@
             </Grid.ColumnDefinitions>
             <StackPanel VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="PreviewLink24" FontSize="16" Margin="0,0,6,0"
+                                   VerticalAlignment="Center" AutomationProperties.Name="" />
                     <TextBlock Text="4  同期差分" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
                 </StackPanel>
                 <TextBlock Text="追加・削除される変更内容を確認します" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />

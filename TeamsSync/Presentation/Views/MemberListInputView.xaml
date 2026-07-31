@@ -9,6 +9,8 @@
         </Grid.ColumnDefinitions>
         <StackPanel VerticalAlignment="Top" Margin="0,4,0,0">
             <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="DocumentSearch24" FontSize="16" Margin="0,0,6,0"
+                               VerticalAlignment="Center" AutomationProperties.Name="" />
                 <TextBlock Text="2  メンバーリスト" FontWeight="SemiBold" VerticalAlignment="Center" />
             </StackPanel>
             <TextBlock Text="同期する一般メンバーの一覧を指定します" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"

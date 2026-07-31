@@ -13,6 +13,8 @@
             </Grid.ColumnDefinitions>
             <StackPanel VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="PeopleTeam24" FontSize="16" Margin="0,0,6,0"
+                                   VerticalAlignment="Center" AutomationProperties.Name="" />
                     <TextBlock Text="1  所有しているチーム" FontWeight="SemiBold" VerticalAlignment="Center" />
                 </StackPanel>
                 <TextBlock Text="同期先のTeamsチームを選択します（オーナー権限のチームのみ表示）" FontSize="12"

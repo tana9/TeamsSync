@@ -9,29 +9,43 @@
         </Grid.ColumnDefinitions>
         <StackPanel VerticalAlignment="Center">
             <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="ArrowSync24" FontSize="16" Margin="0,0,6,0"
+                               VerticalAlignment="Center" AutomationProperties.Name="" />
                 <TextBlock Text="3  同期モード" FontWeight="SemiBold" VerticalAlignment="Center" />
             </StackPanel>
             <TextBlock Text="入力リストを追加・指定削除・完全同期のどれに使うか選択します" FontSize="12"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
         </StackPanel>
         <WrapPanel Grid.Column="1" VerticalAlignment="Center">
-            <RadioButton Content="追加のみ（既存メンバーを維持）"
-                         IsChecked="{Binding IsAddOnlySelected, Mode=TwoWay}"
+            <RadioButton IsChecked="{Binding IsAddOnlySelected, Mode=TwoWay}"
                          GroupName="SyncMode" AutomationProperties.Name="追加のみ（既存メンバーを維持）"
                          ToolTip="リストにいる人を追加します。今のメンバーは削除されません。"
-                         VerticalAlignment="Center" Margin="0,0,24,0" />
-            <RadioButton Content="指定メンバーを削除"
-                         IsChecked="{Binding IsRemoveSpecifiedSelected, Mode=TwoWay}"
+                         VerticalAlignment="Center" Margin="0,0,24,0">
+                <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="PersonAdd24" FontSize="14" Margin="0,0,4,0"
+                                   AutomationProperties.Name="" />
+                    <TextBlock Text="追加のみ（既存メンバーを維持）" />
+                </StackPanel>
+            </RadioButton>
+            <RadioButton IsChecked="{Binding IsRemoveSpecifiedSelected, Mode=TwoWay}"
                          GroupName="SyncMode" AutomationProperties.Name="指定メンバーを削除"
                          ToolTip="入力リストで指定した一般メンバーだけを削除します。入力していないメンバーと所有者は削除されません。"
-                         VerticalAlignment="Center" Margin="0,0,24,0"
-                         Foreground="{DynamicResource SystemFillColorCautionBrush}" FontWeight="SemiBold" />
+                         VerticalAlignment="Center" Margin="0,0,24,0">
+                <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="PersonDelete24" FontSize="14" Margin="0,0,4,0"
+                                   Foreground="{DynamicResource SystemFillColorCautionBrush}"
+                                   AutomationProperties.Name="" />
+                    <TextBlock Text="指定メンバーを削除" FontWeight="SemiBold"
+                               Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+                </StackPanel>
+            </RadioButton>
             <RadioButton IsChecked="{Binding IsFullSyncSelected, Mode=TwoWay}"
                          GroupName="SyncMode" AutomationProperties.Name="完全同期（リスト外を削除）"
                          ToolTip="リストにいる人を追加し、リストにない一般メンバーを削除します。チームの所有者は削除されません。"
                          VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal">
-                    <ui:SymbolIcon Symbol="Warning24" FontSize="14" Margin="0,0,4,0"
+                    <ui:SymbolIcon Symbol="ArrowSync24" FontSize="14" Margin="0,0,4,0"
+                                   AutomationProperties.Name=""
                                    Foreground="{DynamicResource SystemFillColorCautionBrush}" />
                     <TextBlock Text="完全同期（リスト外を削除）" FontWeight="SemiBold"
                                Foreground="{DynamicResource SystemFillColorCautionBrush}" />
