@@ -5,7 +5,7 @@
              AutomationProperties.Name="同期モード">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="192" /><ColumnDefinition Width="*" />
+            <ColumnDefinition Width="{StaticResource SectionLabelColumnWidth}" /><ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
         <StackPanel VerticalAlignment="Center">
             <StackPanel Orientation="Horizontal">

@@ -1,63 +1,13 @@
-using System.Diagnostics;
 using System.Windows;
 using System.Windows.Automation;
-using Microsoft.Extensions.Logging;
 using System.Windows.Controls;
 using System.Windows.Input;
-using Microsoft.Win32;
 using TeamsSync.Domain.Teams;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
-using Wpf.Ui.Extensions;
 using TextBlock = System.Windows.Controls.TextBlock;
-using TextBox = Wpf.Ui.Controls.TextBox;
 
 namespace TeamsSync.Presentation.Services;
-
-/// <summary>WPF-UIのダイアログ・スナックバー表示先ホストをメインウィンドウへ結び付ける。</summary>
-public sealed class WpfUserInteractionHost(
-    IContentDialogService contentDialogs,
-    ISnackbarService snackbars) : IUserInteractionHost
-{
-    /// <summary>ダイアログホストとスナックバー表示先を登録する。</summary>
-    public void SetHosts(ContentDialogHost dialogHost, SnackbarPresenter snackbarPresenter)
-    {
-        contentDialogs.SetDialogHost(dialogHost);
-        snackbars.SetSnackbarPresenter(snackbarPresenter);
-    }
-}
-
-/// <summary>Win32の標準ファイルダイアログでメンバーリスト・同期結果ファイルを選択させる。</summary>
-public sealed class WpfFilePickerService : IFilePickerService
-{
-    /// <summary>メンバーリストファイル(CSV/Excel)を選択するダイアログを表示する。</summary>
-    public string? PickMemberFile(string? initialDirectory)
-    {
-        var dialog = new OpenFileDialog
-        {
-            Title = "メンバーリストを選択",
-            Filter = "メンバーリスト (*.csv;*.xlsx)|*.csv;*.xlsx|CSV (*.csv)|*.csv|Excel (*.xlsx)|*.xlsx",
-            CheckFileExists = true,
-            InitialDirectory = Directory.Exists(initialDirectory) ? initialDirectory : null
-        };
-        return dialog.ShowDialog() == true ? dialog.FileName : null;
-    }
-
-    /// <summary>同期結果の保存先ファイルを選択するダイアログを表示する。既定のファイル名にチーム名・日時を含める。</summary>
-    public string? PickResultFile(string? initialDirectory, string teamName)
-    {
-        var safeName = string.Concat(teamName.Select(c =>
-            Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
-        var dialog = new SaveFileDialog
-        {
-            Title = "同期結果を保存",
-            Filter = "CSV (*.csv)|*.csv",
-            FileName = $"{safeName}_sync_{DateTime.Now:yyyyMMdd_HHmmss}.csv",
-            InitialDirectory = Directory.Exists(initialDirectory) ? initialDirectory : null
-        };
-        return dialog.ShowDialog() == true ? dialog.FileName : null;
-    }
-}
 
 /// <summary>同期実行前の最終確認ダイアログをWPF-UIのContentDialogとして表示する。</summary>
 public sealed class WpfSyncConfirmationService(
@@ -279,112 +229,3 @@ public sealed class WpfSyncConfirmationService(
     }
 }
 
-/// <summary>埋め込みリソースのマニュアルHTMLを一時フォルダーへ展開し、既定のブラウザーで開く。</summary>
-public sealed class WpfManualService : IManualService
-{
-    /// <summary>マニュアルHTMLを一時フォルダーへ展開し、既定のブラウザーで開く。</summary>
-    public void OpenManual()
-    {
-        var path = Path.Combine(Path.GetTempPath(), "TeamsSync", "Manual.html");
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-
-        using (var resource = typeof(WpfManualService).Assembly.GetManifestResourceStream("Manual.html")
-                               ?? throw new InvalidOperationException("埋め込みマニュアル Manual.html を読み込めません。"))
-        using (var file = File.Create(path))
-        {
-            resource.CopyTo(file);
-        }
-
-        Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
-    }
-}
-
-/// <summary>スナックバー・ダイアログを用いて成功・警告・エラーをユーザーへ通知する。</summary>
-public sealed class WpfNotificationService(
-    ISnackbarService snackbars,
-    IContentDialogService contentDialogs,
-    Microsoft.Extensions.Logging.ILogger<WpfNotificationService> logger) : INotificationService
-{
-    /// <summary>成功通知をスナックバーで5秒間表示する。</summary>
-    public void ShowSuccess(string title, string message)
-    {
-        snackbars.Show(title, message, ControlAppearance.Success, TimeSpan.FromSeconds(5));
-    }
-
-    /// <summary>警告通知をスナックバーで8秒間表示する。</summary>
-    public void ShowWarning(string title, string message)
-    {
-        snackbars.Show(title, message, ControlAppearance.Caution, TimeSpan.FromSeconds(8));
-    }
-
-    /// <summary>エラー内容を選択・コピー可能なテキストボックス付きダイアログで表示する。</summary>
-    public Task ShowErrorAsync(string message, string title = "エラー", Action? onClosed = null)
-    {
-        return ShowErrorSafelyAsync(async () =>
-        {
-            var textBox = new TextBox
-            {
-                Text = message,
-                IsReadOnly = true,
-                TextWrapping = TextWrapping.Wrap,
-                AcceptsReturn = true,
-                MaxHeight = 240,
-                MinWidth = 360,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
-            };
-            textBox.Loaded += (_, _) => textBox.SelectAll();
-
-            // タイトルだけでは一見して警告・確認ダイアログと見分けがつかないため、
-            // 赤いエラーアイコンを添えてひと目でエラーだと分かるようにする。
-            // AutomationProperties.NameはTitleオブジェクト全体に付け、読み上げがアイコン分だけ
-            // 冗長にならないようにする。
-            var titlePanel = new StackPanel { Orientation = Orientation.Horizontal };
-            AutomationProperties.SetName(titlePanel, title);
-            var titleIcon = new SymbolIcon
-            {
-                Symbol = SymbolRegular.ErrorCircle24, FontSize = 20,
-                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0)
-            };
-            titleIcon.SetResourceReference(SymbolIcon.ForegroundProperty, "SystemFillColorCriticalBrush");
-            var titleText = new TextBlock
-            {
-                Text = title, FontWeight = FontWeights.SemiBold, FontSize = 20,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            titlePanel.Children.Add(titleIcon);
-            titlePanel.Children.Add(titleText);
-
-            var dialog = new ContentDialog
-            {
-                Title = titlePanel,
-                Content = textBox,
-                CloseButtonText = "閉じる"
-            };
-            await WpfSyncConfirmationService.ShowRestoringFocusAsync(contentDialogs, dialog, CancellationToken.None);
-        }, title, onClosed, logger);
-    }
-
-    internal static async Task ShowErrorSafelyAsync(Func<Task> showDialog, string title,
-        Action? onClosed, Microsoft.Extensions.Logging.ILogger logger)
-    {
-        try
-        {
-            await showDialog();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "エラーダイアログを表示できませんでした。Title={Title}", title);
-        }
-        finally
-        {
-            try
-            {
-                onClosed?.Invoke();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "エラーダイアログ終了後の処理に失敗しました。Title={Title}", title);
-            }
-        }
-    }
-}

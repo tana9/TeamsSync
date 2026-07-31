@@ -5,7 +5,7 @@
              xmlns:vm="clr-namespace:TeamsSync.Presentation.ViewModels">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="192" /><ColumnDefinition Width="*" />
+            <ColumnDefinition Width="{StaticResource SectionLabelColumnWidth}" /><ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
         <StackPanel VerticalAlignment="Top" Margin="0,4,0,0">
             <StackPanel Orientation="Horizontal">
@@ -125,6 +125,10 @@
                             <ui:ProgressRing Width="16" Height="16" Margin="8,0" IsIndeterminate="True"
                                              Visibility="{Binding IsParsing, Converter={StaticResource BooleanToVisibilityConverter}}"
                                              AutomationProperties.Name="貼り付け入力を解析中" />
+                            <ui:Button Content="解析をキャンセル" Command="{Binding CancelParsingCommand}"
+                                       Margin="8,0,0,0" Appearance="Secondary"
+                                       Visibility="{Binding IsParsing, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                       AutomationProperties.Name="貼り付け入力の解析をキャンセル" />
                             <ui:Button Content="入力を_反映" Command="{Binding ApplyPastedTextInputCommand}"
                                        Margin="8,0,0,0" Appearance="Secondary"
                                        Icon="{ui:SymbolIcon Symbol=CheckmarkCircle24}"

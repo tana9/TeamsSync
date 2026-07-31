@@ -7,7 +7,6 @@ using TeamsSync.Application.Abstractions;
 using TeamsSync.Application.Services;
 using TeamsSync.Domain.Teams;
 using TeamsSync.Presentation.Services;
-using Wpf.Ui.Controls;
 
 namespace TeamsSync.Presentation.ViewModels;
 
@@ -61,9 +60,6 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
     /// <summary>同期実行の進捗の現在値。</summary>
     [ObservableProperty] public partial int ProgressValue { get; set; }
-
-    /// <summary>削除警告InfoBarの重要度。</summary>
-    [ObservableProperty] public partial InfoBarSeverity RemovalSeverity { get; set; } = InfoBarSeverity.Warning;
 
     /// <summary>削除警告InfoBarの本文。</summary>
     [ObservableProperty] public partial string RemovalWarningMessage { get; set; } = "";
@@ -624,8 +620,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         ResultFailureCount = _lastResult?.FailureCount ?? 0;
         ResultCancelled = _lastResult?.Cancelled ?? false;
         FailedResults.Clear();
-        foreach (var operation in (_lastResult?.Operations ?? []).Where(operation => !operation.Succeeded))
-            FailedResults.Add(new SyncResultRowViewModel(operation));
+        foreach (var row in SyncWorkspacePresentation.BuildFailedRows(_lastResult)) FailedResults.Add(row);
         OnPropertyChanged(nameof(HasFailedResults));
     }
 
@@ -640,14 +635,11 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         _plan = plan;
         HasPlan = true;
         ReplaceChanges(plan.Changes);
-        SummaryText =
-            $"追加 {plan.AddCount} / 削除 {plan.RemoveCount} / 変更なし {plan.KeepCount} / 所有者 {plan.ProtectedCount} / 未所属 {plan.NotMemberCount} / エラー {plan.ErrorCount}";
+        var presentation = SyncWorkspacePresentation.BuildPlan(plan);
+        SummaryText = presentation.Summary;
         IsRemovalWarningOpen = plan.RemoveCount > 0;
-        RemovalWarningTitle = "削除対象があります";
-        RemovalSeverity = InfoBarSeverity.Warning;
-        RemovalWarningMessage = plan.Mode == SyncMode.RemoveSpecified
-            ? $"入力リストで指定した一般メンバー {plan.RemoveCount}名を削除します。"
-            : $"リストにない一般メンバー {plan.RemoveCount}名を削除します。";
+        RemovalWarningTitle = presentation.RemovalTitle;
+        RemovalWarningMessage = presentation.RemovalMessage;
         if (announceStatus)
         {
             StatusChanged?.Invoke(plan.HasErrors

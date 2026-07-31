@@ -23,6 +23,7 @@ public partial class MemberFileViewModel : ObservableObject
     private MemberListDocument? _fileDocument;
     private CancellationTokenSource? _loadCancellation;
     private CancellationTokenSource? _importCancellation;
+    private CancellationTokenSource? _parseCancellation;
     private TeamInfo? _selectedTeam;
 
     /// <summary>ファイル入力の状態説明テキスト。</summary>
@@ -248,14 +249,19 @@ public partial class MemberFileViewModel : ObservableObject
     private async Task ApplyPastedTextInputAsync()
     {
         if (string.IsNullOrWhiteSpace(PastedText)) return;
+        _parseCancellation?.Cancel();
+        _parseCancellation?.Dispose();
+        var cts = new CancellationTokenSource();
+        _parseCancellation = cts;
         var text = PastedText;
         IsParsing = true;
         IsPasteError = false;
         PasteInfoText = "入力内容を解析しています…";
         ApplyPastedTextInputCommand.NotifyCanExecuteChanged();
+        CancelParsingCommand.NotifyCanExecuteChanged();
         try
         {
-            var document = await Task.Run(() => _textParser.Parse(text));
+            var document = await Task.Run(() => _textParser.Parse(text, cts.Token), cts.Token);
             if (!string.Equals(text, PastedText, StringComparison.Ordinal))
             {
                 PasteInfoText = "解析中に内容が変更されました。「入力を反映」を押してください";
@@ -267,6 +273,10 @@ public partial class MemberFileViewModel : ObservableObject
             var duplicates = Math.Max(0, entered - document.Addresses.Count);
             PasteInfoText = $"{document.Addresses.Count}件 • 重複{duplicates}件を除外";
             NotifyDocumentChanged();
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+            PasteInfoText = "入力内容の解析をキャンセルしました";
         }
         catch (Exception ex)
         {
@@ -281,8 +291,16 @@ public partial class MemberFileViewModel : ObservableObject
         {
             IsParsing = false;
             ApplyPastedTextInputCommand.NotifyCanExecuteChanged();
+            CancelParsingCommand.NotifyCanExecuteChanged();
+            if (ReferenceEquals(_parseCancellation, cts)) _parseCancellation = null;
+            cts.Dispose();
         }
     }
+
+    [RelayCommand(CanExecute = nameof(CanCancelParsing))]
+    private void CancelParsing() => _parseCancellation?.Cancel();
+
+    private bool CanCancelParsing() => IsParsing && _parseCancellation is not null;
 
     private bool CanApplyPastedText()
     {
@@ -335,7 +353,7 @@ public partial class MemberFileViewModel : ObservableObject
             }
 
             var text = string.Join(Environment.NewLine, importedMembers.Select(FormatImportedMember));
-            var document = _textParser.Parse(text) with
+            var document = _textParser.Parse(text, cts.Token) with
             {
                 FileName = $"Teamsから取り込み - {team.DisplayName}",
                 SourceName = $"Teamsから取り込み: {team.DisplayName}"

@@ -18,14 +18,19 @@ public sealed class MemberTextParser : IMemberTextParser
     /// 貼り付けテキストを1行1件として検証・解析する。タブ・制御文字・行長超過・件数超過は
     /// <see cref="InvalidDataException"/>として拒否する。
     /// </summary>
-    public MemberListDocument Parse(string text)
+    public MemberListDocument Parse(string text) => Parse(text, CancellationToken.None);
+
+    /// <inheritdoc />
+    public MemberListDocument Parse(string text, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (text.Length > MaximumTextLength)
             throw new InvalidDataException($"貼り付け入力は{MaximumTextLength:N0}文字までです。");
 
         var lines = text.Split(["\r\n", "\n", "\r"], StringSplitOptions.None);
         for (var index = 0; index < lines.Length; index++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var line = lines[index];
             if (line.Contains('\t'))
                 throw new InvalidDataException($"{index + 1}行目にタブが含まれています。1列だけを貼り付けてください。");
@@ -35,9 +40,14 @@ public sealed class MemberTextParser : IMemberTextParser
                 throw new InvalidDataException($"{index + 1}行目は{MaximumLineLength:N0}文字以内で入力してください。");
         }
 
-        var values = lines.Select((line, index) => ParseLine(line, index + 1))
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var values = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (var index = 0; index < lines.Length; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var value = ParseLine(lines[index], index + 1);
+            if (!string.IsNullOrWhiteSpace(value) && seen.Add(value)) values.Add(value);
+        }
         if (values.Count == 0)
             throw new InvalidDataException("氏名またはメールアドレスを1行に1件入力してください。");
         if (values.Count > MaximumEntries)

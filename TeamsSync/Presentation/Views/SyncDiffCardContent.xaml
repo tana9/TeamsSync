@@ -98,9 +98,9 @@
                          操作Badgeが動いて見えるため、通常時から幅を0に固定する。 -->
                     <Setter Property="BorderThickness" Value="0" />
                     <Setter Property="Padding" Value="0" />
-                    <!-- 選択行は背景色で判別できるため、操作Badgeへ重なる現在セルの
-                         細いフォーカス枠は表示しない。 -->
-                    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                    <!-- Adorner上の枠はレイアウトを変えないため、キーボードフォーカスを
+                         視認可能に保ちながらセル内容の1px移動を防げる。 -->
+                    <Setter Property="FocusVisualStyle" Value="{StaticResource StableCellFocusVisualStyle}" />
                     <Style.Triggers>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter Property="Background" Value="Transparent" />

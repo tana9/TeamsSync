@@ -8,6 +8,20 @@
     </ResourceDictionary.MergedDictionaries>
     <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     <converters:HeightMinusOffsetConverter x:Key="HeightMinusOffsetConverter" />
+    <GridLength x:Key="SectionLabelColumnWidth">Auto</GridLength>
+    <Style x:Key="StableCellFocusVisualStyle">
+        <Setter Property="Control.Template">
+            <Setter.Value>
+                <ControlTemplate>
+                    <Border BorderBrush="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                            BorderThickness="2" CornerRadius="2" Margin="1"
+                            IsHitTestVisible="False">
+                        <AdornedElementPlaceholder />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
     <!-- wpf-uiのDefaultTextBoxScrollViewerStyleはスクロールバー要素自体を含まず、
          複数行TextBoxで縦スクロールバーが表示されないため、標準のScrollBar付きテンプレートで上書きする -->
     <Style x:Key="DefaultTextBoxScrollViewerStyle" TargetType="{x:Type ScrollViewer}">

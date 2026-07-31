@@ -62,7 +62,7 @@ public interface IMemberListReader
 public interface IMemberTextParser
 {
     /// <summary>貼り付けられたテキストを解析し、アドレス一覧へ変換する。</summary>
-    MemberListDocument Parse(string text);
+    MemberListDocument Parse(string text, CancellationToken cancellationToken);
 }
 
 /// <summary>同期結果をファイルへ書き出す。</summary>

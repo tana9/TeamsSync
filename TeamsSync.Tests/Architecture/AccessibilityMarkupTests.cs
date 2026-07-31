@@ -36,4 +36,14 @@ public sealed class AccessibilityMarkupTests
         foreach (var name in names)
             Assert.Contains($"AutomationProperties.Name=\"{name}\"", text);
     }
+
+    [Fact]
+    public void Views_フォーカス表示を無効化せず動的状態をLiveRegionとして公開する()
+    {
+        var text = string.Concat(Directory.GetFiles(ViewsDirectory, "*.xaml").Select(File.ReadAllText));
+
+        Assert.DoesNotContain("FocusVisualStyle\" Value=\"{x:Null}", text);
+        Assert.Contains("AutomationProperties.LiveSetting=\"Polite\"", text);
+        Assert.Contains("AutomationProperties.LiveSetting=\"Assertive\"", text);
+    }
 }

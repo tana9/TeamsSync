@@ -58,7 +58,11 @@ public partial class App : System.Windows.Application
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"アプリケーションを起動できませんでした。\n\n{ex.Message}",
+            var logPath = StartupFailureLog.TryWrite(ex);
+            var diagnosticHint = logPath is null
+                ? ""
+                : $"\n\n詳細は次のログへ記録しました。\n{logPath}";
+            MessageBox.Show($"アプリケーションを起動できませんでした。設定とネットワークを確認してください。{diagnosticHint}",
                 "起動エラー", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(-1);
         }

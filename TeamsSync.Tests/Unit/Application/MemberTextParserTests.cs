@@ -7,10 +7,19 @@ public sealed class MemberTextParserTests
     private readonly MemberTextParser _parser = new();
 
     [Fact]
+    public void Parse_キャンセル済みトークンでは解析を開始しない()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        Assert.Throws<OperationCanceledException>(() => _parser.Parse("user@example.com", cancellation.Token));
+    }
+
+    [Fact]
     public void Parse_改行と空行を正規化し重複を除去する()
     {
         var document = _parser.Parse(
-            " user@example.com\r\n\r\nUSER@example.com\n山田　太郎\r佐藤 花子 ");
+            " user@example.com\r\n\r\nUSER@example.com\n山田　太郎\r佐藤 花子 ", TestContext.Current.CancellationToken);
 
         Assert.Equal(
             ["user@example.com", "山田　太郎", "佐藤 花子"],
@@ -22,8 +31,8 @@ public sealed class MemberTextParserTests
     [Fact]
     public void Parse_正規化後の内容が同じなら同じハッシュを返す()
     {
-        var first = _parser.Parse("user@example.com\r\n山田 太郎");
-        var second = _parser.Parse(" user@example.com \n山田 太郎\nUSER@example.com");
+        var first = _parser.Parse("user@example.com\r\n山田 太郎", TestContext.Current.CancellationToken);
+        var second = _parser.Parse(" user@example.com \n山田 太郎\nUSER@example.com", TestContext.Current.CancellationToken);
 
         Assert.Equal(first.ContentSha256, second.ContentSha256);
     }
@@ -32,7 +41,7 @@ public sealed class MemberTextParserTests
     public void Parse_表示名付きの行は山括弧内のメールアドレスだけを使用する()
     {
         var document = _parser.Parse(
-            "山田 太郎 <taro@example.com>\n鈴木 花子 <hanako@example.com>\ntaro@example.com");
+            "山田 太郎 <taro@example.com>\n鈴木 花子 <hanako@example.com>\ntaro@example.com", TestContext.Current.CancellationToken);
 
         Assert.Equal(["taro@example.com", "hanako@example.com"], document.Addresses);
     }
@@ -43,7 +52,7 @@ public sealed class MemberTextParserTests
     [InlineData("山田 太郎 <>")]
     public void Parse_不正な表示名付き形式を拒否する(string text)
     {
-        Assert.Throws<InvalidDataException>(() => _parser.Parse(text));
+        Assert.Throws<InvalidDataException>(() => _parser.Parse(text, TestContext.Current.CancellationToken));
     }
 
     [Theory]
@@ -51,7 +60,7 @@ public sealed class MemberTextParserTests
     [InlineData(" \r\n ")]
     public void Parse_有効な入力がなければ失敗する(string text)
     {
-        Assert.Throws<InvalidDataException>(() => _parser.Parse(text));
+        Assert.Throws<InvalidDataException>(() => _parser.Parse(text, TestContext.Current.CancellationToken));
     }
 
     [Theory]
@@ -59,7 +68,7 @@ public sealed class MemberTextParserTests
     [InlineData("user@example.com\0")]
     public void Parse_複数列または制御文字を拒否する(string text)
     {
-        Assert.Throws<InvalidDataException>(() => _parser.Parse(text));
+        Assert.Throws<InvalidDataException>(() => _parser.Parse(text, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -67,7 +76,7 @@ public sealed class MemberTextParserTests
     {
         var text = new string('a', MemberTextParser.MaximumLineLength + 1);
 
-        Assert.Throws<InvalidDataException>(() => _parser.Parse(text));
+        Assert.Throws<InvalidDataException>(() => _parser.Parse(text, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -77,6 +86,6 @@ public sealed class MemberTextParserTests
             Enumerable.Range(0, MemberTextParser.MaximumEntries + 1)
                 .Select(index => $"user{index}@example.com"));
 
-        Assert.Throws<InvalidDataException>(() => _parser.Parse(text));
+        Assert.Throws<InvalidDataException>(() => _parser.Parse(text, TestContext.Current.CancellationToken));
     }
 }

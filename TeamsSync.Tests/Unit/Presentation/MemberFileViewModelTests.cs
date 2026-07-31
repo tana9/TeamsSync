@@ -144,6 +144,27 @@ public sealed class MemberFileViewModelTests
     }
 
     [Fact]
+    public async Task MemberFile_貼り付け解析をキャンセルできる()
+    {
+        var parser = new BlockingTextParser();
+        var viewModel = new MemberFileViewModel(new FakeMemberListReader(null!), parser,
+            new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs())
+        {
+            SelectedInputIndex = 1,
+            PastedText = "user@example.com"
+        };
+
+        var execution = viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
+        await parser.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
+        viewModel.CancelParsingCommand.Execute(null);
+        await execution;
+
+        Assert.False(viewModel.IsParsing);
+        Assert.Null(viewModel.Document);
+        Assert.Contains("キャンセル", viewModel.PasteInfoText);
+    }
+
+    [Fact]
     public async Task MemberFile_ファイル読込中を表示して完了後に解除する()
     {
         var document = new MemberListDocument(["user@example.com"], "members.csv", "C:\\members.csv",

@@ -168,11 +168,12 @@ internal sealed class BlockingTextParser : IMemberTextParser
         new(TaskCreationOptions.RunContinuationsAsynchronously);
     public ManualResetEventSlim Release { get; } = new(false);
 
-    public MemberListDocument Parse(string text)
+    public MemberListDocument Parse(string text, CancellationToken cancellationToken)
     {
         Started.TrySetResult();
-        Release.Wait(TestContext.Current.CancellationToken);
-        return new MemberTextParser().Parse(text);
+        WaitHandle.WaitAny([Release.WaitHandle, cancellationToken.WaitHandle]);
+        cancellationToken.ThrowIfCancellationRequested();
+        return new MemberTextParser().Parse(text, cancellationToken);
     }
 }
 
