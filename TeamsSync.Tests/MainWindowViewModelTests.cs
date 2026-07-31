@@ -22,11 +22,11 @@ public sealed class MainWindowViewModelTests
         var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, dialogs,
             new FakeManualService(), preferences, teamSelection, memberFile, syncWorkspace);
 
-        Assert.True(viewModel.IsNotSignedIn);
+        Assert.True(viewModel.SignIn.IsNotSignedIn);
 
-        viewModel.IsSignedIn = true;
+        viewModel.SignIn.IsSignedIn = true;
 
-        Assert.False(viewModel.IsNotSignedIn);
+        Assert.False(viewModel.SignIn.IsNotSignedIn);
     }
 
     [Fact]
@@ -85,13 +85,13 @@ public sealed class MainWindowViewModelTests
             new FakeManualService(), preferences, teamSelection, memberFile, syncWorkspace);
         await teamSelection.InitializeAsync("current-user", TestContext.Current.CancellationToken);
         teamSelection.SelectedTeam = teamSelection.Teams[0];
-        viewModel.IsSignedIn = true;
-        viewModel.AccountText = "Current User (current@example.com)";
+        viewModel.SignIn.IsSignedIn = true;
+        viewModel.SignIn.AccountText = "Current User (current@example.com)";
 
-        await viewModel.SignOutCommand.ExecuteAsync(null);
+        await viewModel.SignIn.SignOutCommand.ExecuteAsync(null);
 
-        Assert.False(viewModel.IsSignedIn);
-        Assert.Equal("未サインイン", viewModel.AccountText);
+        Assert.False(viewModel.SignIn.IsSignedIn);
+        Assert.Equal("未サインイン", viewModel.SignIn.AccountText);
         Assert.Empty(teamSelection.Teams);
         Assert.Null(teamSelection.SelectedTeam);
         Assert.Equal("サインアウトしました", viewModel.StatusText);
@@ -121,18 +121,18 @@ public sealed class MainWindowViewModelTests
             new FakeManualService(), preferences, teamSelection, memberFile, syncWorkspace);
         await teamSelection.InitializeAsync("current-user", TestContext.Current.CancellationToken);
         teamSelection.SelectedTeam = teamSelection.Teams[0];
-        viewModel.IsSignedIn = true;
-        viewModel.AccountText = "Current User (current@example.com)";
+        viewModel.SignIn.IsSignedIn = true;
+        viewModel.SignIn.AccountText = "Current User (current@example.com)";
 
-        await viewModel.SignOutCommand.ExecuteAsync(null);
+        await viewModel.SignIn.SignOutCommand.ExecuteAsync(null);
 
-        Assert.True(viewModel.IsSignedIn);
-        Assert.Equal("Current User (current@example.com)", viewModel.AccountText);
+        Assert.True(viewModel.SignIn.IsSignedIn);
+        Assert.Equal("Current User (current@example.com)", viewModel.SignIn.AccountText);
         Assert.Single(teamSelection.Teams);
         Assert.NotNull(teamSelection.SelectedTeam);
         Assert.Equal("MSALのアカウント削除に失敗しました", notifications.ErrorMessage);
         Assert.True(viewModel.IsStatusError);
-        Assert.True(viewModel.SignOutCommand.CanExecute(null));
+        Assert.True(viewModel.SignIn.SignOutCommand.CanExecute(null));
     }
 
     [Fact]
@@ -154,18 +154,18 @@ public sealed class MainWindowViewModelTests
             new FakeManualService(), preferences, teamSelection, memberFile, syncWorkspace);
         await teamSelection.InitializeAsync("current-user", TestContext.Current.CancellationToken);
         teamSelection.SelectedTeam = teamSelection.Teams[0];
-        viewModel.IsSignedIn = true;
-        viewModel.AccountText = "Current User (current@example.com)";
+        viewModel.SignIn.IsSignedIn = true;
+        viewModel.SignIn.AccountText = "Current User (current@example.com)";
 
-        await viewModel.SignOutCommand.ExecuteAsync(null);
+        await viewModel.SignIn.SignOutCommand.ExecuteAsync(null);
 
-        Assert.True(viewModel.IsSignedIn);
-        Assert.Equal("Current User (current@example.com)", viewModel.AccountText);
+        Assert.True(viewModel.SignIn.IsSignedIn);
+        Assert.Equal("Current User (current@example.com)", viewModel.SignIn.AccountText);
         Assert.Single(teamSelection.Teams);
         Assert.NotNull(teamSelection.SelectedTeam);
         Assert.Equal("処理を中止しました", viewModel.StatusText);
         Assert.False(viewModel.IsStatusError);
-        Assert.True(viewModel.SignOutCommand.CanExecute(null));
+        Assert.True(viewModel.SignIn.SignOutCommand.CanExecute(null));
     }
 
     [Fact]
@@ -188,7 +188,7 @@ public sealed class MainWindowViewModelTests
         var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, dialogs,
             new FakeManualService(), preferences, teamSelection, memberFile, syncWorkspace);
 
-        Assert.Equal(WorkflowStepState.Upcoming, viewModel.Step1State);
+        Assert.Equal(WorkflowStepState.Upcoming, viewModel.WorkflowSteps.Step1State);
 
         // MemberFileViewModel.LoadはTask.Runで非同期化されているため、テスト環境で
         // CollectionViewのクロススレッド例外を避けるにはDispatcherSynchronizationContextと
@@ -197,23 +197,23 @@ public sealed class MainWindowViewModelTests
         SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
         try
         {
-            viewModel.IsSignedIn = true;
+            viewModel.SignIn.IsSignedIn = true;
             DispatcherTestHelper.RunOnDispatcher(() =>
                 teamSelection.InitializeAsync("current-user", TestContext.Current.CancellationToken));
-            Assert.Equal(WorkflowStepState.Current, viewModel.Step1State);
-            Assert.Equal(WorkflowStepState.Upcoming, viewModel.Step2State);
+            Assert.Equal(WorkflowStepState.Current, viewModel.WorkflowSteps.Step1State);
+            Assert.Equal(WorkflowStepState.Upcoming, viewModel.WorkflowSteps.Step2State);
 
             teamSelection.SelectedTeam = teamSelection.Teams[0];
-            Assert.Equal(WorkflowStepState.Completed, viewModel.Step1State);
-            Assert.Equal(WorkflowStepState.Current, viewModel.Step2State);
-            Assert.Equal(WorkflowStepState.Upcoming, viewModel.Step3State);
+            Assert.Equal(WorkflowStepState.Completed, viewModel.WorkflowSteps.Step1State);
+            Assert.Equal(WorkflowStepState.Current, viewModel.WorkflowSteps.Step2State);
+            Assert.Equal(WorkflowStepState.Upcoming, viewModel.WorkflowSteps.Step3State);
 
             DispatcherTestHelper.RunOnDispatcher(() => memberFile.LoadDroppedFileCommand.ExecuteAsync("C:\\members.csv"));
-            Assert.Equal(WorkflowStepState.Completed, viewModel.Step2State);
-            Assert.Equal(WorkflowStepState.Current, viewModel.Step3State);
+            Assert.Equal(WorkflowStepState.Completed, viewModel.WorkflowSteps.Step2State);
+            Assert.Equal(WorkflowStepState.Current, viewModel.WorkflowSteps.Step3State);
 
             DispatcherTestHelper.RunOnDispatcher(() => syncWorkspace.PreviewCommand.ExecuteAsync(null));
-            Assert.Equal(WorkflowStepState.Completed, viewModel.Step3State);
+            Assert.Equal(WorkflowStepState.Completed, viewModel.WorkflowSteps.Step3State);
         }
         finally
         {

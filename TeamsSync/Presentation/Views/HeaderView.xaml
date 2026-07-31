@@ -22,7 +22,7 @@
                    VerticalAlignment="Center" Appearance="Transparent" ToolTip="マニュアルを開く"
                    AutomationProperties.Name="マニュアルを開く" />
         <Grid Grid.Row="0" Grid.Column="2" VerticalAlignment="Center">
-            <ui:Button x:Name="SignInButton" Content="_サインイン" Command="{Binding SignInCommand}"
+            <ui:Button x:Name="SignInButton" Content="_サインイン" Command="{Binding SignIn.SignInCommand}"
                        Appearance="Secondary" ToolTip="Microsoft 365にサインイン"
                        AutomationProperties.Name="Microsoft 365へサインイン"
                        BorderThickness="1" BorderBrush="{DynamicResource TextFillColorSecondaryBrush}">
@@ -33,20 +33,20 @@
                     <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
                         <Setter Property="Visibility" Value="Visible" />
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsSignedIn}" Value="True">
+                            <DataTrigger Binding="{Binding SignIn.IsSignedIn}" Value="True">
                                 <Setter Property="Visibility" Value="Collapsed" />
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
                 </ui:Button.Style>
             </ui:Button>
-            <ui:DropDownButton Content="{Binding AccountText}" Icon="{ui:SymbolIcon Symbol=PersonAccounts24}"
+            <ui:DropDownButton Content="{Binding SignIn.AccountText}" Icon="{ui:SymbolIcon Symbol=PersonAccounts24}"
                                AutomationProperties.Name="サインイン中のアカウント">
                 <ui:DropDownButton.Style>
                     <Style TargetType="ui:DropDownButton" BasedOn="{StaticResource {x:Type ui:DropDownButton}}">
                         <Setter Property="Visibility" Value="Collapsed" />
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsSignedIn}" Value="True">
+                            <DataTrigger Binding="{Binding SignIn.IsSignedIn}" Value="True">
                                 <Setter Property="Visibility" Value="Visible" />
                             </DataTrigger>
                         </Style.Triggers>
@@ -55,7 +55,7 @@
                 <ui:DropDownButton.Flyout>
                     <ContextMenu>
                         <MenuItem Header="サインアウト"
-                                  Command="{Binding PlacementTarget.DataContext.SignOutCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                  Command="{Binding PlacementTarget.DataContext.SignIn.SignOutCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                     </ContextMenu>
                 </ui:DropDownButton.Flyout>
             </ui:DropDownButton>
@@ -68,7 +68,7 @@
              ライブリージョンが同時に読み上げられてしまうため、ここでは付けない。 -->
         <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right"
                     Margin="0,4,0,0"
-                    Visibility="{Binding IsNotSignedIn, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    Visibility="{Binding SignIn.IsNotSignedIn, Converter={StaticResource BooleanToVisibilityConverter}}">
             <ui:SymbolIcon Symbol="ErrorCircle24" FontSize="14" Margin="0,0,4,0" VerticalAlignment="Center"
                            Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
             <TextBlock Text="サインインが必要です" FontSize="12" VerticalAlignment="Center"

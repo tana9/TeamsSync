@@ -49,7 +49,7 @@
                     <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
                         <Setter Property="Appearance" Value="Secondary" />
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding DataContext.Step3State, RelativeSource={RelativeSource AncestorType=Window}}"
+                            <DataTrigger Binding="{Binding DataContext.WorkflowSteps.Step3State, RelativeSource={RelativeSource AncestorType=Window}}"
                                          Value="{x:Static vm:WorkflowStepState.Current}">
                                 <Setter Property="Appearance" Value="Primary" />
                             </DataTrigger>
