@@ -1,6 +1,5 @@
 using System.Reflection;
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Presentation.Services;
 
@@ -12,9 +11,6 @@ namespace TeamsSync.Presentation.ViewModels;
 /// </summary>
 public partial class MainWindowViewModel : ObservableObject
 {
-    private readonly INotificationService _dialogs;
-    private readonly IManualService _manual;
-
     /// <summary>ウィンドウタイトル(アプリ名とバージョン)。</summary>
     public string WindowTitle { get; } = $"TeamsSync {Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}";
 
@@ -31,14 +27,14 @@ public partial class MainWindowViewModel : ObservableObject
     /// 子ViewModelのイベントを購読して連動させ、既定のステータスを設定する。
     /// </summary>
     public MainWindowViewModel(IAuthenticationService authentication, ITeamsGateway teamsGateway,
-        INotificationService dialogs, IManualService manual, IUserPreferences preferences,
-        TeamSelectionViewModel teamSelection, MemberFileViewModel memberFile, SyncWorkspaceViewModel syncWorkspace)
+        INotificationService dialogs, IUserPreferences preferences,
+        TeamSelectionViewModel teamSelection, MemberFileViewModel memberFile, SyncWorkspaceViewModel syncWorkspace,
+        ManualViewModel manual)
     {
-        _dialogs = dialogs;
-        _manual = manual;
         TeamSelection = teamSelection;
         MemberFile = memberFile;
         SyncWorkspace = syncWorkspace;
+        Manual = manual;
         SignIn = new SignInViewModel(authentication, teamsGateway, dialogs, SetStatus,
             userId => TeamSelection.InitializeAsync(userId));
         WorkflowSteps = new WorkflowStepsViewModel(SignIn, TeamSelection, MemberFile, SyncWorkspace);
@@ -92,19 +88,8 @@ public partial class MainWindowViewModel : ObservableObject
     /// <summary>画面手順(1〜3)の進捗状態を算出するViewModel。</summary>
     public WorkflowStepsViewModel WorkflowSteps { get; }
 
-    /// <summary>利用者向けマニュアルを開く。</summary>
-    [RelayCommand]
-    private async Task OpenManualAsync()
-    {
-        try
-        {
-            _manual.OpenManual();
-        }
-        catch (Exception ex)
-        {
-            await _dialogs.ShowErrorAsync(ex.Message, "マニュアルを開けませんでした");
-        }
-    }
+    /// <summary>利用者向けマニュアルを開く操作を管理するViewModel。</summary>
+    public ManualViewModel Manual { get; }
 
     /// <summary>選択中のチーム・メンバーリストの内容を同期ワークスペースへ反映する。</summary>
     private void UpdateSyncContext()

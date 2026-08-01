@@ -31,6 +31,7 @@ public static class DependencyInjection
         services.AddSingleton<TeamSelectionViewModel>();
         services.AddSingleton<MemberFileViewModel>();
         services.AddSingleton<SyncWorkspaceViewModel>();
+        services.AddSingleton<ManualViewModel>();
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<MainWindow>();
         return services;

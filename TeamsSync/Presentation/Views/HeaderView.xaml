@@ -17,7 +17,7 @@
             <TextBlock Text="リストとチームの一般メンバーを安全に同期します" Margin="32,4,0,0" FontSize="12"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
         </StackPanel>
-        <ui:Button Grid.Row="0" Grid.Column="1" Command="{Binding OpenManualCommand}"
+        <ui:Button Grid.Row="0" Grid.Column="1" Command="{Binding Manual.OpenManualCommand}"
                    Icon="{ui:SymbolIcon Symbol=QuestionCircle24}" Margin="0,0,12,0"
                    VerticalAlignment="Center" Appearance="Transparent" ToolTip="マニュアルを開く"
                    AutomationProperties.Name="マニュアルを開く" />
@@ -54,7 +54,7 @@
                 </ui:DropDownButton.Style>
                 <ui:DropDownButton.Flyout>
                     <ContextMenu>
-                        <MenuItem Header="サインアウト"
+                        <MenuItem Header="サインアウト" Icon="{ui:SymbolIcon Symbol=SignOut20}"
                                   Command="{Binding PlacementTarget.DataContext.SignIn.SignOutCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                     </ContextMenu>
                 </ui:DropDownButton.Flyout>

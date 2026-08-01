@@ -91,7 +91,7 @@ public sealed class MemberFileViewModelTests
         var workspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
             new FakeResultWriter(), preferences, new FakeDialogs(), new FakeDialogs(), notifications);
         var main = new MainWindowViewModel(new FakeAuthenticationService(), gateway, notifications,
-            new FakeManualService(), preferences, teamSelection, memberFile, workspace);
+            preferences, teamSelection, memberFile, workspace, new ManualViewModel(new FakeManualService(), notifications));
         main.SignIn.IsSignedIn = true;
 
         // MemberFileViewModel.LoadはTask.Runでファイルを読み込むため、後続のDocumentChanged通知

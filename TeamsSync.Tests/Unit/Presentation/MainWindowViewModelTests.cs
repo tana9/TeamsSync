@@ -20,7 +20,7 @@ public sealed class MainWindowViewModelTests
         var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
             new FakeResultWriter(), preferences, dialogs, dialogs, dialogs);
         var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, dialogs,
-            new FakeManualService(), preferences, teamSelection, memberFile, syncWorkspace);
+            preferences, teamSelection, memberFile, syncWorkspace, new ManualViewModel(new FakeManualService(), dialogs));
 
         Assert.True(viewModel.SignIn.IsNotSignedIn);
 
@@ -41,9 +41,9 @@ public sealed class MainWindowViewModelTests
         var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
             new FakeResultWriter(), preferences, dialogs, dialogs, dialogs);
         var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, dialogs,
-            new FakeManualService(), preferences, teamSelection, memberFile, syncWorkspace);
+            preferences, teamSelection, memberFile, syncWorkspace, new ManualViewModel(new FakeManualService(), dialogs));
 
-        viewModel.OpenManualCommand.Execute(null);
+        viewModel.Manual.OpenManualCommand.Execute(null);
     }
 
     [Fact]
@@ -59,9 +59,9 @@ public sealed class MainWindowViewModelTests
         var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
             new FakeResultWriter(), preferences, dialogs, dialogs, dialogs);
         var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, notifications,
-            new ThrowingManualService(), preferences, teamSelection, memberFile, syncWorkspace);
+            preferences, teamSelection, memberFile, syncWorkspace, new ManualViewModel(new ThrowingManualService(), notifications));
 
-        viewModel.OpenManualCommand.Execute(null);
+        viewModel.Manual.OpenManualCommand.Execute(null);
 
         Assert.Equal("展開に失敗しました", notifications.ErrorMessage);
         Assert.Equal("マニュアルを開けませんでした", notifications.ErrorTitle);
@@ -82,7 +82,7 @@ public sealed class MainWindowViewModelTests
         var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
             new FakeResultWriter(), preferences, dialogs, dialogs, dialogs);
         var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, dialogs,
-            new FakeManualService(), preferences, teamSelection, memberFile, syncWorkspace);
+            preferences, teamSelection, memberFile, syncWorkspace, new ManualViewModel(new FakeManualService(), dialogs));
         await teamSelection.InitializeAsync("current-user", TestContext.Current.CancellationToken);
         teamSelection.SelectedTeam = teamSelection.Teams[0];
         viewModel.SignIn.IsSignedIn = true;
@@ -118,7 +118,7 @@ public sealed class MainWindowViewModelTests
             SignOutException = new InvalidOperationException("MSALのアカウント削除に失敗しました")
         };
         var viewModel = new MainWindowViewModel(auth, gateway, notifications,
-            new FakeManualService(), preferences, teamSelection, memberFile, syncWorkspace);
+            preferences, teamSelection, memberFile, syncWorkspace, new ManualViewModel(new FakeManualService(), dialogs));
         await teamSelection.InitializeAsync("current-user", TestContext.Current.CancellationToken);
         teamSelection.SelectedTeam = teamSelection.Teams[0];
         viewModel.SignIn.IsSignedIn = true;
@@ -151,7 +151,7 @@ public sealed class MainWindowViewModelTests
             new FakeResultWriter(), preferences, dialogs, dialogs, dialogs);
         var auth = new FakeAuthenticationService { SignOutException = new OperationCanceledException() };
         var viewModel = new MainWindowViewModel(auth, gateway, dialogs,
-            new FakeManualService(), preferences, teamSelection, memberFile, syncWorkspace);
+            preferences, teamSelection, memberFile, syncWorkspace, new ManualViewModel(new FakeManualService(), dialogs));
         await teamSelection.InitializeAsync("current-user", TestContext.Current.CancellationToken);
         teamSelection.SelectedTeam = teamSelection.Teams[0];
         viewModel.SignIn.IsSignedIn = true;
@@ -187,7 +187,7 @@ public sealed class MainWindowViewModelTests
         var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
             new FakeResultWriter(), preferences, dialogs, dialogs, dialogs);
         var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, dialogs,
-            new FakeManualService(), preferences, teamSelection, memberFile, syncWorkspace);
+            preferences, teamSelection, memberFile, syncWorkspace, new ManualViewModel(new FakeManualService(), dialogs));
 
         Assert.Equal(WorkflowStepState.Upcoming, viewModel.WorkflowSteps.Step1State);
 
@@ -243,7 +243,7 @@ public sealed class MainWindowViewModelTests
         var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
             new FakeResultWriter(), preferences, dialogs, dialogs, dialogs);
         var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, dialogs,
-            new FakeManualService(), preferences, teamSelection, memberFile, syncWorkspace);
+            preferences, teamSelection, memberFile, syncWorkspace, new ManualViewModel(new FakeManualService(), dialogs));
         viewModel.SignIn.IsSignedIn = true;
         teamSelection.SelectedTeam = new TeamInfo("team-1", "開発", null);
         memberFile.SelectedInputIndex = 1;
