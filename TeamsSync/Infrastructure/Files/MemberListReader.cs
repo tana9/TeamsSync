@@ -1,10 +1,7 @@
-using System.Globalization;
-using System.Security.Cryptography;
-using System.Text;
-using System.IO.Compression;
 using ClosedXML.Excel;
 using CsvHelper;
 using CsvHelper.Configuration;
+using System.Globalization;
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Domain.Teams;
 
@@ -12,20 +9,15 @@ namespace TeamsSync.Infrastructure.Files;
 
 /// <summary>
 /// CSV(.csv)またはExcel(.xlsx)のメンバーリストファイルを読み込み、アドレス一覧へ変換する。
+/// サイズ・行数・列数上限やZip展開後サイズなどの安全性検証は<see cref="MemberFileSecurityValidator"/>へ、
+/// 文字コード判定は<see cref="CsvEncodingDetector"/>へ委譲する。
 /// </summary>
 public sealed class MemberListReader : IMemberListReader
 {
-    // 想定外に大きい／壊れたファイルを早期に拒否するための上限。
-    // ファイルサイズはテキスト貼り付け(MemberTextParser.MaximumTextLength=500,000文字)より大きくてよいが、
-    // 無制限だとFile.ReadAllBytes等で容易にメモリを枯渇させられるため常識的な値に制限する。
-    public const long MaximumFileSizeBytes = 10 * 1024 * 1024;
-
-    // 行数はテキスト貼り付けの上限(MemberTextParser.MaximumEntries)と揃え、入力経路によらず一貫した上限にする。
-    public const int MaximumRows = 5000;
-
-    // 列数は通常のメンバー名簿では数列で収まるため、数百列を超える場合は誤ったファイルの可能性が高いとみなす。
-    public const int MaximumColumns = 200;
-    public const long MaximumExpandedArchiveBytes = 100 * 1024 * 1024;
+    public const long MaximumFileSizeBytes = MemberFileSecurityValidator.MaximumFileSizeBytes;
+    public const int MaximumRows = MemberFileSecurityValidator.MaximumRows;
+    public const int MaximumColumns = MemberFileSecurityValidator.MaximumColumns;
+    public const long MaximumExpandedArchiveBytes = MemberFileSecurityValidator.MaximumExpandedArchiveBytes;
 
     private static readonly string[] HeaderNames =
         ["email", "mail", "upn", "userprincipalname", "name", "displayname", "メール", "メールアドレス", "氏名", "姓名", "名前"];
@@ -45,9 +37,7 @@ public sealed class MemberListReader : IMemberListReader
         {
             // File.ReadAllBytesで全体を読み込む前に、FileInfo.Lengthだけでサイズ超過を判定して即座に拒否する
             var info = new FileInfo(path);
-            if (info.Length > MaximumFileSizeBytes)
-                throw new InvalidDataException(
-                    $"ファイルサイズは{MaximumFileSizeBytes / 1024 / 1024:N0}MBまでです（{info.Length / 1024 / 1024.0:N1}MB）。");
+            MemberFileSecurityValidator.EnsureFileSizeWithinLimit(info.Length);
 
             var initialHash = ComputeSha256(path);
             var extension = Path.GetExtension(path).ToLowerInvariant();
@@ -88,7 +78,7 @@ public sealed class MemberListReader : IMemberListReader
     /// <summary>CSVファイルを解析し、アドレス候補列を抽出する。</summary>
     private static (IEnumerable<string>, string, string) ReadCsv(string path, CancellationToken cancellationToken)
     {
-        var encoding = DetectCsvEncoding(path);
+        var encoding = CsvEncodingDetector.Detect(path);
         using var stream = OpenShared(path);
         using var reader = new StreamReader(stream, encoding);
         using var csv = new CsvReader(reader, CsvReaderConfiguration);
@@ -97,68 +87,21 @@ public sealed class MemberListReader : IMemberListReader
         {
             cancellationToken.ThrowIfCancellationRequested();
             var fields = csv.Parser.Record ?? [];
-            if (fields.Length > MaximumColumns)
-                throw new InvalidDataException($"CSVの{rows.Count + 1}行目の列数が{MaximumColumns:N0}列を超えています。");
+            MemberFileSecurityValidator.EnsureCsvColumnCountWithinLimit(fields.Length, rows.Count + 1);
             rows.Add(fields);
             // 全行をListへ溜め込む前に件数超過を検知し、巨大CSVを最後まで読み切ってからメモリを使い切ることを防ぐ
-            if (rows.Count > MaximumRows)
-                throw new InvalidDataException($"CSVの行数は{MaximumRows:N0}行までです。");
+            MemberFileSecurityValidator.EnsureCsvRowCountWithinLimit(rows.Count);
         }
 
         var extracted = ExtractColumn(rows);
         return (extracted.Values, "CSV", extracted.Column);
     }
 
-    /// <summary>
-    /// BOMからCSVファイルの文字コードを判定する。BOMがない場合はUTF-8として妥当かを検証し、
-    /// 妥当でなければShift-JIS(コードページ932)にフォールバックする。
-    /// </summary>
-    private static Encoding DetectCsvEncoding(string path)
-    {
-        // BOMの判定は先頭数バイトだけで足りるため、File.ReadAllBytesでファイル全体を読み込まない
-        Span<byte> preamble = stackalloc byte[4];
-        int read;
-        using (var stream = OpenShared(path))
-        {
-            read = stream.Read(preamble);
-        }
-
-        var header = preamble[..read];
-        if (header.StartsWith(Encoding.UTF8.Preamble))
-            return new UTF8Encoding(true, true);
-        if (header.StartsWith(Encoding.UTF32.Preamble))
-            return new UTF32Encoding(false, true, true);
-        if (header.StartsWith(new byte[] { 0x00, 0x00, 0xFE, 0xFF }))
-            return new UTF32Encoding(true, true, true);
-        if (header.StartsWith(Encoding.Unicode.Preamble))
-            return new UnicodeEncoding(false, true, true);
-        if (header.StartsWith(Encoding.BigEndianUnicode.Preamble))
-            return new UnicodeEncoding(true, true, true);
-
-        // BOMがない場合はUTF-8として妥当かをStreamReaderでチャンク単位に検証する。
-        // byte[]とstringの両方を全体分保持しないため、ReadAllBytes+GetStringよりピークメモリが小さい。
-        try
-        {
-            using var stream = OpenShared(path);
-            using var reader = new StreamReader(stream, new UTF8Encoding(false, true), false);
-            var buffer = new char[8192];
-            while (reader.Read(buffer, 0, buffer.Length) > 0)
-            {
-            }
-
-            return new UTF8Encoding(false, true);
-        }
-        catch (DecoderFallbackException)
-        {
-            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-            return Encoding.GetEncoding(932, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
-        }
-    }
-
     /// <summary>Excelファイルの先頭ワークシートを解析し、アドレス候補列を抽出する。</summary>
     private static (IEnumerable<string>, string, string) ReadExcel(string path, CancellationToken cancellationToken)
     {
-        ValidateExcelArchive(path, cancellationToken);
+        using (var archiveStream = OpenShared(path))
+            MemberFileSecurityValidator.ValidateExcelArchive(archiveStream, cancellationToken);
         using var stream = OpenShared(path);
         using var book = new XLWorkbook(stream);
         var sheet = book.Worksheets.FirstOrDefault() ?? throw new InvalidDataException("Excelにワークシートがありません。");
@@ -167,10 +110,8 @@ public sealed class MemberListReader : IMemberListReader
         // 極端に大きい／横長なシートを実際の展開処理に入る前に拒否する
         var rowCount = sheet.LastRowUsed()?.RowNumber() ?? 0;
         var columnCount = sheet.LastColumnUsed()?.ColumnNumber() ?? 0;
-        if (rowCount > MaximumRows)
-            throw new InvalidDataException($"Excelの行数は{MaximumRows:N0}行までです（{rowCount:N0}行）。");
-        if (columnCount > MaximumColumns)
-            throw new InvalidDataException($"Excelの列数は{MaximumColumns:N0}列までです（{columnCount:N0}列）。");
+        MemberFileSecurityValidator.EnsureExcelRowCountWithinLimit(rowCount);
+        MemberFileSecurityValidator.EnsureExcelColumnCountWithinLimit(columnCount);
 
         List<string[]> rows = [];
         foreach (var row in sheet.RowsUsed())
@@ -182,24 +123,6 @@ public sealed class MemberListReader : IMemberListReader
 
         var extracted = ExtractColumn(rows);
         return (extracted.Values, sheet.Name, extracted.Column);
-    }
-
-    /// <summary>
-    /// Excel(.xlsx)をZipアーカイブとして展開後サイズを検証し、Zip爆弾的な入力を拒否する。
-    /// </summary>
-    private static void ValidateExcelArchive(string path, CancellationToken cancellationToken)
-    {
-        using var stream = OpenShared(path);
-        using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
-        long expandedBytes = 0;
-        foreach (var entry in archive.Entries)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (entry.Length > MaximumExpandedArchiveBytes - expandedBytes)
-                throw new InvalidDataException(
-                    $"Excelの展開後サイズは{MaximumExpandedArchiveBytes / 1024 / 1024:N0}MBまでです。");
-            expandedBytes += entry.Length;
-        }
     }
 
     /// <summary>
@@ -232,7 +155,7 @@ public sealed class MemberListReader : IMemberListReader
     private static string ComputeSha256(string path)
     {
         using var stream = OpenShared(path);
-        return Convert.ToHexString(SHA256.HashData(stream));
+        return MemberFileSecurityValidator.ComputeSha256(stream);
     }
 
     // Excelなどが書込み用に開いたまま読み取り共有は許可しているケースを読めるようにするため、
