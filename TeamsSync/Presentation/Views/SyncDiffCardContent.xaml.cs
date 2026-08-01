@@ -10,37 +10,19 @@ namespace TeamsSync.Presentation.Views;
 /// <summary>同期差分一覧(DataGrid)を表示するView。</summary>
 public partial class SyncDiffCardContent
 {
+    private readonly ViewModelEventSubscription<SyncWorkspaceViewModel> _viewModelSubscription;
+
     /// <summary>コンストラクター。DataContext変更に合わせてViewModelのイベント購読を切り替える。</summary>
     public SyncDiffCardContent()
     {
         InitializeComponent();
-        DataContextChanged += OnDataContextChanged;
-        Unloaded += (_, _) => Subscribe(DataContext as SyncWorkspaceViewModel, false);
-    }
-
-    /// <summary>DataContextの変更に合わせて、旧ViewModelの購読を解除し新ViewModelを購読する。</summary>
-    private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
-    {
-        Subscribe(e.OldValue as SyncWorkspaceViewModel, false);
-        Subscribe(e.NewValue as SyncWorkspaceViewModel, true);
-    }
-
-    /// <summary>ViewModelの<see cref="SyncWorkspaceViewModel.DiffFocusRequested" />イベントを購読/解除する。</summary>
-    private void Subscribe(SyncWorkspaceViewModel? viewModel, bool subscribe)
-    {
-        if (viewModel is null)
-        {
-            return;
-        }
-
-        if (subscribe)
-        {
-            viewModel.DiffFocusRequested += FocusSummaryOrFirstError;
-        }
-        else
-        {
-            viewModel.DiffFocusRequested -= FocusSummaryOrFirstError;
-        }
+        _viewModelSubscription = new(
+            viewModel => viewModel.DiffFocusRequested += FocusSummaryOrFirstError,
+            viewModel => viewModel.DiffFocusRequested -= FocusSummaryOrFirstError);
+        Loaded += (_, _) => _viewModelSubscription.Load(DataContext as SyncWorkspaceViewModel);
+        Unloaded += (_, _) => _viewModelSubscription.Unload();
+        DataContextChanged += (_, e) =>
+            _viewModelSubscription.ChangeDataContext(e.NewValue as SyncWorkspaceViewModel);
     }
 
     // 差分確認・再検証・同期後の再取得で一覧が更新されたときに呼ばれる。

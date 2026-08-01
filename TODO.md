@@ -197,9 +197,9 @@ TeamsSync の今後の改善項目。メンバー削除を伴うアプリケー�
 
 ### Viewのイベント購読ライフサイクルを修正する
 
-- [ ] `SyncDiffCardContent`、`MemberListInputView`、`TeamSelectionCardContent`のViewModelイベントを`Loaded`で購読し、`Unloaded`で解除する対称的な実装へ統一する
-- [ ] 同じ`DataContext`のままViewがアンロード、再ロードされた場合にも、差分・入力・チーム選択へのフォーカス要求が1回だけ処理されることを確認する
-- [ ] `DataContextChanged`と`Loaded`が連続してもイベントが二重購読されないようにする
+- [x] `SyncDiffCardContent`、`MemberListInputView`、`TeamSelectionCardContent`のViewModelイベントを`Loaded`で購読し、`Unloaded`で解除する対称的な実装へ統一する
+- [x] 同じ`DataContext`のままViewがアンロード、再ロードされた場合にも、差分・入力・チーム選択へのフォーカス要求が1回だけ処理されることを確認する
+- [x] `DataContextChanged`と`Loaded`が連続してもイベントが二重購読されないようにする
 
 完了条件: Viewの再表示後もフォーカス移動が機能し、イベントの未購読や二重購読が発生しない。
 
