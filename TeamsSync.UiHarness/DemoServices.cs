@@ -140,12 +140,9 @@ public sealed class DemoTeamsGateway : ITeamsGateway
     }
 }
 
-internal sealed class DemoConfirmationService : ISyncConfirmationService, IMemberInputConfirmationService
+internal sealed class DemoConfirmationService : ISyncConfirmationService
 {
     public Task<bool> ConfirmSyncAsync(SyncConfirmation confirmation,
-        CancellationToken cancellationToken = default) => Task.FromResult(true);
-
-    public Task<bool> ConfirmReplaceMemberInputAsync(string teamName, int memberCount,
         CancellationToken cancellationToken = default) => Task.FromResult(true);
 }
 
