@@ -7,6 +7,7 @@ using CsvHelper;
 using CsvHelper.Configuration;
 
 using TeamsSync.Application.Abstractions;
+using TeamsSync.Application.Models;
 using TeamsSync.Domain.Teams;
 
 namespace TeamsSync.Infrastructure.Files;

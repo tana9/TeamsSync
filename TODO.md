@@ -214,10 +214,10 @@ TeamsSync の今後の改善項目。メンバー削除を伴うアプリケー�
 
 ### DomainとApplicationのモデル境界を整理する
 
-- [ ] `TeamModels.cs`の型を、純粋な同期ドメイン、アプリケーション入出力、表示専用モデルに分類する
-- [ ] `SyncChange.Detail`などの表示文、`MemberListDocument`のファイル情報、`SyncAuditContext`、進捗・実行結果をDomainへ置く必要があるか見直す
-- [ ] 現在の依存方向（Domain/ApplicationからPresentation/Infrastructureへ依存しない）をアーキテクチャテストで固定する
-- [ ] 小規模アプリに不釣り合いな集約・リポジトリ・プロジェクト分割は導入せず、必要な境界だけを明確にする
+- [x] `TeamModels.cs`の型を、純粋な同期ドメイン、アプリケーション入出力、表示専用モデルに分類する
+- [x] `SyncChange.Detail`などの表示文、`MemberListDocument`のファイル情報、`SyncAuditContext`、進捗・実行結果をDomainへ置く必要があるか見直す
+- [x] 現在の依存方向（Domain/ApplicationからPresentation/Infrastructureへ依存しない）をアーキテクチャテストで固定する
+- [x] 小規模アプリに不釣り合いな集約・リポジトリ・プロジェクト分割は導入せず、必要な境界だけを明確にする
 
 完了条件: Domainに置く概念の基準が明確で、表示・ファイル・監査の都合が同期ドメインへ不必要に混在しない。
 

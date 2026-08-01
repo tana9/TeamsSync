@@ -1,5 +1,6 @@
 using System.Windows.Threading;
 
+using TeamsSync.Application.Models;
 using TeamsSync.Application.Services;
 using TeamsSync.Domain.Teams;
 using TeamsSync.Infrastructure.Files;

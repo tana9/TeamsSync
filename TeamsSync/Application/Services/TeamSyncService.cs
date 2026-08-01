@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using TeamsSync.Application.Abstractions;
+using TeamsSync.Application.Models;
 using TeamsSync.Domain.Teams;
 
 namespace TeamsSync.Application.Services;

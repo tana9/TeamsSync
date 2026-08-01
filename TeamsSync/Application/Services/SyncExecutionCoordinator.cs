@@ -1,4 +1,5 @@
 using TeamsSync.Application.Abstractions;
+using TeamsSync.Application.Models;
 using TeamsSync.Domain.Teams;
 
 namespace TeamsSync.Application.Services;

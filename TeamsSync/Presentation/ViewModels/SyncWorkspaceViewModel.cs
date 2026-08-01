@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 using TeamsSync.Application.Abstractions;
+using TeamsSync.Application.Models;
 using TeamsSync.Application.Services;
 using TeamsSync.Domain.Teams;
 using TeamsSync.Presentation.Services;

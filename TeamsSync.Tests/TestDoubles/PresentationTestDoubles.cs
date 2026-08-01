@@ -2,6 +2,7 @@ using System.Runtime.ExceptionServices;
 using System.Windows.Threading;
 
 using TeamsSync.Application.Abstractions;
+using TeamsSync.Application.Models;
 using TeamsSync.Domain.Teams;
 using TeamsSync.Infrastructure.Files;
 using TeamsSync.Presentation.Services;

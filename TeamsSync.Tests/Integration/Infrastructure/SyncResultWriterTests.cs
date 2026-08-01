@@ -1,3 +1,4 @@
+using TeamsSync.Application.Models;
 using TeamsSync.Domain.Teams;
 using TeamsSync.Infrastructure.Files;
 

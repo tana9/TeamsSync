@@ -12,7 +12,6 @@ public sealed record TeamInfo(string Id, string DisplayName, string? Description
         return DisplayName;
     }
 }
-
 /// <summary>チームの現メンバー1名分の情報を表す。</summary>
 /// <param name="MembershipId">メンバーシップのオブジェクトID(削除操作に使用)。</param>
 /// <param name="UserId">ユーザーのオブジェクトID。</param>
@@ -122,71 +121,4 @@ public sealed record SyncPlan(
 
     /// <summary>未解決の変更が1件以上あるかどうか。</summary>
     public bool HasErrors => ErrorCount > 0;
-}
-
-/// <summary>プレビュー時点のプランが最新の状態と一致しているかどうかの再検証結果。</summary>
-/// <param name="IsCurrent">プレビュー時点のプランが最新の状態と一致しているかどうか。</param>
-/// <param name="LatestPlan">再検証時点で作成し直した最新のプラン。</param>
-public sealed record SyncPlanRevalidation(bool IsCurrent, SyncPlan LatestPlan);
-
-/// <summary>読み込んだメンバーリストファイル(CSV/Excel)の内容を表す。</summary>
-/// <param name="Addresses">抽出されたアドレス一覧。</param>
-/// <param name="FileName">ファイル名。</param>
-/// <param name="FullPath">フルパス。</param>
-/// <param name="LastModified">最終更新日時。</param>
-/// <param name="SourceName">入力元の種別(ファイル名またはテキスト貼り付けなど)を表す表示名。</param>
-/// <param name="DetectedColumn">アドレスとして検出した列名。</param>
-/// <param name="ContentSha256">内容のSHA-256ハッシュ(監査ログ用)。</param>
-public sealed record MemberListDocument(
-    IReadOnlyList<string> Addresses,
-    string FileName,
-    string FullPath,
-    DateTime LastModified,
-    string SourceName,
-    string DetectedColumn,
-    string ContentSha256 = "");
-
-/// <summary>監査ログに記録する、同期実行1回分の文脈情報。</summary>
-/// <param name="ExecutionId">実行を一意に識別するID。</param>
-/// <param name="InputFileName">入力元のファイル名。</param>
-/// <param name="InputFileSha256">入力内容のSHA-256ハッシュ。</param>
-/// <param name="TenantId">実行時のテナントID。</param>
-/// <param name="ActorObjectId">実行したユーザーのオブジェクトID。</param>
-public sealed record SyncAuditContext(
-    Guid ExecutionId,
-    string InputFileName,
-    string InputFileSha256,
-    string? TenantId = null,
-    string? ActorObjectId = null);
-
-/// <summary>同期実行中の進捗状況を表す。</summary>
-/// <param name="Completed">完了した操作数。</param>
-/// <param name="Total">操作の総数。</param>
-/// <param name="Kind">直近に処理した操作の種別。</param>
-/// <param name="Email">直近に処理した対象のアドレス。</param>
-public sealed record SyncProgress(int Completed, int Total, ChangeKind Kind, string Email)
-{
-    /// <summary>進捗率(0～100)。</summary>
-    public int Percentage => Total == 0 ? 0 : (int)Math.Round(Completed * 100d / Total);
-}
-
-/// <summary>1件の追加・削除操作の実行結果を表す。</summary>
-/// <param name="Kind">操作の種別。</param>
-/// <param name="Email">対象のアドレス。</param>
-/// <param name="Succeeded">成功したかどうか。</param>
-/// <param name="Error">失敗時のエラーメッセージ。</param>
-/// <param name="DisplayName">対象ユーザーの表示名。</param>
-public sealed record SyncOperationResult(ChangeKind Kind, string Email, bool Succeeded, string? Error,
-    string DisplayName = "");
-
-/// <summary>同期実行全体の結果を表す。</summary>
-/// <param name="Operations">各操作の実行結果一覧。</param>
-/// <param name="Cancelled">キャンセルにより途中で終了したかどうか。</param>
-public sealed record SyncExecutionResult(IReadOnlyList<SyncOperationResult> Operations, bool Cancelled)
-{
-    /// <summary>成功した操作数。</summary>
-    public int SuccessCount => Operations.Count(x => x.Succeeded);
-
-    /// <summary>失敗した操作数。</summary>
-    public int FailureCount => Operations.Count(x => !x.Succeeded);
 }
