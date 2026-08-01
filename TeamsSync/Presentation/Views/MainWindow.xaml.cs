@@ -43,19 +43,27 @@ public partial class MainWindow
     {
         // ContentDialogはSnackbarより前面の一時UIなので、表示中はダイアログ自身の
         // ESC処理を優先する。PreviewKeyDownで先にHandledにするとダイアログを閉じられない。
-        if (e.Key != Key.Escape || _viewModel.SyncWorkspace.IsSyncing || DialogHost.Content is not null)
+        if (e.Key != Key.Escape)
         {
             return;
         }
 
         Snackbar? snackbar = SnackbarPresenter.Content;
-        if (snackbar?.IsShown != true)
+        if (DecideEscapeAction(DialogHost.Content is not null,
+                _viewModel.SyncWorkspace.IsSyncing, snackbar?.IsShown == true) != EscapeAction.DismissSnackbar)
         {
             return;
         }
 
-        snackbar.IsShown = false;
+        snackbar!.IsShown = false;
         e.Handled = true;
+    }
+
+    internal static EscapeAction DecideEscapeAction(bool dialogActive, bool syncing, bool snackbarShown)
+    {
+        if (dialogActive) return EscapeAction.DeferToDialog;
+        if (syncing) return EscapeAction.DeferToSyncCancellation;
+        return snackbarShown ? EscapeAction.DismissSnackbar : EscapeAction.Unhandled;
     }
 
     /// <summary>同期実行中はウィンドウを閉じる前にキャンセル完了を待ってから終了する。</summary>
@@ -71,4 +79,12 @@ public partial class MainWindow
         _closeAfterCancellation = true;
         Close();
     }
+}
+
+internal enum EscapeAction
+{
+    Unhandled,
+    DeferToDialog,
+    DeferToSyncCancellation,
+    DismissSnackbar
 }
