@@ -620,7 +620,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         ResultFailureCount = _lastResult?.FailureCount ?? 0;
         ResultCancelled = _lastResult?.Cancelled ?? false;
         FailedResults.Clear();
-        foreach (var row in SyncWorkspacePresentation.BuildFailedRows(_lastResult)) FailedResults.Add(row);
+        foreach (var row in SyncWorkspaceTextFormatter.BuildFailedRows(_lastResult)) FailedResults.Add(row);
         OnPropertyChanged(nameof(HasFailedResults));
     }
 
@@ -635,7 +635,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         _plan = plan;
         HasPlan = true;
         ReplaceChanges(plan.Changes);
-        var presentation = SyncWorkspacePresentation.BuildPlan(plan);
+        var presentation = SyncWorkspaceTextFormatter.BuildPlan(plan);
         SummaryText = presentation.Summary;
         IsRemovalWarningOpen = plan.RemoveCount > 0;
         RemovalWarningTitle = presentation.RemovalTitle;

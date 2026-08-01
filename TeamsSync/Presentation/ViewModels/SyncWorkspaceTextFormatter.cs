@@ -107,4 +107,22 @@ public static class SyncWorkspaceTextFormatter
         foreach (var filter in filters)
             filter.Count = -1;
     }
+
+    /// <summary>同期プランから、件数サマリーと削除警告(タイトル・本文)を組み立てる。</summary>
+    public static PlanPresentation BuildPlan(SyncPlan plan) => new(
+        $"追加 {plan.AddCount} / 削除 {plan.RemoveCount} / 変更なし {plan.KeepCount} / 所有者 {plan.ProtectedCount} / 未所属 {plan.NotMemberCount} / エラー {plan.ErrorCount}",
+        "削除対象があります",
+        plan.Mode == SyncMode.RemoveSpecified
+            ? $"入力リストで指定した一般メンバー {plan.RemoveCount}名を削除します。"
+            : $"リストにない一般メンバー {plan.RemoveCount}名を削除します。");
+
+    /// <summary>実行結果から失敗した操作だけを行モデルへ変換する。</summary>
+    public static IReadOnlyList<SyncResultRowViewModel> BuildFailedRows(SyncExecutionResult? result) =>
+        (result?.Operations ?? [])
+        .Where(operation => !operation.Succeeded)
+        .Select(operation => new SyncResultRowViewModel(operation))
+        .ToList();
 }
+
+/// <summary>同期プランの件数サマリーと削除警告の表示テキスト。</summary>
+public sealed record PlanPresentation(string Summary, string RemovalTitle, string RemovalMessage);

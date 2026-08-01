@@ -1,6 +1,6 @@
 using System.ComponentModel;
-using TeamsSync.Presentation.Services;
 using TeamsSync.Presentation.ViewModels;
+using Wpf.Ui;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 
@@ -13,12 +13,14 @@ public partial class MainWindow
     private bool _closeAfterCancellation;
 
     /// <summary>コンストラクター。ダイアログ・スナックバーホストを登録し、テーマを適用する。</summary>
-    public MainWindow(MainWindowViewModel viewModel, IUserInteractionHost interactionHost)
+    public MainWindow(MainWindowViewModel viewModel, IContentDialogService contentDialogs,
+        ISnackbarService snackbars)
     {
         InitializeComponent();
         _viewModel = viewModel;
         DataContext = viewModel;
-        interactionHost.SetHosts(DialogHost, SnackbarPresenter);
+        contentDialogs.SetDialogHost(DialogHost);
+        snackbars.SetSnackbarPresenter(SnackbarPresenter);
         // 配色はApplicationResources.xamlの<ui:ThemesDictionary Theme="Light" />とアクセント色の
         // 静的定義(AccentFillColorDefault/Secondary/Tertiary)で固定済みのため、ここではランタイムの
         // テーマ切り替えAPI(ApplicationThemeManager.Apply/SystemThemeWatcher.Watch/

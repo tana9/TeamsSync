@@ -1,5 +1,4 @@
 using TeamsSync.Domain.Teams;
-using Wpf.Ui.Controls;
 
 namespace TeamsSync.Presentation.Services;
 
@@ -49,13 +48,6 @@ public interface INotificationService
     // フォーカスを移動させたい場合などはここで受け取る。
     /// <summary>エラーダイアログを表示する。</summary>
     Task ShowErrorAsync(string message, string title = "エラー", Action? onClosed = null);
-}
-
-/// <summary>ダイアログ・スナックバーの表示先ホストをWPFのコンテンツホストへ結び付ける。</summary>
-public interface IUserInteractionHost
-{
-    /// <summary>ダイアログホストとスナックバー表示先を登録する。</summary>
-    void SetHosts(ContentDialogHost dialogHost, SnackbarPresenter snackbarPresenter);
 }
 
 /// <summary>利用者向けマニュアルを表示する。</summary>
