@@ -27,6 +27,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     private readonly INotificationService _notifications;
     private readonly ISyncResultWriter _resultWriter;
     private readonly TeamSyncService _syncService;
+    private readonly BulkObservableCollection<SyncChangeRowViewModel> _changes = [];
     private string? _actorObjectId;
     private MemberListDocument? _document;
     private bool _externallyBusy;
@@ -145,7 +146,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     public partial string SummaryText { get; set; } = "";
 
     /// <summary>差分一覧の行データ。</summary>
-    public ObservableCollection<SyncChangeRowViewModel> Changes { get; } = [];
+    public ObservableCollection<SyncChangeRowViewModel> Changes => _changes;
 
     /// <summary>絞り込みフィルターを適用した<see cref="Changes" />のビュー。</summary>
     public ICollectionView ChangesView { get; }
@@ -718,15 +719,12 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     /// <summary>差分一覧を種別順(エラー→削除→追加→所有者→その他)に並べ替えて差し替える。</summary>
     private void ReplaceChanges(IEnumerable<SyncChange> changes)
     {
-        Changes.Clear();
-        foreach (SyncChange change in changes.OrderBy(x => x.Kind switch
-                 {
-                     ChangeKind.Error => 0, ChangeKind.Remove => 1, ChangeKind.Add => 2, ChangeKind.Protected => 3,
-                     _ => 4
-                 }))
-        {
-            Changes.Add(new SyncChangeRowViewModel(change));
-        }
+        _changes.ReplaceAll(changes.OrderBy(x => x.Kind switch
+            {
+                ChangeKind.Error => 0, ChangeKind.Remove => 1, ChangeKind.Add => 2, ChangeKind.Protected => 3,
+                _ => 4
+            })
+            .Select(change => new SyncChangeRowViewModel(change)));
 
         ChangesView.Refresh();
         UpdateFilterCounts();

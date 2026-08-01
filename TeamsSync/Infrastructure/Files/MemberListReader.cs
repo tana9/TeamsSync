@@ -34,10 +34,15 @@ public sealed class MemberListReader : IMemberListReader
 
     // ヘッダー行も1行目のデータとして自前で扱う(ExtractColumn参照)ためHasHeaderRecord=false。
     // 行数上限の判定を物理行単位で行うため空行もスキップせずIgnoreBlankLines=false。
-    // 引用符の対応崩れなど多少壊れたCSVでも読み進められるよう、BadDataFoundはnull(無視)にしている。
+    // 引用符崩れなどの不正データは、誤った列を同期対象として採用しないよう行番号付きで拒否する。
+    // 引用符内の改行は正規のCSVとして許可するためLineBreakInQuotedFieldIsBadDataはfalseのままにする。
     private static readonly CsvConfiguration CsvReaderConfiguration = new(CultureInfo.InvariantCulture)
     {
-        HasHeaderRecord = false, IgnoreBlankLines = false, BadDataFound = null
+        HasHeaderRecord = false,
+        IgnoreBlankLines = false,
+        ExceptionMessagesContainRawData = false,
+        BadDataFound = args => throw new InvalidDataException(
+            $"{Math.Max(1, args.Context.Parser?.Row ?? 1)}行目のCSV形式が正しくありません。引用符の対応を確認してください。")
     };
 
     /// <summary>
@@ -95,14 +100,29 @@ public sealed class MemberListReader : IMemberListReader
         using StreamReader reader = new(stream, encoding);
         using CsvReader csv = new(reader, CsvReaderConfiguration);
         List<string[]> rows = [];
-        while (csv.Read())
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            string[] fields = csv.Parser.Record ?? [];
-            MemberFileSecurityValidator.EnsureCsvColumnCountWithinLimit(fields.Length, rows.Count + 1);
-            rows.Add(fields);
-            // 全行をListへ溜め込む前に件数超過を検知し、巨大CSVを最後まで読み切ってからメモリを使い切ることを防ぐ
-            MemberFileSecurityValidator.EnsureCsvRowCountWithinLimit(rows.Count);
+            while (csv.Read())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string[] fields = csv.Parser.Record ?? [];
+                int physicalRow = csv.Parser.RawRow;
+                MemberFileSecurityValidator.EnsureCsvColumnCountWithinLimit(fields.Length, physicalRow);
+                if (rows.Count > 0 && fields.Length != rows[0].Length)
+                {
+                    throw new InvalidDataException(
+                        $"{physicalRow}行目の列数が1行目と一致しません（1行目: {rows[0].Length}列、{physicalRow}行目: {fields.Length}列）。");
+                }
+
+                rows.Add(fields);
+                // 全行をListへ溜め込む前に件数超過を検知し、巨大CSVを最後まで読み切ってからメモリを使い切ることを防ぐ
+                MemberFileSecurityValidator.EnsureCsvRowCountWithinLimit(rows.Count);
+            }
+        }
+        catch (CsvHelperException ex)
+        {
+            int physicalRow = Math.Max(1, csv.Parser.RawRow);
+            throw new InvalidDataException($"{physicalRow}行目のCSV形式が正しくありません。引用符と列数を確認してください。", ex);
         }
 
         (IEnumerable<string> Values, string Column) extracted = ExtractColumn(rows);

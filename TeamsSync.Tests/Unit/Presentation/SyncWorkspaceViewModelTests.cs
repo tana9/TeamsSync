@@ -353,6 +353,31 @@ public sealed class SyncWorkspaceViewModelTests
     }
 
     [Fact]
+    public async Task SyncWorkspace_差分一覧を行数分ではなく1回のReset通知で更新する()
+    {
+        FakeTeamsGateway gateway = new()
+        {
+            Members = [new TeamMember("old-membership", "old-user", "Old", "old@example.com", false)]
+        };
+        gateway.Users["new1@example.com"] =
+            new DirectoryUser("new1-user", "New 1", "new1@example.com", "new1@example.com");
+        gateway.Users["new2@example.com"] =
+            new DirectoryUser("new2-user", "New 2", "new2@example.com", "new2@example.com");
+        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+            new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
+        viewModel.SetContext(new TeamInfo("team-1", "開発", null),
+            new MemberListDocument(["new1@example.com", "new2@example.com"], "members.csv", @"C:\members.csv",
+                new DateTime(2026, 8, 1), "CSV", "email"), true);
+        List<System.Collections.Specialized.NotifyCollectionChangedAction> actions = [];
+        viewModel.Changes.CollectionChanged += (_, args) => actions.Add(args.Action);
+
+        await viewModel.PreviewCommand.ExecuteAsync(null);
+
+        Assert.Equal(2, viewModel.Changes.Count);
+        Assert.Equal([System.Collections.Specialized.NotifyCollectionChangedAction.Reset], actions);
+    }
+
+    [Fact]
     public async Task SyncWorkspace_同期完了後はHasSyncResultと成功件数を公開する()
     {
         FakeTeamsGateway gateway = new();

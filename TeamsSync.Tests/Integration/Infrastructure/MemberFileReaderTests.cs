@@ -59,6 +59,49 @@ public sealed class MemberFileReaderTests : IDisposable
             result.ContentSha256);
     }
 
+    [Theory]
+    [InlineData("email,name\n\"user@example.com,User\n", 2)]
+    [InlineData("email,name\nuser\"@example.com,User\n", 2)]
+    [InlineData("email,name\n\"user@example.com\"x,User\n", 2)]
+    public void ReadCsv_引用符崩れを行番号付きで拒否する(string content, int expectedRow)
+    {
+        string path = Path.Combine(_directory, "bad-quotes.csv");
+        File.WriteAllText(path, content);
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            new MemberListReader().Read(path, CancellationToken.None));
+
+        Assert.Contains($"{expectedRow}行目", exception.Message);
+        Assert.Contains("CSV形式", exception.Message);
+    }
+
+    [Theory]
+    [InlineData("email,name\nuser@example.com\n", 1)]
+    [InlineData("email,name\nuser@example.com,User,extra\n", 3)]
+    public void ReadCsv_ヘッダーと異なる列数を行番号付きで拒否する(string content, int actualColumns)
+    {
+        string path = Path.Combine(_directory, "column-mismatch.csv");
+        File.WriteAllText(path, content);
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            new MemberListReader().Read(path, CancellationToken.None));
+
+        Assert.Contains("2行目", exception.Message);
+        Assert.Contains("1行目: 2列", exception.Message);
+        Assert.Contains($"2行目: {actualColumns}列", exception.Message);
+    }
+
+    [Fact]
+    public void ReadCsv_引用符内改行を含む正常なデータは読み込める()
+    {
+        string path = Path.Combine(_directory, "quoted-newline.csv");
+        File.WriteAllText(path, "email,name\n\"user@example.com\",\"User\nOne\"\n");
+
+        MemberListDocument result = new MemberListReader().Read(path, CancellationToken.None);
+
+        Assert.Equal(["user@example.com"], result.Addresses);
+    }
+
     [Fact]
     public void ReadCsv_氏名列よりメールアドレス列を優先する()
     {

@@ -31,15 +31,41 @@ public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultW
         FileStream stream = CreateUniqueFile(stem, out string path);
         using StreamWriter writer = new(stream, new UTF8Encoding(true));
         writer.WriteLine("チーム,同期モード,操作,表示名,メールアドレス,結果,エラー");
-        foreach (SyncOperationResult item in result.Operations)
+        IReadOnlyList<SyncChange> plannedOperations = plan.Changes
+            .Where(change => change.Kind is ChangeKind.Add or ChangeKind.Remove)
+            .ToList();
+        if (plannedOperations.Count == 0 && result.Operations.Count > 0)
         {
-            writer.WriteLine(string.Join(",", CsvExternal(plan.Team.DisplayName), Csv(SyncModeLabel(plan.Mode)),
-                Csv(OperationLabel(item.Kind)),
-                CsvExternal(item.DisplayName), CsvExternal(item.Email), item.Succeeded ? "成功" : "失敗",
-                CsvExternal(item.Error ?? "")));
+            // 古い呼び出し元や単体利用との互換性を保つ。通常の同期では必ずプラン側に操作が存在する。
+            foreach (SyncOperationResult item in result.Operations)
+            {
+                WriteRow(writer, plan, item.Kind, item.DisplayName, item.Email,
+                    item.Succeeded ? "成功" : "失敗", item.Error ?? "");
+            }
+        }
+        else
+        {
+            for (int index = 0; index < plannedOperations.Count; index++)
+            {
+                SyncChange planned = plannedOperations[index];
+                SyncOperationResult? executed = index < result.Operations.Count ? result.Operations[index] : null;
+                WriteRow(writer, plan, planned.Kind, planned.DisplayName, planned.Email,
+                    executed is null ? "未実行" : executed.Succeeded ? "成功" : "失敗",
+                    executed is null
+                        ? result.Cancelled ? "同期がキャンセルされたため未実行" : "実行結果が記録されていません"
+                        : executed.Error ?? "");
+            }
         }
 
         return path;
+    }
+
+    /// <summary>同期操作1件をCSVへ出力する。</summary>
+    private static void WriteRow(TextWriter writer, SyncPlan plan, ChangeKind kind, string displayName,
+        string email, string status, string error)
+    {
+        writer.WriteLine(string.Join(",", CsvExternal(plan.Team.DisplayName), Csv(SyncModeLabel(plan.Mode)),
+            Csv(OperationLabel(kind)), CsvExternal(displayName), CsvExternal(email), Csv(status), CsvExternal(error)));
     }
 
     /// <summary>同期モードを利用者向けの日本語へ変換する。</summary>

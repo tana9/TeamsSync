@@ -24,7 +24,9 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         IProgress<int>? progress = null)
     {
         IReadOnlyList<TeamMember> current = await teamsGateway.GetTeamMembersAsync(team.Id, cancellationToken);
-        AddressResolution[] resolutions = await ResolveAddressesAsync(addresses, current, progress, cancellationToken);
+        CurrentMemberIndex currentIndex = new(current);
+        AddressResolution[] resolutions = await ResolveAddressesAsync(addresses, currentIndex, progress,
+            cancellationToken);
 
         (Dictionary<string, DirectoryUser> resolved, List<SyncChange> changes) = ClassifyResolutions(resolutions, mode);
         if (mode == SyncMode.FullSync)
@@ -40,10 +42,10 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
     }
 
     /// <summary>
-    ///     入力アドレス一覧を、同時実行数を制限しつつ並行して解決する。
+    ///     入力アドレス一覧を、同時実行数を制限しつつ入力順を維持して解決する。
     /// </summary>
     private async Task<AddressResolution[]> ResolveAddressesAsync(IReadOnlyList<string> addresses,
-        IReadOnlyList<TeamMember> current, IProgress<int>? progress, CancellationToken cancellationToken)
+        CurrentMemberIndex current, IProgress<int>? progress, CancellationToken cancellationToken)
     {
         using SemaphoreSlim concurrency = new(AddressResolutionConcurrency);
         int resolvedCount = 0;
@@ -156,7 +158,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
     ///     1件のアドレスを解決する。現メンバーの中に一致があればそれを優先し、
     ///     なければ同時実行数を制限しつつディレクトリ検索(<see cref="ITeamsGateway.FindUsersAsync" />)を行う。
     /// </summary>
-    private async Task<AddressResolution> ResolveAddressAsync(string address, IReadOnlyList<TeamMember> current,
+    private async Task<AddressResolution> ResolveAddressAsync(string address, CurrentMemberIndex current,
         SemaphoreSlim concurrency, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -182,11 +184,9 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
     ///     メールアドレスまたは正規化した氏名で現メンバーから一致を探す。
     ///     複数一致した場合は特定不能としてエラーにする。
     /// </summary>
-    private static AddressResolution? TryResolveFromCurrentMembers(string address, IReadOnlyList<TeamMember> current)
+    private static AddressResolution? TryResolveFromCurrentMembers(string address, CurrentMemberIndex current)
     {
-        List<TeamMember> existingMatches = current.Where(member =>
-            string.Equals(member.Email, address, StringComparison.OrdinalIgnoreCase) ||
-            UserIdentifier.NameEquals(member.DisplayName, address)).ToList();
+        IReadOnlyList<TeamMember> existingMatches = current.FindByAddressOrName(address);
         if (existingMatches.Count > 1)
         {
             return new AddressResolution(ResolutionOutcome.Error, address,
@@ -202,7 +202,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
     ///     ディレクトリ検索の候補から一意なユーザーを特定し、既に別アドレスでメンバーかどうかを判定する。
     /// </summary>
     private static AddressResolution ResolveFromCandidates(string address,
-        IReadOnlyList<DirectoryUser> candidates, IReadOnlyList<TeamMember> current)
+        IReadOnlyList<DirectoryUser> candidates, CurrentMemberIndex current)
     {
         List<DirectoryUser> exactMatches = candidates
             .DistinctBy(user => user.Id, StringComparer.OrdinalIgnoreCase).ToList();
@@ -215,12 +215,69 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         }
 
         DirectoryUser user = exactMatches[0];
-        TeamMember? sameUser = current.FirstOrDefault(x =>
-            string.Equals(x.UserId, user.Id, StringComparison.OrdinalIgnoreCase));
+        TeamMember? sameUser = current.FindByUserId(user.Id);
         return sameUser is not null
             ? new AddressResolution(ResolutionOutcome.SameUserDifferentAddress, address,
                 sameUser, user)
             : new AddressResolution(ResolutionOutcome.NewUser, address, User: user);
+    }
+
+    /// <summary>現在メンバーをメールアドレス・正規化氏名・ユーザーIDで定数時間検索する索引。</summary>
+    private sealed class CurrentMemberIndex
+    {
+        private readonly Dictionary<string, List<TeamMember>> _byEmail = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, List<TeamMember>> _byName = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, TeamMember> _byUserId = new(StringComparer.OrdinalIgnoreCase);
+
+        public CurrentMemberIndex(IEnumerable<TeamMember> members)
+        {
+            foreach (TeamMember member in members)
+            {
+                Add(_byEmail, member.Email, member);
+                Add(_byName, UserIdentifier.NormalizeName(member.DisplayName), member);
+                _byUserId.TryAdd(member.UserId, member);
+            }
+        }
+
+        public IReadOnlyList<TeamMember> FindByAddressOrName(string value)
+        {
+            List<TeamMember> matches = [];
+            if (_byEmail.TryGetValue(value, out List<TeamMember>? emailMatches))
+            {
+                matches.AddRange(emailMatches);
+            }
+
+            string normalizedName = UserIdentifier.NormalizeName(value);
+            if (_byName.TryGetValue(normalizedName, out List<TeamMember>? nameMatches))
+            {
+                foreach (TeamMember member in nameMatches)
+                {
+                    if (!matches.Any(match => string.Equals(match.MembershipId, member.MembershipId,
+                            StringComparison.OrdinalIgnoreCase)))
+                    {
+                        matches.Add(member);
+                    }
+                }
+            }
+
+            return matches;
+        }
+
+        public TeamMember? FindByUserId(string userId)
+        {
+            return _byUserId.GetValueOrDefault(userId);
+        }
+
+        private static void Add(Dictionary<string, List<TeamMember>> index, string key, TeamMember member)
+        {
+            if (!index.TryGetValue(key, out List<TeamMember>? matches))
+            {
+                matches = [];
+                index.Add(key, matches);
+            }
+
+            matches.Add(member);
+        }
     }
 
     /// <summary>
@@ -289,7 +346,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         {
             if (cancellationToken.IsCancellationRequested)
             {
-                LogSyncCancelled(results);
+                LogSyncCancelled(results, operations.Count);
                 return new SyncExecutionResult(results, true);
             }
 
@@ -299,7 +356,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
                 cancellationToken);
             if (cancelled)
             {
-                LogSyncCancelled(results);
+                LogSyncCancelled(results, operations.Count);
                 return new SyncExecutionResult(results, true);
             }
         }
@@ -360,10 +417,11 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
     /// <summary>
     ///     キャンセルによる同期中断を、成功・失敗件数とともに警告ログへ出力する。
     /// </summary>
-    private void LogSyncCancelled(IReadOnlyList<SyncOperationResult> results)
+    private void LogSyncCancelled(IReadOnlyList<SyncOperationResult> results, int totalOperations)
     {
-        _logger.LogWarning("SyncCancelled Success={SuccessCount} Failure={FailureCount}",
-            results.Count(result => result.Succeeded), results.Count(result => !result.Succeeded));
+        _logger.LogWarning("SyncCancelled Success={SuccessCount} Failure={FailureCount} Unexecuted={UnexecutedCount}",
+            results.Count(result => result.Succeeded), results.Count(result => !result.Succeeded),
+            Math.Max(0, totalOperations - results.Count));
     }
 
     /// <summary>

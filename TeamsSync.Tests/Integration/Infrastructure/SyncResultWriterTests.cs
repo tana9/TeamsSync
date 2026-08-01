@@ -136,6 +136,46 @@ public sealed class SyncResultWriterTests : IDisposable
         Assert.Contains("\"山田 太郎\",\"taro@example.com\"", csv);
     }
 
+    [Fact]
+    public void WriteAutoLog_キャンセル時もプラン全体を出力して未着手の操作を未実行とする()
+    {
+        SyncPlan plan = new(new TeamInfo("team-id", "営業チーム", null),
+        [
+            new SyncChange(ChangeKind.Add, "実行済み", "done@example.com", "", "done-id"),
+            new SyncChange(ChangeKind.Remove, "未実行1", "pending1@example.com", "", "user-1", "membership-1"),
+            new SyncChange(ChangeKind.Add, "未実行2", "pending2@example.com", "", "pending-2")
+        ], ["done@example.com", "pending2@example.com"]);
+        SyncExecutionResult result = new(
+            [new SyncOperationResult(ChangeKind.Add, "done@example.com", true, null, "実行済み")], true);
+
+        string csv = WriteAndRead(plan, result);
+
+        Assert.Contains("\"実行済み\",\"done@example.com\",\"成功\"", csv);
+        Assert.Contains("\"未実行1\",\"pending1@example.com\",\"未実行\",\"同期がキャンセルされたため未実行\"", csv);
+        Assert.Contains("\"未実行2\",\"pending2@example.com\",\"未実行\",\"同期がキャンセルされたため未実行\"", csv);
+        Assert.Equal(4, csv.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).Length);
+    }
+
+    [Fact]
+    public void WriteAutoLog_失敗後も後続操作を含むプラン全体を出力する()
+    {
+        SyncPlan plan = new(new TeamInfo("team-id", "営業チーム", null),
+        [
+            new SyncChange(ChangeKind.Add, "失敗", "failed@example.com", "", "failed-id"),
+            new SyncChange(ChangeKind.Add, "成功", "success@example.com", "", "success-id")
+        ], ["failed@example.com", "success@example.com"]);
+        SyncExecutionResult result = new(
+        [
+            new SyncOperationResult(ChangeKind.Add, "failed@example.com", false, "権限エラー", "失敗"),
+            new SyncOperationResult(ChangeKind.Add, "success@example.com", true, null, "成功")
+        ], false);
+
+        string csv = WriteAndRead(plan, result);
+
+        Assert.Contains("\"失敗\",\"failed@example.com\",\"失敗\",\"権限エラー\"", csv);
+        Assert.Contains("\"成功\",\"success@example.com\",\"成功\",\"\"", csv);
+    }
+
     [Theory]
     [InlineData(SyncMode.AddOnly, "追加のみ")]
     [InlineData(SyncMode.RemoveSpecified, "指定メンバーを削除")]
