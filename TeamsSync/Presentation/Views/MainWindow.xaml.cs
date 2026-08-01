@@ -19,9 +19,8 @@ public partial class MainWindow
         _viewModel = viewModel;
         DataContext = viewModel;
         interactionHost.SetHosts(DialogHost, SnackbarPresenter);
-        SystemThemeWatcher.Watch(this, WindowBackdropType.None, updateAccents: true);
+        ApplicationThemeManager.Apply(ApplicationTheme.Light, WindowBackdropType.None, updateAccent: true);
         Closing += OnClosing;
-        Closed += (_, _) => SystemThemeWatcher.UnWatch(this);
     }
 
     /// <summary>同期実行中はウィンドウを閉じる前にキャンセル完了を待ってから終了する。</summary>

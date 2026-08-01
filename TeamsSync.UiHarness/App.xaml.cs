@@ -23,12 +23,17 @@ public partial class App : System.Windows.Application
         builder.Services
             .AddApplication()
             .AddSingleton<IAuthenticationService, DemoAuthenticationService>()
-            .AddSingleton<ITeamsGateway, DemoTeamsGateway>()
+            .AddSingleton<DemoTeamsGateway>()
+            .AddSingleton<ITeamsGateway>(provider => provider.GetRequiredService<DemoTeamsGateway>())
             .AddSingleton<IMemberListReader, MemberListReader>()
             .AddSingleton<IMemberTextParser, MemberTextParser>()
             .AddSingleton<ISyncResultWriter, SyncResultWriter>()
             .AddSingleton<IUserPreferences, DemoUserPreferences>()
             .AddPresentation();
+        builder.Services
+            .AddSingleton<DemoConfirmationService>()
+            .AddSingleton<TeamsSync.Presentation.Services.ISyncConfirmationService>(provider => provider.GetRequiredService<DemoConfirmationService>())
+            .AddSingleton<TeamsSync.Presentation.Services.IMemberInputConfirmationService>(provider => provider.GetRequiredService<DemoConfirmationService>());
 
         _host = builder.Build();
         await _host.StartAsync();
@@ -38,6 +43,11 @@ public partial class App : System.Windows.Application
         // 認証画面を経由せず、起動直後からチーム選択以降のUIを確認できる状態にする。
         var viewModel = _host.Services.GetRequiredService<MainWindowViewModel>();
         await viewModel.SignIn.SignInCommand.ExecuteAsync(null);
+        var scenarios = new ScenarioWindow(viewModel, _host.Services.GetRequiredService<DemoTeamsGateway>())
+        {
+            Owner = window
+        };
+        scenarios.Show();
     }
 
     /// <inheritdoc />

@@ -1,5 +1,6 @@
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Domain.Teams;
+using TeamsSync.Presentation.Services;
 
 namespace TeamsSync.UiHarness;
 
@@ -24,7 +25,7 @@ internal sealed class DemoAuthenticationService : IAuthenticationService
     }
 }
 
-internal sealed class DemoTeamsGateway : ITeamsGateway
+public sealed class DemoTeamsGateway : ITeamsGateway
 {
     private readonly object _gate = new();
     private readonly IReadOnlyList<TeamInfo> _teams =
@@ -56,6 +57,28 @@ internal sealed class DemoTeamsGateway : ITeamsGateway
         new("user-new", "高橋 新規", "new.member@example.com", "new.member@example.com"),
         new("user-second", "田中 追加", "second.new@example.com", "second.new@example.com")
     ];
+
+    public string? FailingUserId { get; set; }
+
+    public void Reset()
+    {
+        lock (_gate)
+        {
+            _members["demo-team"] =
+            [
+                new("membership-owner", "user-owner", "佐藤 オーナー", "owner@example.com", true),
+                new("membership-taro", "user-taro", "山田 太郎", "taro@example.com", false),
+                new("membership-hanako", "user-hanako", "鈴木 花子", "hanako@example.com", false),
+                new("membership-long", "user-long", "とても長い表示名を持つレイアウト確認用ユーザー", "long.user@example.com", false)
+            ];
+            _members["long-team"] =
+            [
+                new("long-owner-membership", "user-owner", "佐藤 オーナー", "owner@example.com", true),
+                new("long-member-membership", "user-taro", "山田 太郎", "taro@example.com", false)
+            ];
+            FailingUserId = null;
+        }
+    }
 
     public Task<(string Id, string DisplayName, string UserPrincipalName)> GetMeAsync(
         CancellationToken cancellationToken = default) =>
@@ -92,6 +115,8 @@ internal sealed class DemoTeamsGateway : ITeamsGateway
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (string.Equals(FailingUserId, userId, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Harnessで再現したメンバー追加エラーです。");
         lock (_gate)
         {
             var user = _directory.Single(directoryUser =>
@@ -113,6 +138,15 @@ internal sealed class DemoTeamsGateway : ITeamsGateway
                 string.Equals(member.MembershipId, membershipId, StringComparison.OrdinalIgnoreCase));
         return Task.CompletedTask;
     }
+}
+
+internal sealed class DemoConfirmationService : ISyncConfirmationService, IMemberInputConfirmationService
+{
+    public Task<bool> ConfirmSyncAsync(SyncConfirmation confirmation,
+        CancellationToken cancellationToken = default) => Task.FromResult(true);
+
+    public Task<bool> ConfirmReplaceMemberInputAsync(string teamName, int memberCount,
+        CancellationToken cancellationToken = default) => Task.FromResult(true);
 }
 
 internal sealed class DemoUserPreferences : IUserPreferences

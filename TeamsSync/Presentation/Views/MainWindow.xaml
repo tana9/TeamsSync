@@ -18,11 +18,19 @@
                     <Setter Property="Background" Value="{DynamicResource SystemAccentColorPrimaryBrush}" />
                     <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColorPrimaryBrush}" />
                     <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                    <!-- ui:Buttonはホバー/押下時の描画にBackground/Foregroundではなく
+                         MouseOverBackground/PressedBackground等の専用プロパティを参照するため、
+                         これらを明示しないとホバー時にボタンの文字ごと消えて見える。 -->
+                    <Setter Property="MouseOverBackground" Value="#0E5EAA" />
+                    <Setter Property="MouseOverBorderBrush" Value="#0E5EAA" />
+                    <Setter Property="PressedBackground" Value="#0B4A86" />
+                    <Setter Property="PressedBorderBrush" Value="#0B4A86" />
+                    <Setter Property="PressedForeground" Value="White" />
                 </Trigger>
                 <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Background" Value="{DynamicResource ControlFillColorDisabledBrush}" />
-                    <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
-                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
+                    <Setter Property="Background" Value="#E1E1E1" />
+                    <Setter Property="BorderBrush" Value="#B8B8B8" />
+                    <Setter Property="Foreground" Value="#606060" />
                 </Trigger>
             </Style.Triggers>
         </Style>

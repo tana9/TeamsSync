@@ -50,11 +50,31 @@
                 <ui:Button.Style>
                     <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
                         <Setter Property="Appearance" Value="Secondary" />
+                        <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                        <Setter Property="BorderBrush" Value="{DynamicResource ControlStrongStrokeColorDefaultBrush}" />
+                        <Setter Property="BorderThickness" Value="1" />
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding DataContext.WorkflowSteps.Step3State, RelativeSource={RelativeSource AncestorType=Window}}"
                                          Value="{x:Static vm:WorkflowStepState.Current}">
                                 <Setter Property="Appearance" Value="Primary" />
+                                <Setter Property="Background" Value="{DynamicResource SystemAccentColorPrimaryBrush}" />
+                                <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColorPrimaryBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                                <!-- ui:Buttonはホバー/押下時の描画にBackground/Foregroundではなく
+                                     MouseOverBackground/PressedBackground等の専用プロパティを参照するため、
+                                     これらを明示しないとホバー時にボタンの文字ごと消えて見える。 -->
+                                <Setter Property="MouseOverBackground" Value="#0E5EAA" />
+                                <Setter Property="MouseOverBorderBrush" Value="#0E5EAA" />
+                                <Setter Property="PressedBackground" Value="#0B4A86" />
+                                <Setter Property="PressedBorderBrush" Value="#0B4A86" />
+                                <Setter Property="PressedForeground" Value="White" />
                             </DataTrigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="#E1E1E1" />
+                                <Setter Property="BorderBrush" Value="#B8B8B8" />
+                                <Setter Property="Foreground" Value="#606060" />
+                            </Trigger>
                         </Style.Triggers>
                     </Style>
                 </ui:Button.Style>
@@ -116,37 +136,43 @@
                 <DataGridTemplateColumn Header="判定" Width="120">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <ui:Badge Content="{Binding KindLabel}" HorizontalAlignment="Left"
-                                      Padding="12,4">
-                                <ui:Badge.Style>
-                                    <Style TargetType="ui:Badge"
-                                           BasedOn="{StaticResource {x:Type ui:Badge}}">
-                                        <Setter Property="Appearance" Value="Secondary" />
+                            <Border HorizontalAlignment="Left" Padding="12,4" CornerRadius="4">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background" Value="#F3F2F1" />
+                                        <Setter Property="BorderBrush" Value="#C8C6C4" />
+                                        <Setter Property="BorderThickness" Value="1" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding Kind}"
                                                          Value="{x:Static domain:ChangeKind.Add}">
-                                                <Setter Property="Appearance" Value="Success" />
+                                                <Setter Property="Background" Value="#DFF6DD" />
+                                                <Setter Property="BorderBrush" Value="#9FD89F" />
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding Kind}"
                                                          Value="{x:Static domain:ChangeKind.Remove}">
-                                                <Setter Property="Appearance" Value="Danger" />
+                                                <Setter Property="Background" Value="#FDE7E9" />
+                                                <Setter Property="BorderBrush" Value="#F1AEB5" />
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding Kind}"
                                                          Value="{x:Static domain:ChangeKind.Protected}">
-                                                <Setter Property="Appearance" Value="Primary" />
+                                                <Setter Property="Background" Value="#E5F1FB" />
+                                                <Setter Property="BorderBrush" Value="#9CCBEE" />
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding Kind}"
                                                          Value="{x:Static domain:ChangeKind.NotMember}">
-                                                <Setter Property="Appearance" Value="Secondary" />
+                                                <Setter Property="Background" Value="#F3F2F1" />
+                                                <Setter Property="BorderBrush" Value="#C8C6C4" />
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding Kind}"
                                                          Value="{x:Static domain:ChangeKind.Error}">
-                                                <Setter Property="Appearance" Value="Caution" />
+                                                <Setter Property="Background" Value="#FFF4CE" />
+                                                <Setter Property="BorderBrush" Value="#E6C94C" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
-                                </ui:Badge.Style>
-                            </ui:Badge>
+                                </Border.Style>
+                                <TextBlock Text="{Binding KindLabel}" Foreground="#323130" />
+                            </Border>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
