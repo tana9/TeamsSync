@@ -399,24 +399,33 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanExecuteSync))]
     private async Task ExecuteSyncAsync()
     {
-        await _busyRunner.RunAsync(async () =>
+        _syncCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        try
         {
-            if (_plan is null || _document is null ||
-                !await _confirmation.ConfirmSyncAsync(new SyncConfirmation(
-                    _plan, _document.FileName, $"{InputSummary}{Environment.NewLine}{InputPreview}")))
+            await _busyRunner.RunAsync(async () =>
             {
-                return;
-            }
+                if (_plan is null || _document is null ||
+                    !await _confirmation.ConfirmSyncAsync(new SyncConfirmation(
+                        _plan, _document.FileName, $"{InputSummary}{Environment.NewLine}{InputPreview}")))
+                {
+                    return;
+                }
 
-            if (!await RevalidateBeforeExecuteAsync())
-            {
-                return;
-            }
+                if (!await RevalidateBeforeExecuteAsync())
+                {
+                    return;
+                }
 
-            await RunSyncAndReconcileAsync();
-        }, ex => new BusyOperationRunner.SpecificExceptionResult(
-            "同期を実行できませんでした。詳細はダイアログを確認してください",
-            "同期を実行できませんでした"));
+                await RunSyncAndReconcileAsync();
+            }, ex => new BusyOperationRunner.SpecificExceptionResult(
+                "同期を実行できませんでした。詳細はダイアログを確認してください",
+                "同期を実行できませんでした"));
+        }
+        finally
+        {
+            _syncCompletion.TrySetResult();
+            _syncCompletion = null;
+        }
     }
 
     // 実行直前にチームメンバーを再取得し、プレビュー作成後に構成が変わっていないか確認する。
@@ -454,7 +463,6 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     private async Task RunSyncAndReconcileAsync()
     {
         _syncCancellation = new CancellationTokenSource();
-        _syncCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         IsSyncing = true;
         ResultLogPath = "";
         ProgressValue = 0;
@@ -487,8 +495,6 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             IsSyncing = false;
             _syncCancellation.Dispose();
             _syncCancellation = null;
-            _syncCompletion?.TrySetResult();
-            _syncCompletion = null;
         }
     }
 

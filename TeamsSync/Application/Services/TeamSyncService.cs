@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -13,6 +15,7 @@ namespace TeamsSync.Application.Services;
 public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSyncService>? logger = null)
 {
     private const int AddressResolutionConcurrency = 15;
+    private const int ProgressReportInterval = 25;
     private readonly ILogger<TeamSyncService> _logger = logger ?? NullLogger<TeamSyncService>.Instance;
 
     /// <summary>
@@ -23,12 +26,14 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         CancellationToken cancellationToken = default, SyncMode mode = SyncMode.FullSync,
         IProgress<int>? progress = null)
     {
+        Stopwatch stopwatch = Stopwatch.StartNew();
         IReadOnlyList<TeamMember> current = await teamsGateway.GetTeamMembersAsync(team.Id, cancellationToken);
         CurrentMemberIndex currentIndex = new(current);
-        AddressResolution[] resolutions = await ResolveAddressesAsync(addresses, currentIndex, progress,
+        AddressResolutionBatch resolutionBatch = await ResolveAddressesAsync(addresses, currentIndex, progress,
             cancellationToken);
 
-        (Dictionary<string, DirectoryUser> resolved, List<SyncChange> changes) = ClassifyResolutions(resolutions, mode);
+        (Dictionary<string, DirectoryUser> resolved, List<SyncChange> changes) =
+            ClassifyResolutions(resolutionBatch.Resolutions, mode);
         if (mode == SyncMode.FullSync)
         {
             changes.AddRange(ComputeRemovals(current, resolved, changes));
@@ -36,25 +41,41 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
 
         List<TeamMembershipSnapshot> snapshot = BuildMembershipSnapshot(current);
         SyncPlan plan = new(team, changes, addresses, current.Count(x => !x.IsOwner), snapshot, mode);
-        _logger.LogInformation("同期差分を作成しました。TeamId={TeamId}, Add={Add}, Remove={Remove}, Errors={Errors}",
-            team.Id, plan.AddCount, plan.RemoveCount, plan.ErrorCount);
+        _logger.LogInformation(
+            "同期差分を作成しました。TeamId={TeamId}, Add={Add}, Remove={Remove}, Errors={Errors}, " +
+            "InputCount={InputCount}, UniqueInputCount={UniqueInputCount}, DirectorySearchCount={DirectorySearchCount}, " +
+            "ElapsedMilliseconds={ElapsedMilliseconds}",
+            team.Id, plan.AddCount, plan.RemoveCount, plan.ErrorCount, addresses.Count,
+            resolutionBatch.UniqueInputCount, resolutionBatch.DirectorySearchCount, stopwatch.ElapsedMilliseconds);
         return plan;
     }
 
     /// <summary>
     ///     入力アドレス一覧を、同時実行数を制限しつつ入力順を維持して解決する。
     /// </summary>
-    private async Task<AddressResolution[]> ResolveAddressesAsync(IReadOnlyList<string> addresses,
+    private async Task<AddressResolutionBatch> ResolveAddressesAsync(IReadOnlyList<string> addresses,
         CurrentMemberIndex current, IProgress<int>? progress, CancellationToken cancellationToken)
     {
         using SemaphoreSlim concurrency = new(AddressResolutionConcurrency);
-        int resolvedCount = 0;
-        return await Task.WhenAll(addresses.Select(async address =>
+        BatchedProgressReporter progressReporter = new(progress, addresses.Count, ProgressReportInterval);
+        List<IGrouping<string, string>> groups = addresses
+            .GroupBy(address => address, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        AddressResolutionGroup[] resolvedGroups = await Task.WhenAll(groups.Select(async group =>
         {
-            AddressResolution resolution = await ResolveAddressAsync(address, current, concurrency, cancellationToken);
-            progress?.Report(Interlocked.Increment(ref resolvedCount));
-            return resolution;
+            AddressResolutionAttempt attempt = await ResolveAddressAsync(
+                group.Key, current, concurrency, cancellationToken);
+            progressReporter.Advance(group.Count());
+            return new AddressResolutionGroup(group.Key, attempt);
         }));
+
+        Dictionary<string, AddressResolution> byAddress = resolvedGroups.ToDictionary(
+            group => group.Address, group => group.Attempt.Resolution, StringComparer.OrdinalIgnoreCase);
+        AddressResolution[] resolutions = addresses
+            .Select(address => byAddress[address] with { Address = address })
+            .ToArray();
+        return new AddressResolutionBatch(resolutions, groups.Count,
+            resolvedGroups.Count(group => group.Attempt.DirectorySearched));
     }
 
     /// <summary>
@@ -158,21 +179,21 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
     ///     1件のアドレスを解決する。現メンバーの中に一致があればそれを優先し、
     ///     なければ同時実行数を制限しつつディレクトリ検索(<see cref="ITeamsGateway.FindUsersAsync" />)を行う。
     /// </summary>
-    private async Task<AddressResolution> ResolveAddressAsync(string address, CurrentMemberIndex current,
+    private async Task<AddressResolutionAttempt> ResolveAddressAsync(string address, CurrentMemberIndex current,
         SemaphoreSlim concurrency, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         AddressResolution? local = TryResolveFromCurrentMembers(address, current);
         if (local is not null)
         {
-            return local;
+            return new AddressResolutionAttempt(local, false);
         }
 
         await concurrency.WaitAsync(cancellationToken);
         try
         {
             IReadOnlyList<DirectoryUser> candidates = await teamsGateway.FindUsersAsync(address, cancellationToken);
-            return ResolveFromCandidates(address, candidates, current);
+            return new AddressResolutionAttempt(ResolveFromCandidates(address, candidates, current), true);
         }
         finally
         {
@@ -277,6 +298,44 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
             }
 
             matches.Add(member);
+        }
+    }
+
+    /// <summary>並列処理の完了件数を一定間隔と最終件だけ通知する。</summary>
+    private sealed class BatchedProgressReporter
+    {
+        private readonly object _gate = new();
+        private readonly int _interval;
+        private readonly IProgress<int>? _progress;
+        private readonly int _total;
+        private int _completed;
+        private int _nextReport;
+
+        public BatchedProgressReporter(IProgress<int>? progress, int total, int interval)
+        {
+            _progress = progress;
+            _total = total;
+            _interval = interval;
+            _nextReport = interval;
+        }
+
+        public void Advance(int count)
+        {
+            lock (_gate)
+            {
+                _completed += count;
+                if (_completed < _total && _completed < _nextReport)
+                {
+                    return;
+                }
+
+                while (_nextReport <= _completed)
+                {
+                    _nextReport += _interval;
+                }
+
+                _progress?.Report(_completed);
+            }
         }
     }
 
@@ -480,4 +539,11 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         TeamMember? ExistingMember = null,
         DirectoryUser? User = null,
         string? ErrorMessage = null);
+
+    private sealed record AddressResolutionAttempt(AddressResolution Resolution, bool DirectorySearched);
+
+    private sealed record AddressResolutionGroup(string Address, AddressResolutionAttempt Attempt);
+
+    private sealed record AddressResolutionBatch(
+        AddressResolution[] Resolutions, int UniqueInputCount, int DirectorySearchCount);
 }

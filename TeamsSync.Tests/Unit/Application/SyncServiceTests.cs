@@ -131,7 +131,7 @@ public sealed class SyncServiceTests
     }
 
     [Fact]
-    public async Task BuildPlan_アドレス解決の進捗を1件ごとに報告する()
+    public async Task BuildPlan_アドレス解決の進捗は最終件を必ず報告する()
     {
         FakeGraphService graph = new() { Members = [Member("keep-membership", "keep-id", "Keep", "keep@example.com")] };
         graph.Users["new1@example.com"] =
@@ -151,9 +151,62 @@ public sealed class SyncServiceTests
             ["keep@example.com", "new1@example.com", "new2@example.com"],
             TestContext.Current.CancellationToken, progress: progress);
 
-        Assert.Equal(3, reported.Count);
-        Assert.Equal(3, reported.Max());
-        Assert.Equal([1, 2, 3], reported.OrderBy(x => x));
+        Assert.Equal([3], reported);
+    }
+
+    [Fact]
+    public async Task BuildPlan_同じ識別子のディレクトリ検索を1回にまとめる()
+    {
+        FakeGraphService graph = new();
+        graph.Users["new@example.com"] =
+            new DirectoryUser("new-id", "New", "new@example.com", "new@example.com");
+
+        SyncPlan plan = await new TeamSyncService(graph).BuildPlanAsync(Team,
+            ["new@example.com", "NEW@example.com", "new@example.com"],
+            TestContext.Current.CancellationToken, SyncMode.AddOnly);
+
+        Assert.Equal(1, graph.FindUsersCallCount);
+        Assert.Single(plan.Changes);
+        Assert.Equal(ChangeKind.Add, plan.Changes[0].Kind);
+    }
+
+    [Fact]
+    public async Task BuildPlan_大量入力の進捗通知を一定間隔にまとめる()
+    {
+        FakeGraphService graph = new();
+        string[] addresses = Enumerable.Range(1, 60).Select(index => $"user{index}@example.com").ToArray();
+        foreach (string address in addresses)
+        {
+            graph.Users[address] = new DirectoryUser(address, address, address, address);
+        }
+
+        List<int> reported = [];
+        SynchronousProgress<int> progress = new(reported.Add);
+
+        await new TeamSyncService(graph).BuildPlanAsync(Team, addresses,
+            TestContext.Current.CancellationToken, SyncMode.AddOnly, progress);
+
+        Assert.Equal([25, 50, 60], reported);
+    }
+
+    [Fact]
+    public async Task BuildPlan_性能確認に必要な件数と処理時間をログへ記録する()
+    {
+        FakeGraphService graph = new();
+        graph.Users["new@example.com"] =
+            new DirectoryUser("new-id", "New", "new@example.com", "new@example.com");
+        CapturingLogger<TeamSyncService> logger = new();
+
+        await new TeamSyncService(graph, logger).BuildPlanAsync(Team,
+            ["new@example.com", "NEW@example.com"], TestContext.Current.CancellationToken,
+            SyncMode.AddOnly);
+
+        LogRecord record = Assert.Single(logger.Records,
+            item => item.Message.Contains("同期差分を作成しました"));
+        Assert.Equal(2, record.Properties["InputCount"]);
+        Assert.Equal(1, record.Properties["UniqueInputCount"]);
+        Assert.Equal(1, record.Properties["DirectorySearchCount"]);
+        Assert.True(Convert.ToInt64(record.Properties["ElapsedMilliseconds"]) >= 0);
     }
 
     [Fact]
@@ -603,6 +656,7 @@ public sealed class SyncServiceTests
 
         public List<(string TeamId, string UserId)> Added { get; } = [];
         public List<(string TeamId, string MembershipId)> Removed { get; } = [];
+        public int FindUsersCallCount { get; private set; }
         public Func<CancellationToken, Task>? OnAdd { get; set; }
         public Func<CancellationToken, Task>? OnRemove { get; set; }
 
@@ -627,6 +681,7 @@ public sealed class SyncServiceTests
         public Task<IReadOnlyList<DirectoryUser>> FindUsersAsync(string identifier,
             CancellationToken cancellationToken = default)
         {
+            FindUsersCallCount++;
             return Task.FromResult(SearchResults.TryGetValue(identifier, out IReadOnlyList<DirectoryUser>? users)
                 ?
                 users
