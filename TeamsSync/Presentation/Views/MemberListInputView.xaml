@@ -86,6 +86,11 @@
                                    ToolTip="ファイル読込をキャンセル"
                                    Visibility="{Binding IsLoadingFile, Converter={StaticResource BooleanToVisibilityConverter}}"
                                    AutomationProperties.Name="ファイル読込をキャンセル" />
+                        <ui:Button Content="テキストとして編集" Command="{Binding CopyFileContentToTextCommand}"
+                                   Margin="0,8,0,0" Appearance="Secondary"
+                                   Icon="{ui:SymbolIcon Symbol=Edit24}"
+                                   ToolTip="読取結果をテキストへコピーして編集します（元ファイルは変更しません）"
+                                   AutomationProperties.Name="ファイルの読取結果をテキストとして編集" />
                     </StackPanel>
                 </Grid>
             </TabItem>

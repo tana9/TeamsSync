@@ -11,6 +11,65 @@ namespace TeamsSync.Tests.Unit.Presentation;
 public sealed class MemberFileViewModelTests
 {
     [Fact]
+    public async Task MemberFile_ファイル読取結果を1行1件でテキストへコピーする()
+    {
+        MemberListDocument fileDocument = new(["a@example.com", "山田 太郎"], "members.csv", "C:\\members.csv",
+            new DateTime(2026, 8, 2), "CSV", "メールアドレス");
+        FakeDialogs dialogs = new();
+        MemberFileViewModel viewModel = new(new FakeMemberListReader(fileDocument), new MemberTextParser(),
+            new FakePreferences(), dialogs, dialogs, new FakeTeamsGateway(), dialogs);
+        await viewModel.LoadDroppedFileCommand.ExecuteAsync("C:\\members.csv");
+
+        await viewModel.CopyFileContentToTextCommand.ExecuteAsync(null);
+
+        Assert.Equal(1, viewModel.SelectedInputIndex);
+        Assert.Equal($"a@example.com{Environment.NewLine}山田 太郎", viewModel.PastedText);
+        Assert.Null(viewModel.Document);
+        Assert.Contains("入力を反映", viewModel.PasteInfoText);
+        Assert.Contains("元ファイルは変更されません", viewModel.PasteInfoText);
+        Assert.Equal(0, dialogs.FileContentConfirmationCount);
+    }
+
+    [Fact]
+    public async Task MemberFile_既存テキストの置き換えを拒否すると入力とファイル文書を維持する()
+    {
+        MemberListDocument fileDocument = new(["new@example.com"], "members.csv", "C:\\members.csv",
+            new DateTime(2026, 8, 2), "CSV", "メールアドレス");
+        FakeDialogs dialogs = new() { OnConfirmReplaceTextWithFileContent = (_, _) => false };
+        MemberFileViewModel viewModel = new(new FakeMemberListReader(fileDocument), new MemberTextParser(),
+            new FakePreferences(), dialogs, dialogs, new FakeTeamsGateway(), dialogs)
+        {
+            PastedText = "old@example.com"
+        };
+        await viewModel.LoadDroppedFileCommand.ExecuteAsync("C:\\members.csv");
+
+        await viewModel.CopyFileContentToTextCommand.ExecuteAsync(null);
+
+        Assert.Equal(0, viewModel.SelectedInputIndex);
+        Assert.Equal("old@example.com", viewModel.PastedText);
+        Assert.Same(fileDocument, viewModel.Document);
+        Assert.Equal(1, dialogs.FileContentConfirmationCount);
+    }
+
+    [Fact]
+    public async Task MemberFile_コピーした内容を編集して反映できる()
+    {
+        MemberListDocument fileDocument = new(["a@example.com"], "members.csv", "C:\\members.csv",
+            new DateTime(2026, 8, 2), "CSV", "メールアドレス");
+        FakeDialogs dialogs = new();
+        MemberFileViewModel viewModel = new(new FakeMemberListReader(fileDocument), new MemberTextParser(),
+            new FakePreferences(), dialogs, dialogs, new FakeTeamsGateway(), dialogs);
+        await viewModel.LoadDroppedFileCommand.ExecuteAsync("C:\\members.csv");
+        await viewModel.CopyFileContentToTextCommand.ExecuteAsync(null);
+        viewModel.PastedText += $"{Environment.NewLine}b@example.com";
+
+        await viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
+
+        Assert.Equal(["a@example.com", "b@example.com"], viewModel.Document!.Addresses);
+        Assert.Contains("2件", viewModel.PasteInfoText);
+    }
+
+    [Fact]
     public async Task MemberFile_設定保存失敗でも読込済み文書を維持する()
     {
         MemberListDocument document = new(["user@example.com"], "members.csv", "C:\\members.csv",

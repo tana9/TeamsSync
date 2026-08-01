@@ -33,4 +33,27 @@ public sealed class WpfMemberInputConfirmationService(
         return await ConfirmationDialogHelper.ShowRestoringFocusAsync(contentDialogs, dialog, cancellationToken) ==
                ContentDialogResult.Primary;
     }
+
+    /// <inheritdoc />
+    public async Task<bool> ConfirmReplaceTextWithFileContentAsync(string fileName, int memberCount,
+        CancellationToken cancellationToken = default)
+    {
+        ContentDialog dialog = new()
+        {
+            Title = ConfirmationDialogHelper.BuildTitle("テキスト入力を置き換えますか？"),
+            Content = new TextBlock
+            {
+                Text = $"現在のテキスト入力を、{fileName}から読み取った{memberCount}件で置き換えます。元のファイルは変更されません。",
+                TextWrapping = TextWrapping.Wrap,
+                MinWidth = 320
+            },
+            PrimaryButtonText = "置き換える",
+            PrimaryButtonIcon = new SymbolIcon { Symbol = SymbolRegular.Checkmark24 },
+            CloseButtonText = "キャンセル",
+            CloseButtonIcon = new SymbolIcon { Symbol = SymbolRegular.Dismiss24 },
+            DefaultButton = ContentDialogButton.Close
+        };
+        return await ConfirmationDialogHelper.ShowRestoringFocusAsync(contentDialogs, dialog, cancellationToken) ==
+               ContentDialogResult.Primary;
+    }
 }

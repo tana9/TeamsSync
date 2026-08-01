@@ -29,6 +29,10 @@ public interface IMemberInputConfirmationService
     /// <summary>既存入力を置き換えてよいか確認し、利用者が続行を選んだ場合にtrueを返す。</summary>
     Task<bool> ConfirmReplaceMemberInputAsync(string teamName, int memberCount,
         CancellationToken cancellationToken = default);
+
+    /// <summary>既存のテキスト入力をファイルの読取結果で置き換えてよいか確認する。</summary>
+    Task<bool> ConfirmReplaceTextWithFileContentAsync(string fileName, int memberCount,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>成功・警告・エラーをユーザーへ通知する。</summary>

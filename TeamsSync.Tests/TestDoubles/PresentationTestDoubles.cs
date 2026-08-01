@@ -275,13 +275,22 @@ internal sealed class FakeSyncConfirmationService : ISyncConfirmationService
 internal sealed class FakeMemberInputConfirmationService : IMemberInputConfirmationService
 {
     public Func<string, int, bool>? OnConfirmReplaceMemberInput { get; init; }
+    public Func<string, int, bool>? OnConfirmReplaceTextWithFileContent { get; init; }
     public int ConfirmationCount { get; private set; }
+    public int FileContentConfirmationCount { get; private set; }
 
     public Task<bool> ConfirmReplaceMemberInputAsync(string teamName, int memberCount,
         CancellationToken cancellationToken = default)
     {
         ConfirmationCount++;
         return Task.FromResult(OnConfirmReplaceMemberInput?.Invoke(teamName, memberCount) ?? true);
+    }
+
+    public Task<bool> ConfirmReplaceTextWithFileContentAsync(string fileName, int memberCount,
+        CancellationToken cancellationToken = default)
+    {
+        FileContentConfirmationCount++;
+        return Task.FromResult(OnConfirmReplaceTextWithFileContent?.Invoke(fileName, memberCount) ?? true);
     }
 }
 
@@ -301,13 +310,17 @@ internal sealed class FakeDialogs : IFilePickerService, ISyncConfirmationService
         _syncConfirmation = new FakeSyncConfirmationService { OnConfirm = value => OnConfirm?.Invoke(value) ?? true };
         _inputConfirmation = new FakeMemberInputConfirmationService
         {
-            OnConfirmReplaceMemberInput = (team, count) => OnConfirmReplaceMemberInput?.Invoke(team, count) ?? true
+            OnConfirmReplaceMemberInput = (team, count) => OnConfirmReplaceMemberInput?.Invoke(team, count) ?? true,
+            OnConfirmReplaceTextWithFileContent = (file, count) =>
+                OnConfirmReplaceTextWithFileContent?.Invoke(file, count) ?? true
         };
     }
 
     public Func<SyncConfirmation, bool>? OnConfirm { get; init; }
     public Func<string, int, bool>? OnConfirmReplaceMemberInput { get; init; }
+    public Func<string, int, bool>? OnConfirmReplaceTextWithFileContent { get; init; }
     public int ReplaceMemberInputConfirmationCount => _inputConfirmation.ConfirmationCount;
+    public int FileContentConfirmationCount => _inputConfirmation.FileContentConfirmationCount;
     public string WarningTitle => _notifications.WarningTitle;
 
     public string? PickMemberFile(string? initialDirectory)
@@ -319,6 +332,12 @@ internal sealed class FakeDialogs : IFilePickerService, ISyncConfirmationService
         CancellationToken cancellationToken = default)
     {
         return _inputConfirmation.ConfirmReplaceMemberInputAsync(teamName, memberCount, cancellationToken);
+    }
+
+    public Task<bool> ConfirmReplaceTextWithFileContentAsync(string fileName, int memberCount,
+        CancellationToken cancellationToken = default)
+    {
+        return _inputConfirmation.ConfirmReplaceTextWithFileContentAsync(fileName, memberCount, cancellationToken);
     }
 
     public void ShowSuccess(string title, string message)

@@ -16,6 +16,7 @@ namespace TeamsSync.Presentation.ViewModels;
 public partial class MemberFileViewModel : ObservableObject
 {
     private readonly IFilePickerService _filePicker;
+    private readonly IMemberInputConfirmationService _inputConfirmation;
     private readonly INotificationService _notifications;
     private readonly IUserPreferences _preferences;
     private readonly IMemberListReader _reader;
@@ -35,6 +36,7 @@ public partial class MemberFileViewModel : ObservableObject
         _preferences = preferences;
         _filePicker = filePicker;
         _notifications = notifications;
+        _inputConfirmation = inputConfirmation;
         Import = new TeamMemberImportViewModel(teamsGateway, textParser, notifications, inputConfirmation,
             () => _enabled && !IsLoadingFile && !IsParsing && SelectedInputIndex == 1,
             () => Document is not null || _fileDocument is not null || !string.IsNullOrWhiteSpace(PastedText));
@@ -105,6 +107,7 @@ public partial class MemberFileViewModel : ObservableObject
         BrowseCommand.NotifyCanExecuteChanged();
         LoadDroppedFileCommand.NotifyCanExecuteChanged();
         ApplyPastedTextInputCommand.NotifyCanExecuteChanged();
+        CopyFileContentToTextCommand.NotifyCanExecuteChanged();
         Import.NotifyCanExecuteChanged();
     }
 
@@ -127,6 +130,7 @@ public partial class MemberFileViewModel : ObservableObject
     {
         ApplySelectedInput();
         ApplyPastedTextInputCommand.NotifyCanExecuteChanged();
+        CopyFileContentToTextCommand.NotifyCanExecuteChanged();
         Import.NotifyCanExecuteChanged();
     }
 
@@ -212,6 +216,7 @@ public partial class MemberFileViewModel : ObservableObject
             }
 
             NotifyDocumentChanged();
+            CopyFileContentToTextCommand.NotifyCanExecuteChanged();
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
@@ -225,6 +230,7 @@ public partial class MemberFileViewModel : ObservableObject
             FilePath = path;
             FileInfoText = $"読込に失敗しました: {Path.GetFileName(path)}";
             DocumentChanged?.Invoke();
+            CopyFileContentToTextCommand.NotifyCanExecuteChanged();
             StatusChanged?.Invoke("ファイルを読み込めなかったため、以前の同期差分を無効化しました", true);
             // Snackbarはフォーカスを奪わないため、通知表示後のコールバックで修正対象へ戻す。
             await _notifications.ShowErrorAsync(ex.Message, "ファイル読込エラー",
@@ -253,6 +259,35 @@ public partial class MemberFileViewModel : ObservableObject
     private bool CanCancelLoad()
     {
         return IsLoadingFile && _loadCancellation is not null;
+    }
+
+    /// <summary>ファイルから読み取った識別子を1行1件のテキストへコピーし、編集できる状態にする。</summary>
+    [RelayCommand(CanExecute = nameof(CanCopyFileContentToText))]
+    private async Task CopyFileContentToTextAsync()
+    {
+        MemberListDocument? fileDocument = _fileDocument;
+        if (fileDocument is null)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(PastedText) &&
+            !await _inputConfirmation.ConfirmReplaceTextWithFileContentAsync(
+                fileDocument.SourceName, fileDocument.Addresses.Count))
+        {
+            return;
+        }
+
+        string text = string.Join(Environment.NewLine, fileDocument.Addresses);
+        SelectedInputIndex = 1;
+        PastedText = text;
+        PasteInfoText = "ファイル内容をコピーしました。編集後に「入力を反映」を押してください（元ファイルは変更されません）";
+        StatusChanged?.Invoke("ファイル内容をテキストへコピーしました。編集後に入力を反映してください", false);
+    }
+
+    private bool CanCopyFileContentToText()
+    {
+        return _enabled && !IsLoadingFile && !IsParsing && !Import.IsImportingMembers && _fileDocument is not null;
     }
 
     /// <summary>選択中の入力方法に応じて<see cref="Document" />をファイル文書または未反映状態へ切り替える。</summary>
