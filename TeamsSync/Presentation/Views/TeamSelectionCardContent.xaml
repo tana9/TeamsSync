@@ -38,9 +38,9 @@
                 <ui:ProgressRing Width="16" Height="16" IsIndeterminate="True" Margin="0,0,8,0"
                                  Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}"
                                  AutomationProperties.Name="チームを読み込み中" />
-                <ui:Button Content="_再読込" Command="{Binding RefreshCommand}"
+                <ui:Button Command="{Binding RefreshCommand}"
                            Icon="{ui:SymbolIcon Symbol=ArrowClockwise24}"
-                           Appearance="Secondary" ToolTip="所有しているチームを再読み込み"
+                           Padding="8" Appearance="Secondary" ToolTip="所有しているチームを再読み込み"
                            AutomationProperties.Name="所有チームを再読み込み" />
             </StackPanel>
         </Grid>
