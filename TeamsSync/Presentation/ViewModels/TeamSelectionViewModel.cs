@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 using TeamsSync.Application.Abstractions;
+using TeamsSync.Application.Services;
 using TeamsSync.Domain.Teams;
 using TeamsSync.Presentation.Services;
 
@@ -18,14 +19,14 @@ public partial class TeamSelectionViewModel : ObservableObject
 {
     private readonly BusyOperationRunner _busyRunner;
     private readonly INotificationService _dialogs;
-    private readonly ITeamsGateway _teamsGateway;
+    private readonly TeamsAccessService _teamsAccess;
     private string? _currentUserId;
     private bool _externallyBusy;
 
     /// <summary>コンストラクター。検索用のコレクションビューを初期化する。</summary>
-    public TeamSelectionViewModel(ITeamsGateway teamsGateway, INotificationService dialogs)
+    public TeamSelectionViewModel(TeamsAccessService teamsAccess, INotificationService dialogs)
     {
-        _teamsGateway = teamsGateway;
+        _teamsAccess = teamsAccess;
         _dialogs = dialogs;
         _busyRunner = new BusyOperationRunner(_dialogs, (message, isError) => StatusChanged?.Invoke(message, isError),
             value => IsBusy = value);
@@ -77,7 +78,7 @@ public partial class TeamSelectionViewModel : ObservableObject
     /// <summary>サインアウト時などに、選択状態・チーム一覧・キャッシュをクリアする。</summary>
     public void Clear()
     {
-        _teamsGateway.ClearOwnedTeamsCache(_currentUserId);
+        _teamsAccess.ClearOwnedTeamsCache(_currentUserId);
         _currentUserId = null;
         Teams.Clear();
         OnPropertyChanged(nameof(HasNoSearchResults));
@@ -143,8 +144,7 @@ public partial class TeamSelectionViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanRefresh))]
     private async Task RefreshAsync()
     {
-        _teamsGateway.ClearOwnedTeamsCache(_currentUserId);
-        if (await LoadAsync())
+        if (await LoadAsync(refresh: true))
         {
             _dialogs.ShowSuccess("チーム一覧を更新しました", Teams.Count == 0
                 ? "所有しているチームが見つかりません"
@@ -161,7 +161,7 @@ public partial class TeamSelectionViewModel : ObservableObject
     ///     所有チーム一覧をGraph APIから取得し、<see cref="Teams" />へ反映する。選択中のチームが
     ///     再取得後も引き続き所有チームに含まれていれば、選択状態を維持する。
     /// </summary>
-    private async Task<bool> LoadAsync(CancellationToken cancellationToken = default)
+    private async Task<bool> LoadAsync(CancellationToken cancellationToken = default, bool refresh = false)
     {
         if (_currentUserId is null)
         {
@@ -172,7 +172,8 @@ public partial class TeamSelectionViewModel : ObservableObject
         return await _busyRunner.RunAsync(async () =>
         {
             StatusChanged?.Invoke("所有しているチームを検索しています…", false);
-            IReadOnlyList<TeamInfo> owned = await _teamsGateway.GetOwnedTeamsAsync(_currentUserId, cancellationToken);
+            IReadOnlyList<TeamInfo> owned = await _teamsAccess.GetOwnedTeamsAsync(
+                _currentUserId, refresh, cancellationToken);
             Teams.Clear();
             foreach (TeamInfo team in owned)
             {

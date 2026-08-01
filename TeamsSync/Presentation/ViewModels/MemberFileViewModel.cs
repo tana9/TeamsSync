@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Application.Models;
+using TeamsSync.Application.Services;
 using TeamsSync.Domain.Teams;
 using TeamsSync.Presentation.Services;
 
@@ -29,7 +30,7 @@ public partial class MemberFileViewModel : ObservableObject
     /// <summary>コンストラクター。</summary>
     public MemberFileViewModel(IMemberListReader reader, IMemberTextParser textParser,
         IUserPreferences preferences, IFilePickerService filePicker, INotificationService notifications,
-        ITeamsGateway teamsGateway, IMemberInputConfirmationService inputConfirmation)
+        TeamsAccessService teamsAccess, IMemberInputConfirmationService inputConfirmation)
     {
         _reader = reader;
         _textParser = textParser;
@@ -37,7 +38,7 @@ public partial class MemberFileViewModel : ObservableObject
         _filePicker = filePicker;
         _notifications = notifications;
         _inputConfirmation = inputConfirmation;
-        Import = new TeamMemberImportViewModel(teamsGateway, textParser, notifications, inputConfirmation,
+        Import = new TeamMemberImportViewModel(teamsAccess, textParser, notifications, inputConfirmation,
             () => _enabled && !IsLoadingFile && !IsParsing && SelectedInputIndex == 1,
             () => Document is not null || _fileDocument is not null || !string.IsNullOrWhiteSpace(PastedText));
         Import.Imported += OnMembersImported;

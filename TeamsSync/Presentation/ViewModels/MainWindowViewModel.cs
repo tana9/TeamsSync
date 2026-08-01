@@ -3,6 +3,7 @@ using System.Reflection;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 using TeamsSync.Application.Abstractions;
+using TeamsSync.Application.Services;
 using TeamsSync.Presentation.Services;
 
 namespace TeamsSync.Presentation.ViewModels;
@@ -16,7 +17,7 @@ public partial class MainWindowViewModel : ObservableObject
     /// <summary>
     ///     子ViewModelのイベントを購読して連動させ、既定のステータスを設定する。
     /// </summary>
-    public MainWindowViewModel(IAuthenticationService authentication, ITeamsGateway teamsGateway,
+    public MainWindowViewModel(IAuthenticationService authentication, TeamsAccessService teamsAccess,
         INotificationService dialogs, IUserPreferences preferences,
         TeamSelectionViewModel teamSelection, MemberFileViewModel memberFile, SyncWorkspaceViewModel syncWorkspace,
         ManualViewModel manual, ISyncResultWriter? resultWriter = null)
@@ -25,7 +26,7 @@ public partial class MainWindowViewModel : ObservableObject
         MemberFile = memberFile;
         SyncWorkspace = syncWorkspace;
         Manual = manual;
-        SignIn = new SignInViewModel(authentication, teamsGateway, dialogs, SetStatus,
+        SignIn = new SignInViewModel(authentication, teamsAccess, dialogs, SetStatus,
             userId => TeamSelection.InitializeAsync(userId), resultWriter);
         WorkflowSteps = new WorkflowStepsViewModel(SignIn, TeamSelection, MemberFile, SyncWorkspace);
 

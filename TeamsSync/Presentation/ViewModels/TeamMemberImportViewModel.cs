@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Application.Models;
+using TeamsSync.Application.Services;
 using TeamsSync.Domain.Teams;
 using TeamsSync.Presentation.Services;
 
@@ -15,7 +16,7 @@ public partial class TeamMemberImportViewModel : ObservableObject
     private readonly Func<bool> _hasExistingInput;
     private readonly IMemberInputConfirmationService _inputConfirmation;
     private readonly INotificationService _notifications;
-    private readonly ITeamsGateway _teamsGateway;
+    private readonly TeamsAccessService _teamsAccess;
     private readonly IMemberTextParser _textParser;
     private CancellationTokenSource? _importCancellation;
     private TeamInfo? _selectedTeam;
@@ -25,11 +26,11 @@ public partial class TeamMemberImportViewModel : ObservableObject
     ///     テキスト貼り付けタブが選択されているかなど)の実行可否を、<paramref name="hasExistingInput" />には
     ///     置き換え確認が必要な既存入力の有無を、それぞれ呼び出し元(<see cref="MemberFileViewModel" />)から渡す。
     /// </summary>
-    public TeamMemberImportViewModel(ITeamsGateway teamsGateway, IMemberTextParser textParser,
+    public TeamMemberImportViewModel(TeamsAccessService teamsAccess, IMemberTextParser textParser,
         INotificationService notifications, IMemberInputConfirmationService inputConfirmation,
         Func<bool> canImport, Func<bool> hasExistingInput)
     {
-        _teamsGateway = teamsGateway;
+        _teamsAccess = teamsAccess;
         _textParser = textParser;
         _notifications = notifications;
         _inputConfirmation = inputConfirmation;
@@ -98,15 +99,14 @@ public partial class TeamMemberImportViewModel : ObservableObject
         try
         {
             StatusChanged?.Invoke($"{team.DisplayName}の現在の一般メンバーを取得しています…", false);
-            IReadOnlyList<TeamMember> members = await _teamsGateway.GetTeamMembersAsync(team.Id, cts.Token);
-            List<TeamMember> importedMembers = SelectImportableMembers(members);
-            if (importedMembers.Count == 0)
+            CurrentMemberImport? import = await _teamsAccess.ImportCurrentMembersAsync(team, cts.Token);
+            if (import is null)
             {
                 NotifyNoImportableMembers(team);
                 return;
             }
 
-            if (!await ConfirmReplacementAsync(team, importedMembers.Count, cts.Token))
+            if (!await ConfirmReplacementAsync(team, import.Members.Count, cts.Token))
             {
                 return;
             }
@@ -117,7 +117,7 @@ public partial class TeamMemberImportViewModel : ObservableObject
                 return;
             }
 
-            ApplyImportedMembers(team, importedMembers, cts.Token);
+            ApplyImportedMembers(import, cts.Token);
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
@@ -139,16 +139,6 @@ public partial class TeamMemberImportViewModel : ObservableObject
             cts.Dispose();
             NotifyCanExecuteChanged();
         }
-    }
-
-    private static List<TeamMember> SelectImportableMembers(IEnumerable<TeamMember> members)
-    {
-        return members
-            .Where(member => !member.IsOwner && !string.IsNullOrWhiteSpace(member.Email))
-            .GroupBy(member => member.Email.Trim(), StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.First())
-            .OrderBy(member => member.Email, StringComparer.OrdinalIgnoreCase)
-            .ToList();
     }
 
     private void NotifyNoImportableMembers(TeamInfo team)
@@ -178,16 +168,14 @@ public partial class TeamMemberImportViewModel : ObservableObject
         }
     }
 
-    private void ApplyImportedMembers(TeamInfo team, IReadOnlyList<TeamMember> members,
-        CancellationToken cancellationToken)
+    private void ApplyImportedMembers(CurrentMemberImport import, CancellationToken cancellationToken)
     {
-        string text = string.Join(Environment.NewLine, members.Select(FormatImportedMember));
-        MemberListDocument document = _textParser.Parse(text, cancellationToken) with
+        MemberListDocument document = _textParser.Parse(import.Text, cancellationToken) with
         {
-            FileName = $"Teamsから取り込み - {team.DisplayName}",
-            SourceName = $"Teamsから取り込み: {team.DisplayName}"
+            FileName = $"Teamsから取り込み - {import.Team.DisplayName}",
+            SourceName = $"Teamsから取り込み: {import.Team.DisplayName}"
         };
-        Imported?.Invoke(team, text, document);
+        Imported?.Invoke(import.Team, import.Text, document);
     }
 
     private bool CanImportCurrentMembers()
@@ -207,14 +195,4 @@ public partial class TeamMemberImportViewModel : ObservableObject
         return IsImportingMembers && _importCancellation is not null;
     }
 
-    /// <summary>取り込んだメンバーを、編集時に人物を識別できる`表示名 &lt;メールアドレス&gt;`形式へ整形する。</summary>
-    private static string FormatImportedMember(TeamMember member)
-    {
-        string displayName = new string(member.DisplayName
-            .Select(character => char.IsControl(character) || character is '<' or '>' ? ' ' : character)
-            .ToArray()).Trim();
-        return string.IsNullOrWhiteSpace(displayName)
-            ? member.Email.Trim()
-            : $"{displayName} <{member.Email.Trim()}>";
-    }
 }

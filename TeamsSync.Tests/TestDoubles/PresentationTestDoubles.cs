@@ -3,6 +3,7 @@ using System.Windows.Threading;
 
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Application.Models;
+using TeamsSync.Application.Services;
 using TeamsSync.Domain.Teams;
 using TeamsSync.Infrastructure.Files;
 using TeamsSync.Presentation.Services;
@@ -363,6 +364,8 @@ internal sealed class FakeDialogs : IFilePickerService, ISyncConfirmationService
 
 internal sealed class FakeTeamsGateway : ITeamsGateway
 {
+    public static implicit operator TeamsAccessService(FakeTeamsGateway gateway) => new(gateway);
+
     public IReadOnlyList<TeamInfo> OwnedTeams { get; set; } = [];
     public IReadOnlyList<TeamMember> Members { get; set; } = [];
     public Dictionary<string, DirectoryUser> Users { get; } = new(StringComparer.OrdinalIgnoreCase);

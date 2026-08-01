@@ -2,7 +2,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 using TeamsSync.Application.Abstractions;
-using TeamsSync.Domain.Teams;
+using TeamsSync.Application.Models;
+using TeamsSync.Application.Services;
 using TeamsSync.Presentation.Services;
 
 namespace TeamsSync.Presentation.ViewModels;
@@ -17,19 +18,19 @@ public partial class SignInViewModel : ObservableObject
     private readonly Func<string, Task> _initializeTeamsAsync;
     private readonly ISyncResultWriter? _resultWriter;
     private readonly Action<string, bool> _reportStatus;
-    private readonly ITeamsGateway _teamsGateway;
+    private readonly TeamsAccessService _teamsAccess;
     private bool _externallyBusy;
 
     /// <summary>
     ///     コンストラクター。<paramref name="initializeTeamsAsync" />には、サインイン成功後に取得した
     ///     ユーザーIDでチーム選択を初期化する処理を渡す(サインインと同じ処理中表示・エラー処理の対象にするため)。
     /// </summary>
-    public SignInViewModel(IAuthenticationService authentication, ITeamsGateway teamsGateway,
+    public SignInViewModel(IAuthenticationService authentication, TeamsAccessService teamsAccess,
         INotificationService notifications, Action<string, bool> reportStatus, Func<string, Task> initializeTeamsAsync,
         ISyncResultWriter? resultWriter = null)
     {
         _authentication = authentication;
-        _teamsGateway = teamsGateway;
+        _teamsAccess = teamsAccess;
         _reportStatus = reportStatus;
         _initializeTeamsAsync = initializeTeamsAsync;
         _resultWriter = resultWriter;
@@ -79,16 +80,7 @@ public partial class SignInViewModel : ObservableObject
     {
         await _busyRunner.RunAsync(async () =>
         {
-            var me = await _teamsGateway.GetMeAsync();
-            IReadOnlyList<TeamInfo> teams = await _teamsGateway.GetOwnedTeamsAsync(me.Id);
-            int memberCount = 0;
-            if (teams.Count > 0)
-            {
-                memberCount = (await _teamsGateway.GetTeamMembersAsync(teams[0].Id)).Count;
-            }
-
-            IReadOnlyList<DirectoryUser> users =
-                await _teamsGateway.FindUsersAsync(me.UserPrincipalName);
+            TeamsConnectionDiagnostics diagnostics = await _teamsAccess.RunDiagnosticsAsync();
             string logStatus = "ログ保存先 未確認";
             if (_resultWriter is not null)
             {
@@ -97,7 +89,7 @@ public partial class SignInViewModel : ObservableObject
             }
 
             _reportStatus(
-                $"接続診断に成功しました（所有チーム {teams.Count}件／先頭チームのメンバー {memberCount}件／自分の検索結果 {users.Count}件／{logStatus}）",
+                $"接続診断に成功しました（所有チーム {diagnostics.OwnedTeamCount}件／先頭チームのメンバー {diagnostics.FirstTeamMemberCount}件／自分の検索結果 {diagnostics.CurrentUserSearchResultCount}件／{logStatus}）",
                 false);
         });
     }
@@ -111,7 +103,7 @@ public partial class SignInViewModel : ObservableObject
         await _busyRunner.RunAsync(async () =>
         {
             await _authentication.GetTokenAsync(true);
-            var me = await _teamsGateway.GetMeAsync();
+            CurrentUser me = await _teamsAccess.GetCurrentUserAsync();
             CurrentUserId = me.Id;
             AccountText = $"{me.DisplayName} ({me.UserPrincipalName})";
             IsSignedIn = true;
