@@ -27,7 +27,8 @@ public partial class TeamSelectionViewModel : ObservableObject
     {
         _teamsGateway = teamsGateway;
         _dialogs = dialogs;
-        _busyRunner = new BusyOperationRunner(_dialogs, (message, isError) => StatusChanged?.Invoke(message, isError));
+        _busyRunner = new BusyOperationRunner(_dialogs, (message, isError) => StatusChanged?.Invoke(message, isError),
+            value => IsBusy = value);
         TeamsView = CollectionViewSource.GetDefaultView(Teams);
         TeamsView.Filter = item => item is TeamInfo team && MatchesSearch(team);
     }
@@ -99,6 +100,7 @@ public partial class TeamSelectionViewModel : ObservableObject
     partial void OnIsBusyChanged(bool value)
     {
         OnPropertyChanged(nameof(IsSelectionEnabled));
+        RefreshCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>検索テキストの変更に応じてビューを再フィルターし、関連プロパティを更新する。</summary>
@@ -142,13 +144,12 @@ public partial class TeamSelectionViewModel : ObservableObject
     private async Task RefreshAsync()
     {
         _teamsGateway.ClearOwnedTeamsCache(_currentUserId);
-        await _busyRunner.RunAsync(async () =>
+        if (await LoadAsync())
         {
-            await LoadAsync();
             _dialogs.ShowSuccess("チーム一覧を更新しました", Teams.Count == 0
                 ? "所有しているチームが見つかりません"
                 : $"{Teams.Count}件のチームが見つかりました");
-        });
+        }
     }
 
     private bool CanRefresh()
@@ -160,17 +161,15 @@ public partial class TeamSelectionViewModel : ObservableObject
     ///     所有チーム一覧をGraph APIから取得し、<see cref="Teams" />へ反映する。選択中のチームが
     ///     再取得後も引き続き所有チームに含まれていれば、選択状態を維持する。
     /// </summary>
-    private async Task LoadAsync(CancellationToken cancellationToken = default)
+    private async Task<bool> LoadAsync(CancellationToken cancellationToken = default)
     {
         if (_currentUserId is null)
         {
-            return;
+            return false;
         }
 
         string? previouslySelectedTeamId = SelectedTeam?.Id;
-        IsBusy = true;
-        RefreshCommand.NotifyCanExecuteChanged();
-        try
+        return await _busyRunner.RunAsync(async () =>
         {
             StatusChanged?.Invoke("所有しているチームを検索しています…", false);
             IReadOnlyList<TeamInfo> owned = await _teamsGateway.GetOwnedTeamsAsync(_currentUserId, cancellationToken);
@@ -187,11 +186,6 @@ public partial class TeamSelectionViewModel : ObservableObject
                 ? "所有しているチームが見つかりません"
                 : $"{Teams.Count}件のチームが見つかりました", false);
             OnPropertyChanged(nameof(HasNoSearchResults));
-        }
-        finally
-        {
-            IsBusy = false;
-            RefreshCommand.NotifyCanExecuteChanged();
-        }
+        });
     }
 }

@@ -73,7 +73,7 @@ public partial class SignInViewModel : ObservableObject
         await _busyRunner.RunAsync(async () =>
         {
             await _authentication.GetTokenAsync(true);
-            (string Id, string DisplayName, string UserPrincipalName) me = await _teamsGateway.GetMeAsync();
+            var me = await _teamsGateway.GetMeAsync();
             CurrentUserId = me.Id;
             AccountText = $"{me.DisplayName} ({me.UserPrincipalName})";
             IsSignedIn = true;
@@ -113,10 +113,11 @@ public partial class SignInViewModel : ObservableObject
     }
 
     /// <summary>認証設定エラーの場合に、専用のステータス・ダイアログタイトルを返す。</summary>
-    private static (string Status, string DialogTitle)? HandleAuthenticationException(Exception ex)
+    private static BusyOperationRunner.SpecificExceptionResult? HandleAuthenticationException(Exception ex)
     {
         return ex is AuthenticationConfigurationException
-            ? ("サインインできませんでした。Entra IDのアプリ登録設定を管理者に確認してください",
+            ? new BusyOperationRunner.SpecificExceptionResult(
+                "サインインできませんでした。Entra IDのアプリ登録設定を管理者に確認してください",
                 "Entra IDのアプリ登録設定を確認してください")
             : null;
     }

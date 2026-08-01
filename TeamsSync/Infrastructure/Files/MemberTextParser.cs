@@ -15,6 +15,12 @@ public sealed class MemberTextParser : IMemberTextParser
     public const int MaximumTextLength = 500_000;
     public const int MaximumLineLength = 512;
 
+    // ReadOnlySpan<char>.EnumerateLines()はフォームフィード(U+000C)・NEL(U+0085)・LS/PS(U+2028/2029)も
+    // 行区切りとして扱うため、これらを使うと制御文字を拒否する下のチェックをすり抜けて
+    // 無言で改行扱いになってしまう。意図した区切り(\r\n・\n・\r)だけを使うため、
+    // 明示的な区切り文字リストで分割する。
+    private static readonly string[] LineSeparators = ["\r\n", "\n", "\r"];
+
     /// <inheritdoc />
     public MemberListDocument Parse(string text, CancellationToken cancellationToken)
     {
@@ -24,47 +30,47 @@ public sealed class MemberTextParser : IMemberTextParser
             throw new InvalidDataException($"貼り付け入力は{MaximumTextLength:N0}文字までです。");
         }
 
-        string[] lines = text.Split(["\r\n", "\n", "\r"], StringSplitOptions.None);
-        for (int index = 0; index < lines.Length; index++)
+        List<string> values = new();
+        HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
+        int lineNumber = 0;
+
+        foreach (string lineText in text.Split(LineSeparators, StringSplitOptions.None))
         {
+            ReadOnlySpan<char> line = lineText.AsSpan();
+            lineNumber++;
             cancellationToken.ThrowIfCancellationRequested();
-            string line = lines[index];
+
             if (line.Contains('\t'))
             {
-                throw new InvalidDataException($"{index + 1}行目にタブが含まれています。1列だけを貼り付けてください。");
+                throw new InvalidDataException($"{lineNumber}行目にタブが含まれています。1列だけを貼り付けてください。");
             }
 
-            if (line.Any(char.IsControl))
+            foreach (char c in line)
             {
-                throw new InvalidDataException($"{index + 1}行目に使用できない制御文字が含まれています。");
+                if (char.IsControl(c))
+                {
+                    throw new InvalidDataException($"{lineNumber}行目に使用できない制御文字が含まれています。");
+                }
             }
 
             if (line.Length > MaximumLineLength)
             {
-                throw new InvalidDataException($"{index + 1}行目は{MaximumLineLength:N0}文字以内で入力してください。");
+                throw new InvalidDataException($"{lineNumber}行目は{MaximumLineLength:N0}文字以内で入力してください。");
             }
-        }
 
-        List<string> values = new();
-        HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
-        for (int index = 0; index < lines.Length; index++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            string value = ParseLine(lines[index], index + 1);
+            string value = ParseLine(line, lineNumber);
             if (!string.IsNullOrWhiteSpace(value) && seen.Add(value))
             {
                 values.Add(value);
             }
         }
 
-        if (values.Count == 0)
+        switch (values.Count)
         {
-            throw new InvalidDataException("氏名またはメールアドレスを1行に1件入力してください。");
-        }
-
-        if (values.Count > MaximumEntries)
-        {
-            throw new InvalidDataException($"貼り付け入力は{MaximumEntries:N0}件までです。");
+            case 0:
+                throw new InvalidDataException("氏名またはメールアドレスを1行に1件入力してください。");
+            case > MaximumEntries:
+                throw new InvalidDataException($"貼り付け入力は{MaximumEntries:N0}件までです。");
         }
 
         string normalizedText = string.Join('\n', values);
@@ -83,34 +89,30 @@ public sealed class MemberTextParser : IMemberTextParser
     }
 
     /// <summary>`表示名 &lt;メールアドレス&gt;`形式の場合は山括弧内だけを識別子として返す。</summary>
-    private static string ParseLine(string line, int lineNumber)
+    private static string ParseLine(ReadOnlySpan<char> line, int lineNumber)
     {
-        string value = line.Trim();
-        if (value.Length == 0)
+        ReadOnlySpan<char> trimmed = line.Trim();
+        if (trimmed.IsEmpty)
         {
             return "";
         }
 
-        bool containsBracket = value.Contains('<') || value.Contains('>');
-        if (!containsBracket)
+        int lastOpen = trimmed.LastIndexOf('<');
+        if (lastOpen < 0 && !trimmed.Contains('>'))
         {
-            return value;
+            return trimmed.ToString();
         }
 
-        int open = value.LastIndexOf('<');
-        if (open <= 0 || !value.EndsWith('>') || value.IndexOf('<') != open ||
-            value.IndexOf('>') != value.Length - 1)
+        if (lastOpen <= 0 || !trimmed.EndsWith(">") || trimmed.IndexOf('<') != lastOpen ||
+            trimmed.IndexOf('>') != trimmed.Length - 1)
         {
             throw new InvalidDataException(
                 $"{lineNumber}行目の表示名とメールアドレスの形式が正しくありません。表示名 <メールアドレス> の形式で入力してください。");
         }
 
-        string address = value[(open + 1)..^1].Trim();
-        if (address.Length == 0)
-        {
-            throw new InvalidDataException($"{lineNumber}行目の山括弧内にメールアドレスを入力してください。");
-        }
-
-        return address;
+        ReadOnlySpan<char> address = trimmed.Slice(lastOpen + 1, trimmed.Length - lastOpen - 2).Trim();
+        return address.IsEmpty
+            ? throw new InvalidDataException($"{lineNumber}行目の山括弧内にメールアドレスを入力してください。")
+            : address.ToString();
     }
 }

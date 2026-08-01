@@ -50,7 +50,7 @@ internal static class GraphResponseParser
         return value switch
         {
             string text => text,
-            JsonElement element when element.ValueKind == JsonValueKind.String => element.GetString(),
+            JsonElement { ValueKind: JsonValueKind.String } element => element.GetString(),
             _ => value?.ToString()
         };
     }

@@ -74,6 +74,19 @@ public sealed class MemberTextParserTests
         Assert.Throws<InvalidDataException>(() => _parser.Parse(text, TestContext.Current.CancellationToken));
     }
 
+    // ReadOnlySpan<char>.EnumerateLines()はフォームフィード(U+000C)・NEL(U+0085)も行区切りとして
+    // 扱ってしまい、行分割にそれを使うと制御文字が行内容として現れず検証をすり抜けてしまう
+    // 回帰を防ぐためのテスト。(char)キャストで生成し、ソースファイルへ生の制御文字を含めない。
+    [Theory]
+    [InlineData(0x000C)]
+    [InlineData(0x0085)]
+    public void Parse_フォームフィードやNELなどの制御文字も拒否する(int codePoint)
+    {
+        string text = "user@example.com" + (char)codePoint + "other@example.com";
+
+        Assert.Throws<InvalidDataException>(() => _parser.Parse(text, TestContext.Current.CancellationToken));
+    }
+
     [Fact]
     public void Parse_長すぎる行を拒否する()
     {

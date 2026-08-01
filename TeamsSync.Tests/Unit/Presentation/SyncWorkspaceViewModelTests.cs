@@ -434,6 +434,45 @@ public sealed class SyncWorkspaceViewModelTests
         Assert.Equal(1, focusRequests);
     }
 
+    // ExecuteSyncAsyncは確認ダイアログ後にRevalidateBeforeExecuteAsyncを呼び、そちらも同じ
+    // _busyRunnerでIsBusyを管理する。入れ子のRunAsyncが互いのIsBusy状態を意識せず
+    // setBusy(false)を呼ぶと、内側(再検証)の完了時点で外側(実際のメンバー追加/削除より前)の
+    // IsBusyが早期にfalseへ戻ってしまい、画面の入力カードが実行中に一瞬再操作可能になる。
+    // IsBusyがfalseに戻る「タイミング」を、実際にメンバー追加処理が始まったかどうかで検証する。
+    [Fact]
+    public async Task SyncWorkspace_同期実行中はメンバー追加処理が始まるまでIsBusyがfalseに戻らない()
+    {
+        FakeTeamsGateway gateway = new();
+        gateway.Users["new@example.com"] =
+            new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
+        bool addStarted = false;
+        gateway.OnAdd = (_, _, _) =>
+        {
+            addStarted = true;
+            return Task.CompletedTask;
+        };
+        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+            new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
+        viewModel.SetContext(new TeamInfo("team-1", "開発", null),
+            new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
+                new DateTime(2026, 7, 28), "CSV", "email"), true);
+        await viewModel.PreviewCommand.ExecuteAsync(null);
+
+        List<bool> addStartedWhenIsBusyBecameFalse = new();
+        viewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(SyncWorkspaceViewModel.IsBusy) && !viewModel.IsBusy)
+            {
+                addStartedWhenIsBusyBecameFalse.Add(addStarted);
+            }
+        };
+
+        await viewModel.ExecuteSyncCommand.ExecuteAsync(null);
+
+        Assert.NotEmpty(addStartedWhenIsBusyBecameFalse);
+        Assert.All(addStartedWhenIsBusyBecameFalse, wasStarted => Assert.True(wasStarted));
+    }
+
     [Fact]
     public async Task SyncWorkspace_終了要求で実行中の操作をキャンセルして完了を待つ()
     {

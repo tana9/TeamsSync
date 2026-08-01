@@ -33,28 +33,28 @@ public partial class MainWindowViewModel : ObservableObject
         // 専用のカスタムイベントを設けず、子ViewModelのPropertyChangedをプロパティ名でフィルターして購読する。
         SignIn.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(SignInViewModel.IsBusy))
+            switch (e.PropertyName)
             {
-                UpdateAvailability();
-            }
-
-            if (e.PropertyName == nameof(SignInViewModel.IsSignedIn))
-            {
-                UpdateSyncContext();
-                UpdateAvailability();
+                case nameof(SignInViewModel.IsBusy):
+                    UpdateAvailability();
+                    break;
+                case nameof(SignInViewModel.IsSignedIn):
+                    UpdateSyncContext();
+                    UpdateAvailability();
+                    break;
             }
         };
         SignIn.SignedOut += () => TeamSelection.Clear();
         TeamSelection.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(TeamSelectionViewModel.SelectedTeam))
+            switch (e.PropertyName)
             {
-                UpdateSyncContext();
-            }
-
-            if (e.PropertyName == nameof(TeamSelectionViewModel.IsBusy))
-            {
-                UpdateAvailability();
+                case nameof(TeamSelectionViewModel.SelectedTeam):
+                    UpdateSyncContext();
+                    break;
+                case nameof(TeamSelectionViewModel.IsBusy):
+                    UpdateAvailability();
+                    break;
             }
         };
         TeamSelection.StatusChanged += SetStatus;

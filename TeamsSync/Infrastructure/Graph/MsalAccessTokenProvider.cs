@@ -12,11 +12,8 @@ internal sealed class MsalAccessTokenProvider(IAuthenticationService authenticat
         Dictionary<string, object>? additionalAuthenticationContext = null,
         CancellationToken cancellationToken = default)
     {
-        if (!AllowedHostsValidator.IsUrlHostValid(uri))
-        {
-            throw new InvalidOperationException("Microsoft Graph以外のホストへトークンを送信できません。");
-        }
-
-        return authentication.GetTokenAsync(cancellationToken: cancellationToken);
+        return !AllowedHostsValidator.IsUrlHostValid(uri)
+            ? throw new InvalidOperationException("Microsoft Graph以外のホストへトークンを送信できません。")
+            : authentication.GetTokenAsync(cancellationToken: cancellationToken);
     }
 }

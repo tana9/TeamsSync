@@ -41,12 +41,6 @@ public static class DependencyInjection
     /// </summary>
     public static IServiceCollection AddGraphHttpClients(this IServiceCollection services)
     {
-        static void Configure(HttpClient client)
-        {
-            client.BaseAddress = new Uri("https://graph.microsoft.com/v1.0/");
-            client.Timeout = Timeout.InfiniteTimeSpan;
-        }
-
         services.AddHttpClient(GraphHttpClient.ReadHttpClientName, Configure)
             .ConfigurePrimaryHttpMessageHandler(CreatePrimaryHandler)
             .AddStandardResilienceHandler(options =>
@@ -59,6 +53,12 @@ public static class DependencyInjection
                 options.Retry.DisableForUnsafeHttpMethods();
             });
         return services;
+
+        static void Configure(HttpClient client)
+        {
+            client.BaseAddress = new Uri("https://graph.microsoft.com/v1.0/");
+            client.Timeout = Timeout.InfiniteTimeSpan;
+        }
 
         static HttpMessageHandler CreatePrimaryHandler()
         {

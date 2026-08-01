@@ -61,8 +61,11 @@ public sealed class MemberListReader : IMemberListReader
                 _ => throw new InvalidDataException("対応形式は .csv と .xlsx です。")
             };
             cancellationToken.ThrowIfCancellationRequested();
-            List<string> addresses = values.Select(x => x.Trim()).Where(x => !string.IsNullOrWhiteSpace(x))
-                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            List<string> addresses =
+            [
+                .. values.Select(x => x.Trim()).Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+            ];
             if (addresses.Count == 0)
             {
                 throw new InvalidDataException("メンバーのメールアドレスがありません。");

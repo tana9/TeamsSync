@@ -358,21 +358,25 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanPreview))]
     private async Task PreviewAsync()
     {
-        await _busyRunner.RunAsync(async () =>
+        if (_team is null || _document is null)
         {
-            if (_team is null || _document is null)
-            {
-                return;
-            }
+            return;
+        }
 
+        SyncPlan? plan = await _busyRunner.RunAsync(async () =>
+        {
             StatusChanged?.Invoke("ユーザーと現在のメンバーを照合しています…", false);
             PreviewProgressValue = 0;
             PreviewProgressMaximum = Math.Max(1, _document.Addresses.Count);
             Progress<int> progress = new(count => PreviewProgressValue = count);
-            SyncPlan plan = await _syncService.BuildPlanAsync(_team, _document.Addresses,
+            return await _syncService.BuildPlanAsync(_team, _document.Addresses,
                 mode: SelectedMode.Mode, progress: progress);
-            ApplyPlan(plan);
         });
+
+        if (plan is not null)
+        {
+            ApplyPlan(plan);
+        }
     }
 
     private bool CanPreview()
@@ -385,7 +389,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanExecuteSync))]
     private async Task ExecuteSyncAsync()
     {
-        try
+        await _busyRunner.RunAsync(async () =>
         {
             if (_plan is null || _document is null ||
                 !await _confirmation.ConfirmSyncAsync(new SyncConfirmation(
@@ -400,24 +404,20 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             }
 
             await RunSyncAndReconcileAsync();
-        }
-        catch (OperationCanceledException)
-        {
-            StatusChanged?.Invoke("処理を中止しました", false);
-        }
-        catch (Exception ex)
-        {
-            StatusChanged?.Invoke("同期を実行できませんでした。詳細はダイアログを確認してください", true);
-            await _notifications.ShowErrorAsync(ex.Message, "同期を実行できませんでした");
-        }
+        }, ex => new BusyOperationRunner.SpecificExceptionResult(
+            "同期を実行できませんでした。詳細はダイアログを確認してください",
+            "同期を実行できませんでした"));
     }
 
     // 実行直前にチームメンバーを再取得し、プレビュー作成後に構成が変わっていないか確認する。
     // falseを返す場合、最新の差分は既にApplyPlanで画面へ反映済みなので、呼び出し元は実行を中断するだけでよい。
+    // 呼び出し元のExecuteSyncAsyncが既に同じ_busyRunnerでIsBusy=trueにしている(唯一の呼び出し元、
+    // 常にその中から呼ばれる前提)ため、ここでmanageBusyState: falseを指定しないと、この処理が
+    // 完了した時点でIsBusyがfalseへ戻ってしまい、まだRunSyncAndReconcileAsyncが実行中にもかかわらず
+    // 画面の入力カードや「同期を実行」ボタンが一瞬再操作可能になってしまう。
     private async Task<bool> RevalidateBeforeExecuteAsync()
     {
-        IsBusy = true;
-        try
+        return await _busyRunner.RunAsync(async () =>
         {
             StatusChanged?.Invoke("実行直前のメンバー構成を確認しています…", false);
             SyncPlanRevalidation revalidation = await _syncService.RevalidatePlanAsync(_plan!);
@@ -433,22 +433,8 @@ public partial class SyncWorkspaceViewModel : ObservableObject
                 "チームのメンバー構成がプレビュー後に変更されました。最新の差分を確認して、もう一度同期を実行してください。");
             StatusChanged?.Invoke("最新の同期差分を表示しました。内容を再確認してください", true);
             return false;
-        }
-        catch (OperationCanceledException)
-        {
-            StatusChanged?.Invoke("処理を中止しました", false);
-            return false;
-        }
-        catch (Exception ex)
-        {
-            StatusChanged?.Invoke("再検証に失敗しました。詳細はダイアログを確認してください", true);
-            await _notifications.ShowErrorAsync(ex.Message);
-            return false;
-        }
-        finally
-        {
-            IsBusy = false;
-        }
+        }, ex => new BusyOperationRunner.SpecificExceptionResult("再検証に失敗しました。詳細はダイアログを確認してください"),
+            manageBusyState: false);
     }
 
     /// <summary>
