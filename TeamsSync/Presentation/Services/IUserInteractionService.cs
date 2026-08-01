@@ -37,8 +37,20 @@ public interface INotificationService
     /// <summary>成功通知(スナックバー)を表示する。</summary>
     void ShowSuccess(string title, string message);
 
+    /// <summary>利用者が実行できるアクション付きの成功通知を表示する。</summary>
+    void ShowSuccessWithAction(string title, string message, string actionText, Action action)
+    {
+        ShowSuccess(title, message);
+    }
+
     /// <summary>警告通知(スナックバー)を表示する。</summary>
     void ShowWarning(string title, string message);
+
+    /// <summary>利用者が実行できるアクション付きの警告通知を表示する。</summary>
+    void ShowWarningWithAction(string title, string message, string actionText, Action action)
+    {
+        ShowWarning(title, message);
+    }
 
     // onClosed: エラーダイアログを閉じた後に実行するコールバック(省略可)。
     // ShowErrorはダイアログの表示完了を待たずに呼び出し元へ戻るため、ダイアログが閉じてから

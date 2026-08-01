@@ -372,6 +372,7 @@ public sealed class SyncServiceTests
                 cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(0, result.FailureCount);
         Assert.Equal(2, result.SuccessCount);
+        Assert.Equal(["New", "Old"], result.Operations.Select(operation => operation.DisplayName));
         Assert.Equal([("team-1", "new-id")], graph.Added);
         Assert.Equal([("team-1", "old-membership")], graph.Removed);
     }

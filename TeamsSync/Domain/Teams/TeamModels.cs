@@ -175,7 +175,9 @@ public sealed record SyncProgress(int Completed, int Total, ChangeKind Kind, str
 /// <param name="Email">対象のアドレス。</param>
 /// <param name="Succeeded">成功したかどうか。</param>
 /// <param name="Error">失敗時のエラーメッセージ。</param>
-public sealed record SyncOperationResult(ChangeKind Kind, string Email, bool Succeeded, string? Error);
+/// <param name="DisplayName">対象ユーザーの表示名。</param>
+public sealed record SyncOperationResult(ChangeKind Kind, string Email, bool Succeeded, string? Error,
+    string DisplayName = "");
 
 /// <summary>同期実行全体の結果を表す。</summary>
 /// <param name="Operations">各操作の実行結果一覧。</param>

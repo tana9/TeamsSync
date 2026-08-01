@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Windows.Data;
 
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -118,6 +119,14 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     /// <summary>直近の同期実行がキャンセルされたかどうか。</summary>
     [ObservableProperty]
     public partial bool ResultCancelled { get; set; }
+
+    /// <summary>直近の同期実行結果を保存したCSVファイルのフルパス。保存失敗時は空文字。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasResultLog))]
+    public partial string ResultLogPath { get; set; } = "";
+
+    /// <summary>直近の同期結果CSVが正常に保存されたかどうか。</summary>
+    public bool HasResultLog => !string.IsNullOrWhiteSpace(ResultLogPath);
 
     /// <summary>同期後もTeams側に反映が残っている件数。-1は最終状態を未確認であることを表す。</summary>
     [ObservableProperty]
@@ -446,6 +455,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         _syncCancellation = new CancellationTokenSource();
         _syncCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         IsSyncing = true;
+        ResultLogPath = "";
         ProgressValue = 0;
         ProgressMaximum = Math.Max(1, _plan!.AddCount + _plan.RemoveCount);
         try
@@ -458,7 +468,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
                 _plan, progress, _syncCancellation.Token, auditContext);
             HasSyncResult = true;
             UpdateResultCounts();
-            WriteAutoLog();
+            WriteAutoLog(auditContext.ExecutionId);
 
             if (_lastResult.Cancelled)
             {
@@ -484,15 +494,16 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     // 保存操作を利用者に意識させず、実行のたびに監査証跡を残すため、
     // 実行結果を確定した直後に自動でログフォルダーへ書き出す。書き出しに失敗しても
     // 同期自体は完了しているため、警告に留めて後続の後処理は継続する。
-    /// <summary>直近の同期実行結果を、EXEと同じフォルダー内のlogsフォルダーへ自動的に記録する。</summary>
-    private void WriteAutoLog()
+    /// <summary>直近の同期実行結果をユーザー別のログフォルダーへ自動的に記録する。</summary>
+    private void WriteAutoLog(Guid executionId)
     {
         try
         {
-            _resultWriter.WriteAutoLog(_lastExecutedPlan!, _lastResult!);
+            ResultLogPath = _resultWriter.WriteAutoLog(_lastExecutedPlan!, _lastResult!, executionId);
         }
         catch (Exception ex)
         {
+            ResultLogPath = "";
             _notifications.ShowWarning("実行ログを保存できませんでした",
                 $"同期処理自体は完了しています。{Environment.NewLine}{ex.Message}");
         }
@@ -516,7 +527,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         ResultRemainingCount = Math.Max(0, _plan!.AddCount + _plan.RemoveCount - _lastResult!.Operations.Count);
         _plan = null;
         ExecuteSyncCommand.NotifyCanExecuteChanged();
-        _notifications.ShowWarning("同期を中止しました",
+        ShowResultNotification(true, "同期を中止しました",
             $"{_lastResult!.SuccessCount}件は処理済みです。差分を再確認してください。");
         StatusChanged?.Invoke("同期を中止しました。Teams側の最新状態を再確認してください", true);
     }
@@ -540,12 +551,12 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             ResultRemainingCount = remainingCount;
             if (_lastResult!.FailureCount > 0)
             {
-                _notifications.ShowWarning("一部の操作に失敗しました",
+                ShowResultNotification(true, "一部の操作に失敗しました",
                     $"成功 {_lastResult.SuccessCount}件 / 失敗 {_lastResult.FailureCount}件。未反映 {remainingCount}件を再実行できます。");
             }
             else
             {
-                _notifications.ShowSuccess("同期完了",
+                ShowResultNotification(false, "同期完了",
                     $"{_lastResult.SuccessCount}件の変更が完了し、Teams側の状態を確認しました。");
             }
 
@@ -557,9 +568,31 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         {
             InvalidatePlan(false);
             ResultRemainingCount = -1;
-            _notifications.ShowWarning("最終状態を確認できませんでした",
-                $"操作結果は保存できます。差分を再確認してください。{Environment.NewLine}{ex.Message}");
+            ShowResultNotification(true, "最終状態を確認できませんでした",
+                $"操作結果は保存済みです。差分を再確認してください。{Environment.NewLine}{ex.Message}");
             StatusChanged?.Invoke("最終状態を確認できませんでした。差分を再確認してください", true);
+        }
+    }
+
+    /// <summary>同期結果とログ保存を1つのSnackbarで通知し、保存成功時はCSVを開く操作を付ける。</summary>
+    private void ShowResultNotification(bool warning, string title, string message)
+    {
+        if (!HasResultLog)
+        {
+            if (warning) _notifications.ShowWarning(title, message);
+            else _notifications.ShowSuccess(title, message);
+            return;
+        }
+
+        string messageWithLog = $"{message} 実行ログを保存しました。";
+        Action openLog = () => Process.Start(new ProcessStartInfo(ResultLogPath) { UseShellExecute = true });
+        if (warning)
+        {
+            _notifications.ShowWarningWithAction(title, messageWithLog, "同期結果CSVを開く", openLog);
+        }
+        else
+        {
+            _notifications.ShowSuccessWithAction(title, messageWithLog, "同期結果CSVを開く", openLog);
         }
     }
 

@@ -38,7 +38,7 @@ $env:TEAMSSYNC_Entra__TenantId = "テナントID"
 | 監査ログ | `%LocalAppData%\TeamsSync\Logs\audit-*.jsonl` | 実行ID、対象ID、件数、結果、Graph相関IDなど |
 | ユーザー設定 | `%LocalAppData%\TeamsSync\preferences.json` | 最後に利用したフォルダー |
 | 破損設定の退避 | `%LocalAppData%\TeamsSync\preferences.corrupt-*.json` | 読み込めなかった旧設定 |
-| 結果CSV | ユーザーが保存ダイアログで指定した場所 | 同期操作ごとの結果 |
+| 結果CSV | `%LocalAppData%\TeamsSync\Logs\*.csv` | 同期操作ごとの結果。画面の同期結果から直接開ける |
 | 一時マニュアル | `%Temp%\TeamsSync\Manual.html` | EXEから展開した利用者マニュアル |
 
 入力したCSV・Excelや貼り付け内容そのものはアプリ専用領域へ保存しません。監査ログには入力ファイル名とSHA-256を記録しますが、フルパス、氏名、メールアドレス、UPN、アクセストークンは記録しません。
@@ -47,9 +47,8 @@ $env:TEAMSSYNC_Entra__TenantId = "テナントID"
 
 1. TeamsSyncを終了する。
 2. 必要な監査ログと結果CSVを組織の記録保持方針に従って退避する。
-3. `%LocalAppData%\TeamsSync`を削除すると、監査ログ、ユーザー設定、破損設定の退避を削除できる。
+3. `%LocalAppData%\TeamsSync`を削除すると、監査ログ、結果CSV、ユーザー設定、破損設定の退避を削除できる。
 4. `%Temp%\TeamsSync`を削除すると、展開済みマニュアルを削除できる。
-5. 結果CSVは保存先から個別に削除する。
 
 ログは既定で日次または25MBごとにローテーションし、30ファイルを保持します。`AuditLogging:RetainedFileCount`と`AuditLogging:FileSizeLimitBytes`で組織の保持方針に合わせて変更できます。
 

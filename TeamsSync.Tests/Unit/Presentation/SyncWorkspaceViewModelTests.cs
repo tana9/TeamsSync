@@ -7,6 +7,29 @@ namespace TeamsSync.Tests.Unit.Presentation;
 public sealed class SyncWorkspaceViewModelTests
 {
     [Fact]
+    public async Task SyncWorkspace_実行ログ保存成功時に保存先を画面へ公開する()
+    {
+        FakeTeamsGateway gateway = new();
+        gateway.Users["new@example.com"] =
+            new DirectoryUser("new-user", "New", "new@example.com", "new@example.com");
+        FakeResultWriter writer = new() { ResultPath = @"C:\Logs\20260801_result.csv" };
+        RecordingNotificationService notifications = new();
+        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway), writer,
+            new FakeDialogs(), notifications);
+        viewModel.SetContext(new TeamInfo("team-1", "開発", null),
+            new MemberListDocument(["new@example.com"], "members.csv", @"C:\members.csv",
+                new DateTime(2026, 8, 1), "CSV", "email"), true);
+        await viewModel.PreviewCommand.ExecuteAsync(null);
+
+        await viewModel.ExecuteSyncCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.HasResultLog);
+        Assert.Equal(writer.ResultPath, viewModel.ResultLogPath);
+        Assert.Equal("同期完了", notifications.SuccessTitle);
+        Assert.Contains("実行ログを保存しました", notifications.SuccessMessage);
+    }
+
+    [Fact]
     public async Task SyncWorkspace_確認ダイアログ失敗を通知して例外をUIへ伝播しない()
     {
         FakeTeamsGateway gateway = new();
@@ -47,6 +70,7 @@ public sealed class SyncWorkspaceViewModelTests
         Assert.Equal("実行ログを保存できませんでした", notifications.WarningTitle);
         Assert.True(viewModel.HasSyncResult);
         Assert.Equal(1, viewModel.ResultSuccessCount);
+        Assert.False(viewModel.HasResultLog);
     }
 
     [Fact]

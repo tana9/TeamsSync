@@ -10,31 +10,76 @@ namespace TeamsSync.Infrastructure.Files;
 ///     CSVインジェクション対策として外部由来の値は数式として解釈されないよう無害化する。
 /// </summary>
 /// <param name="logDirectory">
-///     ログの出力先フォルダー。省略時はEXEと同じフォルダー内の"logs"フォルダーを使う。
+///     ログの出力先フォルダー。省略時はユーザー別のLocalApplicationData配下を使う。
 ///     テストから一時フォルダーを指定できるようにコンストラクター引数にしている。
 /// </param>
 public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultWriter
 {
     // OWASPが推奨するCSVインジェクション対策として、数式の開始として解釈され得る文字。
     private static readonly char[] FormulaTriggerChars = ['=', '+', '-', '@'];
-    private readonly string _logDirectory = logDirectory ?? Path.Combine(AppContext.BaseDirectory, "logs");
+    private readonly string _logDirectory = logDirectory ?? Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TeamsSync", "Logs");
 
     /// <summary>
     ///     同期実行結果を、チーム名・モード・操作種別・アドレス・成否・エラーの列を持つCSVとして
-    ///     "{実行日時}_{対象チーム名}.csv"のファイル名でログフォルダーへ書き出す。
+    ///     実行日時・実行ID・対象チーム名を含む一意なファイル名でログフォルダーへ書き出す。
     /// </summary>
-    public void WriteAutoLog(SyncPlan plan, SyncExecutionResult result)
+    public string WriteAutoLog(SyncPlan plan, SyncExecutionResult result, Guid executionId)
     {
         Directory.CreateDirectory(_logDirectory);
-        string fileName = $"{DateTime.Now:yyyyMMdd_HHmmss}_{SanitizeFileName(plan.Team.DisplayName)}.csv";
-        string path = Path.Combine(_logDirectory, fileName);
-        using StreamWriter writer = new(path, false, new UTF8Encoding(true));
-        writer.WriteLine("team,mode,operation,email,result,error");
+        string stem = $"{DateTime.Now:yyyyMMdd_HHmmss_fff}_{executionId:N}_{SanitizeFileName(plan.Team.DisplayName)}";
+        FileStream stream = CreateUniqueFile(stem, out string path);
+        using StreamWriter writer = new(stream, new UTF8Encoding(true));
+        writer.WriteLine("チーム,同期モード,操作,表示名,メールアドレス,結果,エラー");
         foreach (SyncOperationResult item in result.Operations)
         {
-            writer.WriteLine(string.Join(",", CsvExternal(plan.Team.DisplayName), Csv(plan.Mode.ToString()),
-                Csv(item.Kind.ToString()),
-                CsvExternal(item.Email), item.Succeeded ? "成功" : "失敗", CsvExternal(item.Error ?? "")));
+            writer.WriteLine(string.Join(",", CsvExternal(plan.Team.DisplayName), Csv(SyncModeLabel(plan.Mode)),
+                Csv(OperationLabel(item.Kind)),
+                CsvExternal(item.DisplayName), CsvExternal(item.Email), item.Succeeded ? "成功" : "失敗",
+                CsvExternal(item.Error ?? "")));
+        }
+
+        return path;
+    }
+
+    /// <summary>同期モードを利用者向けの日本語へ変換する。</summary>
+    private static string SyncModeLabel(SyncMode mode)
+    {
+        return mode switch
+        {
+            SyncMode.AddOnly => "追加のみ",
+            SyncMode.RemoveSpecified => "指定メンバーを削除",
+            SyncMode.FullSync => "完全同期",
+            _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "未対応の同期モードです。")
+        };
+    }
+
+    /// <summary>実行した操作を利用者向けの日本語へ変換する。</summary>
+    private static string OperationLabel(ChangeKind kind)
+    {
+        return kind switch
+        {
+            ChangeKind.Add => "追加",
+            ChangeKind.Remove => "削除",
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "実行結果に未対応の操作種別が含まれています。")
+        };
+    }
+
+    /// <summary>既存ファイルを上書きせず、衝突時は連番を付けた別名で新規作成する。</summary>
+    private FileStream CreateUniqueFile(string stem, out string path)
+    {
+        for (int suffix = 1;; suffix++)
+        {
+            string fileName = suffix == 1 ? $"{stem}.csv" : $"{stem}_{suffix}.csv";
+            path = Path.Combine(_logDirectory, fileName);
+            try
+            {
+                return new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read);
+            }
+            catch (IOException) when (File.Exists(path))
+            {
+                // 同名ログが既にある場合だけ別名を試す。ディスク障害などのIOExceptionは呼び出し元へ返す。
+            }
         }
     }
 

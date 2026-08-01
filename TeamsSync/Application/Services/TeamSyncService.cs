@@ -332,7 +332,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
                 await teamsGateway.RemoveMemberAsync(teamId, change.MembershipId!, cancellationToken);
             }
 
-            results.Add(new SyncOperationResult(change.Kind, change.Email, true, null));
+            results.Add(new SyncOperationResult(change.Kind, change.Email, true, null, change.DisplayName));
             _logger.LogInformation("MemberOperationSucceeded Kind={Kind} TargetObjectId={TargetObjectId}",
                 change.Kind, targetObjectId);
             progress?.Report(new SyncProgress(index + 1, totalOperations, change.Kind, change.Email));
@@ -349,7 +349,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         }
         catch (Exception ex)
         {
-            results.Add(new SyncOperationResult(change.Kind, change.Email, false, ex.Message));
+            results.Add(new SyncOperationResult(change.Kind, change.Email, false, ex.Message, change.DisplayName));
             _logger.LogWarning(
                 "MemberOperationFailed Kind={Kind} TargetObjectId={TargetObjectId} ErrorType={ErrorType}",
                 change.Kind, targetObjectId, ex.GetType().Name);

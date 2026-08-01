@@ -94,11 +94,15 @@ internal sealed class RecordingNotificationService : INotificationService
 {
     public string? ErrorMessage { get; private set; }
     public string? ErrorTitle { get; private set; }
+    public string? SuccessMessage { get; private set; }
+    public string? SuccessTitle { get; private set; }
     public string? WarningMessage { get; private set; }
     public string? WarningTitle { get; private set; }
 
     public void ShowSuccess(string title, string message)
     {
+        SuccessTitle = title;
+        SuccessMessage = message;
     }
 
     public void ShowWarning(string title, string message)
@@ -189,13 +193,16 @@ internal sealed class BlockingTextParser : IMemberTextParser
 internal sealed class FakeResultWriter : ISyncResultWriter
 {
     public Exception? Exception { get; set; }
+    public string ResultPath { get; set; } = @"C:\Logs\result.csv";
 
-    public void WriteAutoLog(SyncPlan plan, SyncExecutionResult result)
+    public string WriteAutoLog(SyncPlan plan, SyncExecutionResult result, Guid executionId)
     {
         if (Exception is not null)
         {
             throw Exception;
         }
+
+        return ResultPath;
     }
 }
 

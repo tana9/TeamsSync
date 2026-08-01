@@ -185,7 +185,7 @@ CommunityToolkit.Mvvmを利用したMVVMと、DDDの依存方向を意識した�
 - WPF UI ContentDialogによる対象チーム・ファイル・件数の最終確認
 - 件数ベースの進捗バー、現在の操作、キャンセル
 - 完了・一部失敗・中止をSnackbarで通知し、結果は画面に保持
-- 同期結果CSVの保存
+- 同期結果CSVを`%LocalAppData%\TeamsSync\Logs`へ一意な名前で自動保存し、画面のリンクから開く
 - 前回のファイル保存先フォルダをLocalApplicationDataの`TeamsSync/preferences.json`へ保存
   (誤操作防止のため、同期先チームは毎回明示的に選択する必要があります)
 - Windowsのアクセントカラーに追従（テーマは常にライト固定、ダーク・ハイコントラストへの自動切替は非対応）

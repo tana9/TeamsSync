@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Documents;
 
 using Microsoft.Extensions.Logging;
 
@@ -27,6 +28,67 @@ public sealed class WpfNotificationService(
     public void ShowWarning(string title, string message)
     {
         snackbars.Show(title, message, ControlAppearance.Caution, TimeSpan.FromSeconds(8));
+    }
+
+    public void ShowSuccessWithAction(string title, string message, string actionText, Action action)
+    {
+        ShowWithAction(title, message, actionText, action, ControlAppearance.Success, TimeSpan.FromSeconds(8));
+    }
+
+    public void ShowWarningWithAction(string title, string message, string actionText, Action action)
+    {
+        ShowWithAction(title, message, actionText, action, ControlAppearance.Caution, TimeSpan.FromSeconds(10));
+    }
+
+    private void ShowWithAction(string title, string message, string actionText, Action action,
+        ControlAppearance appearance, TimeSpan timeout)
+    {
+        snackbars.Show(title, message, appearance, timeout);
+        Snackbar? snackbar = snackbars.GetSnackbarPresenter()?.Content;
+        if (snackbar is null)
+        {
+            return;
+        }
+        Grid content = new();
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        TextBlock messageText = new()
+        {
+            Text = message,
+            TextWrapping = TextWrapping.Wrap,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        content.Children.Add(messageText);
+        TextBlock actionTextBlock = new()
+        {
+            Margin = new Thickness(12, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Hyperlink actionLink = new();
+        AutomationProperties.SetName(actionLink, actionText);
+        actionLink.Inlines.Add(new InlineUIContainer(new SymbolIcon
+        {
+            Symbol = SymbolRegular.DocumentCsv24,
+            FontSize = 16,
+            Margin = new Thickness(0, 0, 4, 0)
+        }));
+        actionLink.Inlines.Add(new Run(actionText));
+        actionLink.Click += (_, _) =>
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Snackbarのアクション実行に失敗しました。Title={Title}", title);
+                ShowWarning("ファイルを開けませんでした", ex.Message);
+            }
+        };
+        actionTextBlock.Inlines.Add(actionLink);
+        Grid.SetColumn(actionTextBlock, 1);
+        content.Children.Add(actionTextBlock);
+        snackbar.Content = content;
     }
 
     public Task ShowErrorAsync(string message, string title = "エラー", Action? onClosed = null)

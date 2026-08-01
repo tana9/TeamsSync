@@ -98,6 +98,15 @@
                 <TextBlock Text="{Binding SyncWorkspace.ResultRemainingText}" FontSize="12" Margin="22,2,0,0"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                            Visibility="{Binding SyncWorkspace.HasResultRemainingCount, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <TextBlock Margin="22,4,0,0" FontSize="12"
+                           Visibility="{Binding SyncWorkspace.HasResultLog, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Run Text="実行ログを保存しました: " />
+                    <Hyperlink NavigateUri="{Binding SyncWorkspace.ResultLogPath}"
+                               RequestNavigate="OpenResultLog"
+                               ToolTip="同期結果CSVを既定のアプリで開く">
+                        <Run Text="同期結果CSVを開く" />
+                    </Hyperlink>
+                </TextBlock>
 
                 <!-- 失敗した操作だけを一覧化し、原因(Error)と次に行うことを併記する。
                      差分DataGridの「エラーのみ表示」と同様、成功分を除いた「絞り込み済み」の一覧として見せる。 -->

@@ -68,8 +68,8 @@ public interface IMemberTextParser
 /// <summary>同期結果をログファイルへ自動的に記録する。</summary>
 public interface ISyncResultWriter
 {
-    /// <summary>同期プランと実行結果を、日時と対象チーム名をファイル名としてログファイルへ書き出す。</summary>
-    void WriteAutoLog(SyncPlan plan, SyncExecutionResult result);
+    /// <summary>同期プランと実行結果を一意なログファイルへ書き出し、保存したファイルのフルパスを返す。</summary>
+    string WriteAutoLog(SyncPlan plan, SyncExecutionResult result, Guid executionId);
 }
 
 /// <summary>ユーザーごとの永続設定(最終利用フォルダーなど)を扱う。</summary>
