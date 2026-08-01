@@ -140,12 +140,6 @@ public sealed class DemoTeamsGateway : ITeamsGateway
     }
 }
 
-internal sealed class DemoConfirmationService : ISyncConfirmationService
-{
-    public Task<bool> ConfirmSyncAsync(SyncConfirmation confirmation,
-        CancellationToken cancellationToken = default) => Task.FromResult(true);
-}
-
 internal sealed class DemoUserPreferences : IUserPreferences
 {
     public string? LastFolder { get; set; }
