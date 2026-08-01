@@ -112,7 +112,7 @@
                         </TextBlock>
                         <StackPanel Grid.Column="1" Orientation="Horizontal">
                             <ui:ProgressRing Width="16" Height="16" Margin="8,0" IsIndeterminate="True"
-                                             Visibility="{Binding Import.IsImportingMembers, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                             Visibility="{Binding Import.IsFetchingMembers, Converter={StaticResource BooleanToVisibilityConverter}}"
                                              AutomationProperties.Name="現在のチームメンバーを取得中" />
                             <ui:Button Content="現在のメンバーを取り込む" Command="{Binding Import.ImportCurrentMembersCommand}"
                                        Icon="{ui:SymbolIcon Symbol=PeopleTeam24}" Appearance="Secondary"

@@ -19,7 +19,21 @@ public partial class TeamMemberImportViewModel : ObservableObject
     private TeamInfo? _selectedTeam;
 
     /// <summary>現在のチームメンバーを取得中かどうか。</summary>
-    [ObservableProperty] public partial bool IsImportingMembers { get; set; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsFetchingMembers))]
+    public partial bool IsImportingMembers { get; set; }
+
+    // 置き換え確認ダイアログの応答待ちの間は、Graph API通信自体は完了しているため取得中の
+    // 進捗表示(ProgressRing)を出し続けると「まだ何か処理中」と誤解される。取り込みコマンドの
+    // 実行不可・キャンセル可能といった他の状態はIsImportingMembers側に残したまま、
+    // 進捗表示の可視性だけをこのプロパティで分けて制御する。
+    /// <summary>置き換え確認ダイアログの応答待ちかどうか。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsFetchingMembers))]
+    public partial bool IsAwaitingConfirmation { get; set; }
+
+    /// <summary>取得中の進捗表示を出すべきかどうか(確認ダイアログの応答待ち中は除く)。</summary>
+    public bool IsFetchingMembers => IsImportingMembers && !IsAwaitingConfirmation;
 
     /// <summary>
     /// コンストラクター。<paramref name="canImport"/>には入力欄側(ファイル読込中・解析中・
@@ -89,10 +103,21 @@ public partial class TeamMemberImportViewModel : ObservableObject
                 return;
             }
 
-            if (_hasExistingInput() &&
-                !await _inputConfirmation.ConfirmReplaceMemberInputAsync(
-                    team.DisplayName, importedMembers.Count, cts.Token))
-                return;
+            if (_hasExistingInput())
+            {
+                IsAwaitingConfirmation = true;
+                bool confirmed;
+                try
+                {
+                    confirmed = await _inputConfirmation.ConfirmReplaceMemberInputAsync(
+                        team.DisplayName, importedMembers.Count, cts.Token);
+                }
+                finally
+                {
+                    IsAwaitingConfirmation = false;
+                }
+                if (!confirmed) return;
+            }
 
             if (_selectedTeam?.Id != team.Id)
             {
