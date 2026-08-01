@@ -10,6 +10,31 @@ namespace TeamsSync.Tests.Unit.Presentation;
 public sealed class MainWindowViewModelTests
 {
     [Fact]
+    public async Task SignIn_接続診断はGraphの読み取り経路を確認して件数を通知する()
+    {
+        FakeTeamsGateway gateway = new()
+        {
+            OwnedTeams = [new TeamInfo("team-1", "開発", null)],
+            Members = [new TeamMember("membership", "user", "User", "user@example.com", false)]
+        };
+        gateway.Users["current@example.com"] =
+            new DirectoryUser("current-user", "Current User", "current@example.com", "current@example.com");
+        string status = "";
+        SignInViewModel viewModel = new(new FakeAuthenticationService(), gateway, new FakeDialogs(),
+            (message, _) => status = message, _ => Task.CompletedTask)
+        {
+            IsSignedIn = true
+        };
+
+        await viewModel.RunDiagnosticsCommand.ExecuteAsync(null);
+
+        Assert.Contains("接続診断に成功しました", status);
+        Assert.Contains("所有チーム 1件", status);
+        Assert.Contains("メンバー 1件", status);
+        Assert.Contains("検索結果 1件", status);
+    }
+
+    [Fact]
     public void MainWindow_IsNotSignedIn_初期状態でtrueでありサインイン後にfalseになる()
     {
         FakeTeamsGateway gateway = new();

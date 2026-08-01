@@ -33,7 +33,9 @@ public sealed class DemoTeamsGateway : ITeamsGateway
         new("user-hanako", "鈴木 花子", "hanako@example.com", "hanako@example.com"),
         new("user-long", "とても長い表示名を持つレイアウト確認用ユーザー", "long.user@example.com", "long.user@example.com"),
         new("user-new", "高橋 新規", "new.member@example.com", "new.member@example.com"),
-        new("user-second", "田中 追加", "second.new@example.com", "second.new@example.com")
+        new("user-second", "田中 追加", "second.new@example.com", "second.new@example.com"),
+        new("user-same-1", "同姓 同名", "same.one@example.com", "same.one@example.com"),
+        new("user-same-2", "同姓 同名", "same.two@example.com", "same.two@example.com")
     ];
 
     private readonly object _gate = new();
@@ -61,6 +63,9 @@ public sealed class DemoTeamsGateway : ITeamsGateway
     ];
 
     public string? FailingUserId { get; set; }
+    public TimeSpan OperationDelay { get; set; }
+    public string? ThrottledIdentifier { get; set; }
+    private bool _throttleHandled;
 
     public Task<(string Id, string DisplayName, string UserPrincipalName)> GetMeAsync(
         CancellationToken cancellationToken = default)
@@ -85,10 +90,16 @@ public sealed class DemoTeamsGateway : ITeamsGateway
         }
     }
 
-    public Task<IReadOnlyList<DirectoryUser>> FindUsersAsync(string identifier,
+    public async Task<IReadOnlyList<DirectoryUser>> FindUsersAsync(string identifier,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (!_throttleHandled && string.Equals(ThrottledIdentifier, identifier, StringComparison.OrdinalIgnoreCase))
+        {
+            _throttleHandled = true;
+            await Task.Delay(1200, cancellationToken);
+        }
+
         string normalized = identifier.Replace(" ", "", StringComparison.Ordinal)
             .Replace("　", "", StringComparison.Ordinal);
         IReadOnlyList<DirectoryUser> result = _directory.Where(user =>
@@ -97,13 +108,17 @@ public sealed class DemoTeamsGateway : ITeamsGateway
                 string.Equals(user.DisplayName.Replace(" ", "", StringComparison.Ordinal)
                     .Replace("　", "", StringComparison.Ordinal), normalized, StringComparison.OrdinalIgnoreCase))
             .ToList();
-        return Task.FromResult(result);
+        return result;
     }
 
-    public Task AddMemberAsync(string teamId, string userId,
+    public async Task AddMemberAsync(string teamId, string userId,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (OperationDelay > TimeSpan.Zero)
+        {
+            await Task.Delay(OperationDelay, cancellationToken);
+        }
         if (string.Equals(FailingUserId, userId, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException("Harnessで再現したメンバー追加エラーです。");
@@ -121,7 +136,6 @@ public sealed class DemoTeamsGateway : ITeamsGateway
             }
         }
 
-        return Task.CompletedTask;
     }
 
     public Task RemoveMemberAsync(string teamId, string membershipId,
@@ -155,6 +169,9 @@ public sealed class DemoTeamsGateway : ITeamsGateway
                 new TeamMember("long-member-membership", "user-taro", "山田 太郎", "taro@example.com", false)
             ];
             FailingUserId = null;
+            OperationDelay = TimeSpan.Zero;
+            ThrottledIdentifier = null;
+            _throttleHandled = false;
         }
     }
 }

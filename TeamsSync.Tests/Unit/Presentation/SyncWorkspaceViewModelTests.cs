@@ -440,6 +440,16 @@ public sealed class SyncWorkspaceViewModelTests
         Assert.Equal("削除", failed.KindLabel);
         Assert.Equal("old@example.com", failed.Email);
         Assert.Equal("remove failed", failed.Error);
+        Assert.True(viewModel.CanRetryResult);
+        Assert.True(viewModel.RetryRemainingCommand.CanExecute(null));
+
+        string? status = null;
+        viewModel.StatusChanged += (message, _) => status = message;
+        await viewModel.RetryRemainingCommand.ExecuteAsync(null);
+
+        Assert.Equal("最新状態から未反映分を再プレビューしました", status);
+        Assert.Contains(viewModel.Changes,
+            change => change.Kind == ChangeKind.Remove && change.Email == "old@example.com");
     }
 
     [Fact]

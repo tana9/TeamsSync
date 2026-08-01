@@ -20,6 +20,15 @@ public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultW
     private readonly string _logDirectory = logDirectory ?? Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TeamsSync", "Logs");
 
+    /// <inheritdoc />
+    public void VerifyWriteAccess()
+    {
+        Directory.CreateDirectory(_logDirectory);
+        string probePath = Path.Combine(_logDirectory, $".write-test-{Guid.NewGuid():N}.tmp");
+        using FileStream _ = new(probePath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1,
+            FileOptions.DeleteOnClose);
+    }
+
     /// <summary>
     ///     同期実行結果を、チーム名・モード・操作種別・アドレス・成否・エラーの列を持つCSVとして
     ///     実行日時・実行ID・対象チーム名を含む一意なファイル名でログフォルダーへ書き出す。

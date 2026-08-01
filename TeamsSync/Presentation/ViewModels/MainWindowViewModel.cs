@@ -19,14 +19,14 @@ public partial class MainWindowViewModel : ObservableObject
     public MainWindowViewModel(IAuthenticationService authentication, ITeamsGateway teamsGateway,
         INotificationService dialogs, IUserPreferences preferences,
         TeamSelectionViewModel teamSelection, MemberFileViewModel memberFile, SyncWorkspaceViewModel syncWorkspace,
-        ManualViewModel manual)
+        ManualViewModel manual, ISyncResultWriter? resultWriter = null)
     {
         TeamSelection = teamSelection;
         MemberFile = memberFile;
         SyncWorkspace = syncWorkspace;
         Manual = manual;
         SignIn = new SignInViewModel(authentication, teamsGateway, dialogs, SetStatus,
-            userId => TeamSelection.InitializeAsync(userId));
+            userId => TeamSelection.InitializeAsync(userId), resultWriter);
         WorkflowSteps = new WorkflowStepsViewModel(SignIn, TeamSelection, MemberFile, SyncWorkspace);
 
         // SelectedTeam/IsBusyはMVVM Toolkitの[ObservableProperty]が自動でPropertyChangedを発行するため、

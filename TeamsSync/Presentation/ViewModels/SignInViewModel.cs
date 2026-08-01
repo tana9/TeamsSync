@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 using TeamsSync.Application.Abstractions;
+using TeamsSync.Domain.Teams;
 using TeamsSync.Presentation.Services;
 
 namespace TeamsSync.Presentation.ViewModels;
@@ -14,6 +15,7 @@ public partial class SignInViewModel : ObservableObject
     private readonly IAuthenticationService _authentication;
     private readonly BusyOperationRunner _busyRunner;
     private readonly Func<string, Task> _initializeTeamsAsync;
+    private readonly ISyncResultWriter? _resultWriter;
     private readonly Action<string, bool> _reportStatus;
     private readonly ITeamsGateway _teamsGateway;
     private bool _externallyBusy;
@@ -23,12 +25,14 @@ public partial class SignInViewModel : ObservableObject
     ///     ユーザーIDでチーム選択を初期化する処理を渡す(サインインと同じ処理中表示・エラー処理の対象にするため)。
     /// </summary>
     public SignInViewModel(IAuthenticationService authentication, ITeamsGateway teamsGateway,
-        INotificationService notifications, Action<string, bool> reportStatus, Func<string, Task> initializeTeamsAsync)
+        INotificationService notifications, Action<string, bool> reportStatus, Func<string, Task> initializeTeamsAsync,
+        ISyncResultWriter? resultWriter = null)
     {
         _authentication = authentication;
         _teamsGateway = teamsGateway;
         _reportStatus = reportStatus;
         _initializeTeamsAsync = initializeTeamsAsync;
+        _resultWriter = resultWriter;
         _busyRunner = new BusyOperationRunner(notifications, reportStatus, value => IsBusy = value);
     }
 
@@ -39,12 +43,14 @@ public partial class SignInViewModel : ObservableObject
     /// <summary>サインイン・サインアウト処理の実行中かどうか。</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SignInCommand), nameof(SignOutCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RunDiagnosticsCommand))]
     public partial bool IsBusy { get; set; }
 
     /// <summary>サインイン済みかどうか。</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsNotSignedIn))]
     [NotifyCanExecuteChangedFor(nameof(SignInCommand), nameof(SignOutCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RunDiagnosticsCommand))]
     public partial bool IsSignedIn { get; set; }
 
     /// <summary>未サインインかどうか(<see cref="IsSignedIn" />の否定)。</summary>
@@ -64,7 +70,39 @@ public partial class SignInViewModel : ObservableObject
     {
         _externallyBusy = value;
         SignOutCommand.NotifyCanExecuteChanged();
+        RunDiagnosticsCommand.NotifyCanExecuteChanged();
     }
+
+    /// <summary>Graphの読み取り権限と主要APIへの接続を、データを変更せず確認する。</summary>
+    [RelayCommand(CanExecute = nameof(CanRunDiagnostics))]
+    private async Task RunDiagnosticsAsync()
+    {
+        await _busyRunner.RunAsync(async () =>
+        {
+            var me = await _teamsGateway.GetMeAsync();
+            IReadOnlyList<TeamInfo> teams = await _teamsGateway.GetOwnedTeamsAsync(me.Id);
+            int memberCount = 0;
+            if (teams.Count > 0)
+            {
+                memberCount = (await _teamsGateway.GetTeamMembersAsync(teams[0].Id)).Count;
+            }
+
+            IReadOnlyList<DirectoryUser> users =
+                await _teamsGateway.FindUsersAsync(me.UserPrincipalName);
+            string logStatus = "ログ保存先 未確認";
+            if (_resultWriter is not null)
+            {
+                _resultWriter.VerifyWriteAccess();
+                logStatus = "ログ保存先 書き込み可";
+            }
+
+            _reportStatus(
+                $"接続診断に成功しました（所有チーム {teams.Count}件／先頭チームのメンバー {memberCount}件／自分の検索結果 {users.Count}件／{logStatus}）",
+                false);
+        });
+    }
+
+    private bool CanRunDiagnostics() => IsSignedIn && !IsBusy && !_externallyBusy;
 
     /// <summary>対話型サインインを行い、自身の情報を取得してチーム選択を初期化する。</summary>
     [RelayCommand(CanExecute = nameof(CanSignIn))]

@@ -14,6 +14,7 @@ namespace TeamsSync.Presentation.Services;
 public sealed class WpfSyncConfirmationService(
     IContentDialogService contentDialogs) : ISyncConfirmationService
 {
+    private const int VisibleRemovalTargetCount = 10;
     /// <summary>
     ///     対象チーム・件数内訳・入力元を表示する確認ダイアログを表示する。
     /// </summary>
@@ -32,7 +33,7 @@ public sealed class WpfSyncConfirmationService(
             content.Children.Add(BuildRemovalWarningBox(plan));
         }
 
-        if (plan.Mode == SyncMode.RemoveSpecified && plan.RemoveCount > 0)
+        if (plan.RemoveCount > 0)
         {
             content.Children.Add(BuildRemovalTargets(plan));
         }
@@ -131,14 +132,19 @@ public sealed class WpfSyncConfirmationService(
     /// <summary>指定削除で実際に削除する対象者を、最終確認ダイアログへ一覧表示する。</summary>
     private static UIElement BuildRemovalTargets(SyncPlan plan)
     {
-        IEnumerable<string> targets = plan.Changes.Where(change => change.Kind == ChangeKind.Remove)
+        List<string> targets = plan.Changes.Where(change => change.Kind == ChangeKind.Remove)
             .Select(change => string.IsNullOrWhiteSpace(change.DisplayName)
                 ? change.Email
-                : $"{change.DisplayName}（{change.Email}）");
+                : $"{change.DisplayName}（{change.Email}）")
+            .ToList();
+        IEnumerable<string> visibleTargets = targets.Take(VisibleRemovalTargetCount);
+        string remainder = targets.Count > VisibleRemovalTargetCount
+            ? $"{Environment.NewLine}ほか {targets.Count - VisibleRemovalTargetCount}名（差分一覧で確認できます）"
+            : "";
         return new TextBlock
         {
             Text =
-                $"削除対象:{Environment.NewLine}{string.Join(Environment.NewLine, targets.Select(target => $"・{target}"))}",
+                $"削除対象:{Environment.NewLine}{string.Join(Environment.NewLine, visibleTargets.Select(target => $"・{target}"))}{remainder}",
             Margin = new Thickness(0, 10, 0, 0),
             TextWrapping = TextWrapping.Wrap
         };

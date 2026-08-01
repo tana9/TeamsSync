@@ -141,6 +141,12 @@
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                     </StackPanel>
                 </Border>
+                <ui:Button Content="失敗・未実行分を再確認"
+                           Command="{Binding SyncWorkspace.RetryRemainingCommand}"
+                           Icon="{ui:SymbolIcon Symbol=ArrowClockwise24}"
+                           HorizontalAlignment="Left" Margin="22,8,0,0"
+                           Visibility="{Binding SyncWorkspace.CanRetryResult, Converter={StaticResource BooleanToVisibilityConverter}}"
+                           AutomationProperties.Name="最新状態から失敗または未実行分を再確認" />
             </StackPanel>
         </Border>
     </Grid>

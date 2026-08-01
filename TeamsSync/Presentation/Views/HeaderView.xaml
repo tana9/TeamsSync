@@ -54,6 +54,9 @@
                 </ui:DropDownButton.Style>
                 <ui:DropDownButton.Flyout>
                     <ContextMenu>
+                        <MenuItem Header="接続診断" Icon="{ui:SymbolIcon Symbol=Pulse24}"
+                                  Command="{Binding PlacementTarget.DataContext.SignIn.RunDiagnosticsCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                        <Separator />
                         <MenuItem Header="サインアウト" Icon="{ui:SymbolIcon Symbol=SignOut20}"
                                   Command="{Binding PlacementTarget.DataContext.SignIn.SignOutCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                     </ContextMenu>

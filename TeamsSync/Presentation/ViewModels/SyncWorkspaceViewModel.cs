@@ -59,6 +59,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
     /// <summary>差分確認・再検証などの処理中かどうか。</summary>
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RetryRemainingCommand))]
     public partial bool IsBusy { get; set; }
 
     /// <summary>削除警告(InfoBar)を表示中かどうか。</summary>
@@ -67,6 +68,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
     /// <summary>同期の実行中かどうか。</summary>
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RetryRemainingCommand))]
     public partial bool IsSyncing { get; set; }
 
     /// <summary>差分確認の進捗の最大値。</summary>
@@ -106,6 +108,8 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
     /// <summary>一度でも同期を実行したかどうか。</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanRetryResult))]
+    [NotifyCanExecuteChangedFor(nameof(RetryRemainingCommand))]
     public partial bool HasSyncResult { get; set; }
 
     // Snackbar(一時通知)が消えた後も成功・失敗・未反映件数を画面内に残すための実行結果サマリー。
@@ -115,10 +119,14 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
     /// <summary>直近の同期実行における失敗件数。</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanRetryResult))]
+    [NotifyCanExecuteChangedFor(nameof(RetryRemainingCommand))]
     public partial int ResultFailureCount { get; set; }
 
     /// <summary>直近の同期実行がキャンセルされたかどうか。</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanRetryResult))]
+    [NotifyCanExecuteChangedFor(nameof(RetryRemainingCommand))]
     public partial bool ResultCancelled { get; set; }
 
     /// <summary>直近の同期実行結果を保存したCSVファイルのフルパス。保存失敗時は空文字。</summary>
@@ -131,6 +139,8 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
     /// <summary>同期後もTeams側に反映が残っている件数。-1は最終状態を未確認であることを表す。</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanRetryResult))]
+    [NotifyCanExecuteChangedFor(nameof(RetryRemainingCommand))]
     public partial int ResultRemainingCount { get; set; } = -1; // -1: 最終状態を未確認(再取得前または再取得失敗)
 
     /// <summary>差分一覧に適用中の絞り込みフィルター。</summary>
@@ -184,6 +194,10 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
     /// <summary>失敗した操作が1件以上あるかどうか。</summary>
     public bool HasFailedResults => FailedResults.Count > 0;
+
+    /// <summary>失敗・キャンセル・未反映があり、最新状態から再プレビューできるかどうか。</summary>
+    public bool CanRetryResult => HasSyncResult &&
+                                  (ResultFailureCount > 0 || ResultCancelled || ResultRemainingCount > 0);
 
     /// <summary>直近の同期実行で処理済みの件数(成功+失敗)。</summary>
     public int ResultProcessedCount => ResultSuccessCount + ResultFailureCount;
@@ -580,6 +594,16 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             StatusChanged?.Invoke("最終状態を確認できませんでした。差分を再確認してください", true);
         }
     }
+
+    /// <summary>部分失敗やキャンセル後に、Graphの最新状態から未反映分を再計画する。</summary>
+    [RelayCommand(CanExecute = nameof(CanRetryRemaining))]
+    private async Task RetryRemainingAsync()
+    {
+        await PreviewAsync();
+        StatusChanged?.Invoke("最新状態から未反映分を再プレビューしました", false);
+    }
+
+    private bool CanRetryRemaining() => CanRetryResult && CanPreview();
 
     /// <summary>同期結果とログ保存を1つのSnackbarで通知し、保存成功時はCSVを開く操作を付ける。</summary>
     private void ShowResultNotification(bool warning, string title, string message)

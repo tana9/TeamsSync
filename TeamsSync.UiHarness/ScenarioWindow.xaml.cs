@@ -28,6 +28,12 @@ public partial class ScenarioWindow
                 "hanako@example.com", SyncMode.RemoveSpecified),
             new DemoScenario("未解決ユーザー", "存在しないメールアドレスによるエラー行と実行不可状態です。", "demo-team",
                 "unknown.user@example.com", SyncMode.AddOnly),
+            new DemoScenario("所有者保護", "所有者を削除対象にせず保護するケースです。", "demo-team",
+                "owner@example.com", SyncMode.RemoveSpecified),
+            new DemoScenario("同姓同名", "同じ表示名のユーザーが複数いて特定できないケースです。", "demo-team",
+                "同姓 同名", SyncMode.AddOnly),
+            new DemoScenario("429再試行", "Graphのスロットリング待機後に検索が成功するケースを疑似再現します。", "demo-team",
+                "new.member@example.com", SyncMode.AddOnly, false, null, false, "new.member@example.com"),
             new DemoScenario("長い表示内容", "長いチーム名・表示名を使って折り返しとDPI拡大を確認します。", "long-team",
                 "とても長い表示名を持つレイアウト確認用ユーザー <long.user@example.com>\nsecond.new@example.com", SyncMode.AddOnly),
             new DemoScenario("同期成功結果", "追加処理を実行し、成功サマリーと保存ボタンを表示します。", "demo-team",
@@ -35,7 +41,12 @@ public partial class ScenarioWindow
                 true),
             new DemoScenario("同期一部失敗", "2件の追加のうち1件を失敗させ、失敗一覧を表示します。", "demo-team",
                 "taro@example.com\nhanako@example.com\nlong.user@example.com\nnew.member@example.com\nsecond.new@example.com",
-                SyncMode.AddOnly, true, "user-second")
+                SyncMode.AddOnly, true, "user-second"),
+            new DemoScenario("途中キャンセル", "遅い追加処理を開始し、途中でキャンセルして未実行表示と再確認導線を確認します。", "demo-team",
+                "new.member@example.com\nsecond.new@example.com", SyncMode.AddOnly, true, null, true),
+            new DemoScenario("大量入力", "1,000件の未解決入力で進捗表示と大量行レイアウトを確認します。", "demo-team",
+                string.Join('\n', Enumerable.Range(1, 1000).Select(index => $"load{index}@example.invalid")),
+                SyncMode.AddOnly)
         ];
         SelectedScenario = Scenarios[0];
         DataContext = this;
@@ -54,6 +65,8 @@ public partial class ScenarioWindow
         {
             _gateway.Reset();
             _gateway.FailingUserId = scenario.FailingUserId;
+            _gateway.OperationDelay = scenario.CancelDuringExecution ? TimeSpan.FromSeconds(2) : TimeSpan.Zero;
+            _gateway.ThrottledIdentifier = scenario.ThrottledIdentifier;
             _viewModel.TeamSelection.SelectedTeam = _viewModel.TeamSelection.Teams
                 .Single(team => team.Id == scenario.TeamId);
             _viewModel.SyncWorkspace.SelectedMode = _viewModel.SyncWorkspace.Modes
@@ -69,7 +82,23 @@ public partial class ScenarioWindow
             await _viewModel.SyncWorkspace.PreviewCommand.ExecuteAsync(null);
             if (scenario.Execute)
             {
-                await _viewModel.SyncWorkspace.ExecuteSyncCommand.ExecuteAsync(null);
+                Task execution = _viewModel.SyncWorkspace.ExecuteSyncCommand.ExecuteAsync(null);
+                if (scenario.CancelDuringExecution)
+                {
+                    for (int attempt = 0; attempt < 600 && !execution.IsCompleted &&
+                         !_viewModel.SyncWorkspace.IsSyncing; attempt++)
+                    {
+                        await Task.Delay(100);
+                    }
+
+                    if (_viewModel.SyncWorkspace.IsSyncing)
+                    {
+                        await Task.Delay(250);
+                        _viewModel.SyncWorkspace.CancelCommand.Execute(null);
+                    }
+                }
+
+                await execution;
             }
         }
         finally
@@ -94,4 +123,6 @@ public sealed record DemoScenario(
     string Input,
     SyncMode Mode,
     bool Execute = false,
-    string? FailingUserId = null);
+    string? FailingUserId = null,
+    bool CancelDuringExecution = false,
+    string? ThrottledIdentifier = null);

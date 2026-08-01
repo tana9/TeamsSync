@@ -70,6 +70,11 @@ public interface ISyncResultWriter
 {
     /// <summary>同期プランと実行結果を一意なログファイルへ書き出し、保存したファイルのフルパスを返す。</summary>
     string WriteAutoLog(SyncPlan plan, SyncExecutionResult result, Guid executionId);
+
+    /// <summary>ログ保存先を作成し、一時ファイルへ書き込めることを確認する。</summary>
+    void VerifyWriteAccess()
+    {
+    }
 }
 
 /// <summary>ユーザーごとの永続設定(最終利用フォルダーなど)を扱う。</summary>
