@@ -45,7 +45,7 @@ public sealed class MemberFileReaderTests : IDisposable
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
             new MemberListReader().Read(path, CancellationToken.None));
 
-        Assert.Contains("展開後サイズ", exception.Message);
+        Assert.Contains("MBまで", exception.Message);
     }
 
     [Fact]

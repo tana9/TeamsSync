@@ -21,6 +21,9 @@ internal static class MemberFileSecurityValidator
     public const int MaximumColumns = 200;
 
     public const long MaximumExpandedArchiveBytes = 100 * 1024 * 1024;
+    public const int MaximumArchiveEntries = 1000;
+    public const long MaximumArchiveEntryBytes = 50 * 1024 * 1024;
+    public const int MaximumCompressionRatio = 1000;
 
     /// <summary>ファイルサイズが上限内であることを検証する。</summary>
     public static void EnsureFileSizeWithinLimit(long lengthBytes)
@@ -72,10 +75,17 @@ internal static class MemberFileSecurityValidator
     public static void ValidateExcelArchive(Stream stream, CancellationToken cancellationToken)
     {
         using ZipArchive archive = new(stream, ZipArchiveMode.Read);
+        if (archive.Entries.Count > MaximumArchiveEntries)
+            throw new InvalidDataException($"ExcelのZIPエントリー数は{MaximumArchiveEntries:N0}件までです。");
         long expandedBytes = 0;
         foreach (ZipArchiveEntry entry in archive.Entries)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (entry.Length > MaximumArchiveEntryBytes)
+                throw new InvalidDataException($"Excel内の単一ファイルは{MaximumArchiveEntryBytes / 1024 / 1024:N0}MBまでです。");
+            if (entry.Length > 0 && entry.CompressedLength == 0 ||
+                entry.CompressedLength > 0 && entry.Length / entry.CompressedLength > MaximumCompressionRatio)
+                throw new InvalidDataException("Excel内に圧縮率が異常に高いファイルが含まれています。");
             if (entry.Length > MaximumExpandedArchiveBytes - expandedBytes)
             {
                 throw new InvalidDataException(
