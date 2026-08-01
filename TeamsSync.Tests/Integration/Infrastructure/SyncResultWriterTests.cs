@@ -142,9 +142,9 @@ public sealed class SyncResultWriterTests : IDisposable
     {
         SyncPlan plan = new(new TeamInfo("team-id", "営業チーム", null),
         [
-            new SyncChange(ChangeKind.Add, "実行済み", "done@example.com", "", "done-id"),
-            new SyncChange(ChangeKind.Remove, "未実行1", "pending1@example.com", "", "user-1", "membership-1"),
-            new SyncChange(ChangeKind.Add, "未実行2", "pending2@example.com", "", "pending-2")
+            new SyncChange(ChangeKind.Add, "実行済み", "done@example.com", ChangeReason.Unspecified, "done-id"),
+            new SyncChange(ChangeKind.Remove, "未実行1", "pending1@example.com", ChangeReason.Unspecified, "user-1", "membership-1"),
+            new SyncChange(ChangeKind.Add, "未実行2", "pending2@example.com", ChangeReason.Unspecified, "pending-2")
         ], ["done@example.com", "pending2@example.com"]);
         SyncExecutionResult result = new(
             [new SyncOperationResult(ChangeKind.Add, "done@example.com", true, null, "実行済み")], true);
@@ -162,8 +162,8 @@ public sealed class SyncResultWriterTests : IDisposable
     {
         SyncPlan plan = new(new TeamInfo("team-id", "営業チーム", null),
         [
-            new SyncChange(ChangeKind.Add, "失敗", "failed@example.com", "", "failed-id"),
-            new SyncChange(ChangeKind.Add, "成功", "success@example.com", "", "success-id")
+            new SyncChange(ChangeKind.Add, "失敗", "failed@example.com", ChangeReason.Unspecified, "failed-id"),
+            new SyncChange(ChangeKind.Add, "成功", "success@example.com", ChangeReason.Unspecified, "success-id")
         ], ["failed@example.com", "success@example.com"]);
         SyncExecutionResult result = new(
         [

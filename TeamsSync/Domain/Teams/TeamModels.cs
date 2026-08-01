@@ -4,14 +4,7 @@ namespace TeamsSync.Domain.Teams;
 /// <param name="Id">チームのオブジェクトID。</param>
 /// <param name="DisplayName">表示名。</param>
 /// <param name="Description">チームの説明(未設定の場合はnull)。</param>
-public sealed record TeamInfo(string Id, string DisplayName, string? Description)
-{
-    /// <summary>UI表示用に<see cref="DisplayName" />を返す。</summary>
-    public override string ToString()
-    {
-        return DisplayName;
-    }
-}
+public sealed record TeamInfo(string Id, string DisplayName, string? Description);
 /// <summary>チームの現メンバー1名分の情報を表す。</summary>
 /// <param name="MembershipId">メンバーシップのオブジェクトID(削除操作に使用)。</param>
 /// <param name="UserId">ユーザーのオブジェクトID。</param>
@@ -49,6 +42,22 @@ public enum ChangeKind
     Error
 }
 
+/// <summary>同期差分がその状態になった業務上の理由。</summary>
+public enum ChangeReason
+{
+    Unspecified,
+    AmbiguousCurrentMember,
+    AmbiguousDirectoryUser,
+    UserNotFound,
+    OwnerProtected,
+    RemoveSpecified,
+    AlreadyMember,
+    AlreadyMemberDifferentIdentifier,
+    NotCurrentMember,
+    AddToTeam,
+    RemoveNotInInput
+}
+
 /// <summary>同期の実行モード。</summary>
 public enum SyncMode
 {
@@ -66,20 +75,19 @@ public enum SyncMode
 /// <param name="Kind">操作の種別。</param>
 /// <param name="DisplayName">対象ユーザーの表示名。</param>
 /// <param name="Email">入力アドレス(またはメールアドレス)。</param>
-/// <param name="Detail">画面表示用の詳細説明。</param>
+/// <param name="Reason">変更種別を決定した業務上の理由。</param>
 /// <param name="UserId">対象ユーザーのオブジェクトID(判明している場合)。</param>
 /// <param name="MembershipId">対象メンバーシップのオブジェクトID(判明している場合)。</param>
 public sealed record SyncChange(
     ChangeKind Kind,
     string DisplayName,
     string Email,
-    string Detail,
+    ChangeReason Reason = ChangeReason.Unspecified,
     string? UserId = null,
     string? MembershipId = null);
 
 /// <summary>
-///     再検証(<see cref="TeamSyncService.RevalidatePlanAsync" />)用の、
-///     プラン作成時点のメンバーシップのスナップショット。
+///     同期プランを再検証するための、プラン作成時点のメンバーシップのスナップショット。
 /// </summary>
 /// <param name="MembershipId">メンバーシップのオブジェクトID。</param>
 /// <param name="UserId">ユーザーのオブジェクトID。</param>

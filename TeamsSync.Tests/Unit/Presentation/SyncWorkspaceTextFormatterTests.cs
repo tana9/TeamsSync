@@ -220,7 +220,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildSyncUnavailableReason_プランにエラーがある場合は未解決ユーザーの修正を促す()
     {
-        SyncPlan plan = new(Team, [new SyncChange(ChangeKind.Error, "不明", "unknown@example.com", "未解決")],
+        SyncPlan plan = new(Team, [new SyncChange(ChangeKind.Error, "不明", "unknown@example.com", ChangeReason.UserNotFound)],
             ["unknown@example.com"]);
 
         string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, Team,
@@ -232,7 +232,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildSyncUnavailableReason_変更が0件の場合は実行する変更がない旨を返す()
     {
-        SyncPlan plan = new(Team, [new SyncChange(ChangeKind.Keep, "既存", "keep@example.com", "変更なし")],
+        SyncPlan plan = new(Team, [new SyncChange(ChangeKind.Keep, "既存", "keep@example.com", ChangeReason.AlreadyMember)],
             ["keep@example.com"]);
 
         string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, Team,
@@ -260,11 +260,11 @@ public sealed class SyncWorkspaceTextFormatterTests
         };
         SyncChangeRowViewModel[] changes = new[]
         {
-            new SyncChangeRowViewModel(new SyncChange(ChangeKind.Add, "A", "a@example.com", "")),
-            new SyncChangeRowViewModel(new SyncChange(ChangeKind.Add, "B", "b@example.com", "")),
-            new SyncChangeRowViewModel(new SyncChange(ChangeKind.Remove, "C", "c@example.com", "")),
-            new SyncChangeRowViewModel(new SyncChange(ChangeKind.Keep, "D", "d@example.com", "")),
-            new SyncChangeRowViewModel(new SyncChange(ChangeKind.Error, "E", "e@example.com", ""))
+            new SyncChangeRowViewModel(new SyncChange(ChangeKind.Add, "A", "a@example.com")),
+            new SyncChangeRowViewModel(new SyncChange(ChangeKind.Add, "B", "b@example.com")),
+            new SyncChangeRowViewModel(new SyncChange(ChangeKind.Remove, "C", "c@example.com")),
+            new SyncChangeRowViewModel(new SyncChange(ChangeKind.Keep, "D", "d@example.com")),
+            new SyncChangeRowViewModel(new SyncChange(ChangeKind.Error, "E", "e@example.com"))
         };
 
         SyncWorkspaceTextFormatter.UpdateFilterCounts(filters, changes);
@@ -290,7 +290,7 @@ public sealed class SyncWorkspaceTextFormatterTests
 
     private static SyncPlan PlanWithAdd()
     {
-        return new SyncPlan(Team, [new SyncChange(ChangeKind.Add, "新規", "new@example.com", "追加")],
+        return new SyncPlan(Team, [new SyncChange(ChangeKind.Add, "新規", "new@example.com", ChangeReason.AddToTeam)],
             ["new@example.com"]);
     }
 
@@ -299,12 +299,12 @@ public sealed class SyncWorkspaceTextFormatterTests
     {
         SyncPlan plan = new(Team,
         [
-            new SyncChange(ChangeKind.Add, "追加太郎", "add@example.com", "追加"),
-            new SyncChange(ChangeKind.Remove, "削除太郎", "remove@example.com", "削除"),
-            new SyncChange(ChangeKind.Keep, "維持太郎", "keep@example.com", "変更なし"),
-            new SyncChange(ChangeKind.Protected, "所有太郎", "owner@example.com", "所有者"),
-            new SyncChange(ChangeKind.NotMember, "未所属太郎", "notmember@example.com", "未所属"),
-            new SyncChange(ChangeKind.Error, "不明太郎", "unknown@example.com", "未解決")
+            new SyncChange(ChangeKind.Add, "追加太郎", "add@example.com", ChangeReason.AddToTeam),
+            new SyncChange(ChangeKind.Remove, "削除太郎", "remove@example.com", ChangeReason.RemoveNotInInput),
+            new SyncChange(ChangeKind.Keep, "維持太郎", "keep@example.com", ChangeReason.AlreadyMember),
+            new SyncChange(ChangeKind.Protected, "所有太郎", "owner@example.com", ChangeReason.OwnerProtected),
+            new SyncChange(ChangeKind.NotMember, "未所属太郎", "notmember@example.com", ChangeReason.NotCurrentMember),
+            new SyncChange(ChangeKind.Error, "不明太郎", "unknown@example.com", ChangeReason.UserNotFound)
         ], []);
 
         PlanPresentation presentation = SyncWorkspaceTextFormatter.BuildPlan(plan);
@@ -316,7 +316,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildPlan_指定削除モードでは指定した一般メンバーを削除する旨のメッセージになる()
     {
-        SyncPlan plan = new(Team, [new SyncChange(ChangeKind.Remove, "削除太郎", "remove@example.com", "削除")],
+        SyncPlan plan = new(Team, [new SyncChange(ChangeKind.Remove, "削除太郎", "remove@example.com", ChangeReason.RemoveSpecified)],
             [], Mode: SyncMode.RemoveSpecified);
 
         PlanPresentation presentation = SyncWorkspaceTextFormatter.BuildPlan(plan);
@@ -329,7 +329,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [InlineData(SyncMode.AddOnly)]
     public void BuildPlan_指定削除以外のモードではリストにない一般メンバーを削除する旨のメッセージになる(SyncMode mode)
     {
-        SyncPlan plan = new(Team, [new SyncChange(ChangeKind.Remove, "削除太郎", "remove@example.com", "削除")],
+        SyncPlan plan = new(Team, [new SyncChange(ChangeKind.Remove, "削除太郎", "remove@example.com", ChangeReason.RemoveNotInInput)],
             [], Mode: mode);
 
         PlanPresentation presentation = SyncWorkspaceTextFormatter.BuildPlan(plan);

@@ -92,7 +92,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         Dictionary<string, int> rowIndexByUserId = new(StringComparer.OrdinalIgnoreCase);
 
         void AddOrMergeChange(string address, string userId, string? membershipId, string displayName,
-            ChangeKind kind, string detail)
+            ChangeKind kind, ChangeReason reason)
         {
             if (rowIndexByUserId.TryGetValue(userId, out int index))
             {
@@ -101,7 +101,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
             }
 
             rowIndexByUserId[userId] = changes.Count;
-            changes.Add(new SyncChange(kind, displayName, address, detail, userId, membershipId));
+            changes.Add(new SyncChange(kind, displayName, address, reason, userId, membershipId));
         }
 
         foreach (AddressResolution resolution in resolutions)
@@ -110,15 +110,15 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
             {
                 case { Outcome: ResolutionOutcome.Error }:
                     changes.Add(new SyncChange(ChangeKind.Error, "", resolution.Address,
-                        resolution.ErrorMessage!));
+                        resolution.ErrorReason));
                     break;
                 case { Outcome: ResolutionOutcome.ExistingSingle, ExistingMember: { } existing }:
                     AddOrMergeChange(resolution.Address, existing.UserId, existing.MembershipId,
                         existing.DisplayName,
                         existing.IsOwner ? ChangeKind.Protected :
                         mode == SyncMode.RemoveSpecified ? ChangeKind.Remove : ChangeKind.Keep,
-                        existing.IsOwner ? "所有者のため削除しません" :
-                        mode == SyncMode.RemoveSpecified ? "指定された一般メンバーを削除します" : "既にメンバーです");
+                        existing.IsOwner ? ChangeReason.OwnerProtected :
+                        mode == SyncMode.RemoveSpecified ? ChangeReason.RemoveSpecified : ChangeReason.AlreadyMember);
                     break;
                 case
                 {
@@ -130,15 +130,15 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
                         sameUser.DisplayName,
                         sameUser.IsOwner ? ChangeKind.Protected :
                         mode == SyncMode.RemoveSpecified ? ChangeKind.Remove : ChangeKind.Keep,
-                        sameUser.IsOwner ? "所有者のため削除しません" :
-                        mode == SyncMode.RemoveSpecified ? "指定された一般メンバーを削除します" :
-                        "別のアドレスで既にメンバーです");
+                        sameUser.IsOwner ? ChangeReason.OwnerProtected :
+                        mode == SyncMode.RemoveSpecified ? ChangeReason.RemoveSpecified :
+                        ChangeReason.AlreadyMemberDifferentIdentifier);
                     break;
                 case { Outcome: ResolutionOutcome.NewUser, User: { } user }:
                     resolved[resolution.Address] = user;
                     AddOrMergeChange(resolution.Address, user.Id, null, user.DisplayName,
                         mode == SyncMode.RemoveSpecified ? ChangeKind.NotMember : ChangeKind.Add,
-                        mode == SyncMode.RemoveSpecified ? "現在このチームに所属していません" : "メンバーに追加します");
+                        mode == SyncMode.RemoveSpecified ? ChangeReason.NotCurrentMember : ChangeReason.AddToTeam);
                     break;
             }
         }
@@ -160,7 +160,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
 
         return current.Where(x => !x.IsOwner && !wantedIds.Contains(x.UserId))
             .Select(member => new SyncChange(ChangeKind.Remove, member.DisplayName, member.Email,
-                "リストにないため削除します", member.UserId, member.MembershipId));
+                ChangeReason.RemoveNotInInput, member.UserId, member.MembershipId));
     }
 
     /// <summary>
@@ -212,7 +212,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         if (existingMatches.Count > 1)
         {
             return new AddressResolution(ResolutionOutcome.Error, address,
-                ErrorMessage: "同じ氏名のチームメンバーが複数いるため特定できません");
+                ErrorReason: ChangeReason.AmbiguousCurrentMember);
         }
 
         return existingMatches.Count == 1
@@ -231,9 +231,9 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         if (exactMatches.Count != 1)
         {
             return new AddressResolution(ResolutionOutcome.Error, address,
-                ErrorMessage: exactMatches.Count > 1
-                    ? "同じ氏名のユーザーが複数いるため、メールアドレスで指定してください"
-                    : "ユーザーが見つかりません");
+                ErrorReason: exactMatches.Count > 1
+                    ? ChangeReason.AmbiguousDirectoryUser
+                    : ChangeReason.UserNotFound);
         }
 
         DirectoryUser user = exactMatches[0];
@@ -554,7 +554,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         string Address,
         TeamMember? ExistingMember = null,
         DirectoryUser? User = null,
-        string? ErrorMessage = null);
+        ChangeReason ErrorReason = ChangeReason.Unspecified);
 
     private sealed record AddressResolutionAttempt(AddressResolution Resolution, bool DirectorySearched);
 

@@ -120,7 +120,7 @@ public sealed class SyncServiceTests
     {
         FakeGraphService graph = new();
         SyncPlan plan = new(Team,
-            [new SyncChange(ChangeKind.Add, "New", "new@example.com", "", "new-id")],
+            [new SyncChange(ChangeKind.Add, "New", "new@example.com", ChangeReason.Unspecified, "new-id")],
             [], Mode: SyncMode.RemoveSpecified);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -215,7 +215,7 @@ public sealed class SyncServiceTests
     {
         FakeGraphService graph = new();
         SyncPlan plan = new(Team,
-            [new SyncChange(ChangeKind.Remove, "Old", "old@example.com", "", "old-id", "membership")],
+            [new SyncChange(ChangeKind.Remove, "Old", "old@example.com", ChangeReason.Unspecified, "old-id", "membership")],
             [], Mode: SyncMode.AddOnly);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -360,7 +360,7 @@ public sealed class SyncServiceTests
             Team, ["山田太郎"], TestContext.Current.CancellationToken);
 
         SyncChange error = Assert.Single(plan.Changes, change => change.Kind == ChangeKind.Error);
-        Assert.Contains("複数", error.Detail);
+        Assert.Equal(ChangeReason.AmbiguousDirectoryUser, error.Reason);
         Assert.Equal(0, plan.AddCount);
     }
 
@@ -404,7 +404,7 @@ public sealed class SyncServiceTests
     {
         FakeGraphService graph = new();
         SyncPlan plan = new(Team,
-            [new SyncChange(ChangeKind.Error, "", "missing@example.com", "not found")],
+            [new SyncChange(ChangeKind.Error, "", "missing@example.com", ChangeReason.UserNotFound)],
             ["missing@example.com"]);
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             new TeamSyncService(graph).ExecuteAsync(plan, cancellationToken: TestContext.Current.CancellationToken));
@@ -418,8 +418,8 @@ public sealed class SyncServiceTests
         FakeGraphService graph = new();
         SyncPlan plan = new(Team,
         [
-            new SyncChange(ChangeKind.Add, "New", "new@example.com", "", "new-id"),
-            new SyncChange(ChangeKind.Remove, "Old", "old@example.com", "", "old-id", "old-membership")
+            new SyncChange(ChangeKind.Add, "New", "new@example.com", ChangeReason.Unspecified, "new-id"),
+            new SyncChange(ChangeKind.Remove, "Old", "old@example.com", ChangeReason.Unspecified, "old-id", "old-membership")
         ], ["new@example.com"]);
         SyncExecutionResult result =
             await new TeamSyncService(graph).ExecuteAsync(plan,
@@ -437,8 +437,8 @@ public sealed class SyncServiceTests
         FakeGraphService graph = new() { OnAdd = _ => Task.FromException(new InvalidOperationException("add failed")) };
         SyncPlan plan = new(Team,
         [
-            new SyncChange(ChangeKind.Add, "New", "new@example.com", "", "new-id"),
-            new SyncChange(ChangeKind.Remove, "Old", "old@example.com", "", "old-id", "old-membership")
+            new SyncChange(ChangeKind.Add, "New", "new@example.com", ChangeReason.Unspecified, "new-id"),
+            new SyncChange(ChangeKind.Remove, "Old", "old@example.com", ChangeReason.Unspecified, "old-id", "old-membership")
         ], ["new@example.com"]);
 
         SyncExecutionResult result = await new TeamSyncService(graph).ExecuteAsync(
@@ -527,7 +527,7 @@ public sealed class SyncServiceTests
     {
         FakeGraphService graph = new();
         SyncPlan plan = new(Team,
-            [new SyncChange(ChangeKind.Add, "New", "new@example.com", "", "new-id")],
+            [new SyncChange(ChangeKind.Add, "New", "new@example.com", ChangeReason.Unspecified, "new-id")],
             ["new@example.com"]);
         using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
@@ -542,7 +542,7 @@ public sealed class SyncServiceTests
     {
         FakeGraphService graph = new() { OnAdd = token => Task.Delay(Timeout.InfiniteTimeSpan, token) };
         SyncPlan plan = new(Team,
-            [new SyncChange(ChangeKind.Add, "New", "new@example.com", "", "new-id")],
+            [new SyncChange(ChangeKind.Add, "New", "new@example.com", ChangeReason.Unspecified, "new-id")],
             ["new@example.com"]);
         using CancellationTokenSource cancellation = new();
 
@@ -566,7 +566,7 @@ public sealed class SyncServiceTests
                 "SECRET_TOKEN sensitive.user@example.com C:\\DO_NOT_LOG_PATH"))
         };
         SyncPlan plan = new(Team,
-            [new SyncChange(ChangeKind.Add, "Sensitive User", "sensitive.user@example.com", "", "user-id")],
+            [new SyncChange(ChangeKind.Add, "Sensitive User", "sensitive.user@example.com", ChangeReason.Unspecified, "user-id")],
             ["sensitive.user@example.com"]);
         Guid executionId = Guid.Parse("0198a6ec-5f70-7000-8000-000000000001");
         SyncAuditContext audit = new(executionId, "members.csv", new string('A', 64),
