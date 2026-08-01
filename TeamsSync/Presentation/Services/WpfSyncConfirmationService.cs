@@ -19,7 +19,7 @@ public sealed class WpfSyncConfirmationService(
     {
         var dialog = new ContentDialog
         {
-            Title = "現在の入力を置き換えますか？",
+            Title = BuildTitle("現在の入力を置き換えますか？"),
             Content = new TextBlock
             {
                 Text = $"現在のファイルまたはテキスト入力を、{teamName}の一般メンバー{memberCount}名で置き換えます。",
@@ -65,7 +65,7 @@ public sealed class WpfSyncConfirmationService(
 
         var dialog = new ContentDialog
         {
-            Title = BuildTitle(),
+            Title = BuildTitle("同期の最終確認"),
             Content = scrollViewer,
             PrimaryButtonText = "同期を実行",
             PrimaryButtonIcon = new SymbolIcon { Symbol = SymbolRegular.ArrowSync24 },
@@ -80,9 +80,8 @@ public sealed class WpfSyncConfirmationService(
     // タイトルだけでは一見して確認ダイアログと見分けがつかないため、エラーダイアログ(WpfNotificationService.ShowError)
     // と同様にアイコンを添えて、ひと目で「実行前の確認」だと分かるようにする。AutomationProperties.Nameは
     // Titleオブジェクト全体に付け、読み上げがアイコン分だけ冗長にならないようにする。
-    private static UIElement BuildTitle()
+    private static UIElement BuildTitle(string titleText)
     {
-        const string titleText = "同期の最終確認";
         var titlePanel = new StackPanel { Orientation = Orientation.Horizontal };
         AutomationProperties.SetName(titlePanel, titleText);
         var titleIcon = new SymbolIcon
