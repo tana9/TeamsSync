@@ -249,7 +249,7 @@ public sealed class MainWindowViewModelTests
         memberFile.SelectedInputIndex = 1;
         memberFile.PastedText = "old@example.com";
 
-        var importing = memberFile.ImportCurrentMembersCommand.ExecuteAsync(null);
+        var importing = memberFile.Import.ImportCurrentMembersCommand.ExecuteAsync(null);
         await started.Task;
 
         Assert.False(viewModel.InputsEnabled);
@@ -259,7 +259,7 @@ public sealed class MainWindowViewModelTests
         Assert.False(memberFile.ApplyPastedTextInputCommand.CanExecute(null));
         Assert.False(memberFile.LoadDroppedFileCommand.CanExecute("C:\\members.csv"));
 
-        memberFile.CancelImportCurrentMembersCommand.Execute(null);
+        memberFile.Import.CancelImportCurrentMembersCommand.Execute(null);
         await importing;
 
         Assert.True(viewModel.InputsEnabled);

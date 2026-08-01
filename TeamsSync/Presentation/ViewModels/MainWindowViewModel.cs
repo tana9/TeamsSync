@@ -59,9 +59,9 @@ public partial class MainWindowViewModel : ObservableObject
         TeamSelection.StatusChanged += SetStatus;
         MemberFile.DocumentChanged += UpdateSyncContext;
         MemberFile.StatusChanged += SetStatus;
-        MemberFile.PropertyChanged += (_, e) =>
+        MemberFile.Import.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(MemberFileViewModel.IsImportingMembers)) UpdateAvailability();
+            if (e.PropertyName == nameof(TeamMemberImportViewModel.IsImportingMembers)) UpdateAvailability();
         };
         SyncWorkspace.StatusChanged += SetStatus;
         SyncWorkspace.PropertyChanged += (_, e) =>
@@ -111,7 +111,7 @@ public partial class MainWindowViewModel : ObservableObject
     /// </summary>
     private void UpdateAvailability()
     {
-        var memberImportActive = MemberFile.IsImportingMembers;
+        var memberImportActive = MemberFile.Import.IsImportingMembers;
         var syncActive = SyncWorkspace.IsBusy || SyncWorkspace.IsSyncing;
         InputsEnabled = SignIn.IsSignedIn && !SignIn.IsBusy && !TeamSelection.IsBusy && !syncActive;
         InputsEnabled &= !memberImportActive;

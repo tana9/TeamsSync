@@ -41,7 +41,7 @@
                 <TabItem.Style>
                     <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsImportingMembers}" Value="True">
+                            <DataTrigger Binding="{Binding Import.IsImportingMembers}" Value="True">
                                 <Setter Property="IsEnabled" Value="False" />
                             </DataTrigger>
                         </Style.Triggers>
@@ -112,15 +112,15 @@
                         </TextBlock>
                         <StackPanel Grid.Column="1" Orientation="Horizontal">
                             <ui:ProgressRing Width="16" Height="16" Margin="8,0" IsIndeterminate="True"
-                                             Visibility="{Binding IsImportingMembers, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                             Visibility="{Binding Import.IsImportingMembers, Converter={StaticResource BooleanToVisibilityConverter}}"
                                              AutomationProperties.Name="現在のチームメンバーを取得中" />
-                            <ui:Button Content="現在のメンバーを取り込む" Command="{Binding ImportCurrentMembersCommand}"
+                            <ui:Button Content="現在のメンバーを取り込む" Command="{Binding Import.ImportCurrentMembersCommand}"
                                        Icon="{ui:SymbolIcon Symbol=PeopleTeam24}" Appearance="Secondary"
                                        ToolTip="選択中チームの一般メンバーをテキスト入力へ取り込みます"
                                        AutomationProperties.Name="現在の一般メンバーを入力リストへ取り込む" />
-                            <ui:Button Content="キャンセル" Command="{Binding CancelImportCurrentMembersCommand}"
+                            <ui:Button Content="キャンセル" Command="{Binding Import.CancelImportCurrentMembersCommand}"
                                        Margin="8,0,0,0" Appearance="Secondary"
-                                       Visibility="{Binding IsImportingMembers, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                       Visibility="{Binding Import.IsImportingMembers, Converter={StaticResource BooleanToVisibilityConverter}}"
                                        AutomationProperties.Name="現在のメンバーの取り込みをキャンセル" />
                             <ui:ProgressRing Width="16" Height="16" Margin="8,0" IsIndeterminate="True"
                                              Visibility="{Binding IsParsing, Converter={StaticResource BooleanToVisibilityConverter}}"

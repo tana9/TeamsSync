@@ -311,7 +311,7 @@ public sealed class MemberFileViewModelTests
         viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発", null));
         viewModel.SelectedInputIndex = 1;
 
-        await viewModel.ImportCurrentMembersCommand.ExecuteAsync(null);
+        await viewModel.Import.ImportCurrentMembersCommand.ExecuteAsync(null);
 
         Assert.Equal(1, viewModel.SelectedInputIndex);
         Assert.Equal($"A <a@example.com>{Environment.NewLine}B <B@example.com>", viewModel.PastedText);
@@ -339,7 +339,7 @@ public sealed class MemberFileViewModelTests
         var originalDocument = viewModel.Document;
         viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発", null));
 
-        await viewModel.ImportCurrentMembersCommand.ExecuteAsync(null);
+        await viewModel.Import.ImportCurrentMembersCommand.ExecuteAsync(null);
 
         Assert.Equal(1, dialogs.ReplaceMemberInputConfirmationCount);
         Assert.Equal("old@example.com", viewModel.PastedText);
@@ -364,7 +364,7 @@ public sealed class MemberFileViewModelTests
         var originalDocument = viewModel.Document;
         viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発", null));
 
-        await viewModel.ImportCurrentMembersCommand.ExecuteAsync(null);
+        await viewModel.Import.ImportCurrentMembersCommand.ExecuteAsync(null);
 
         Assert.Equal("old@example.com", viewModel.PastedText);
         Assert.Same(originalDocument, viewModel.Document);
@@ -395,14 +395,14 @@ public sealed class MemberFileViewModelTests
         var originalDocument = viewModel.Document;
         viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発", null));
 
-        var importing = viewModel.ImportCurrentMembersCommand.ExecuteAsync(null);
+        var importing = viewModel.Import.ImportCurrentMembersCommand.ExecuteAsync(null);
         await started.Task;
-        viewModel.CancelImportCurrentMembersCommand.Execute(null);
+        viewModel.Import.CancelImportCurrentMembersCommand.Execute(null);
         await importing;
 
         Assert.Equal("old@example.com", viewModel.PastedText);
         Assert.Same(originalDocument, viewModel.Document);
-        Assert.False(viewModel.IsImportingMembers);
+        Assert.False(viewModel.Import.IsImportingMembers);
     }
 
     [Fact]
@@ -425,7 +425,7 @@ public sealed class MemberFileViewModelTests
         var originalDocument = viewModel.Document;
         viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発", null));
 
-        await viewModel.ImportCurrentMembersCommand.ExecuteAsync(null);
+        await viewModel.Import.ImportCurrentMembersCommand.ExecuteAsync(null);
 
         Assert.Equal("old@example.com", viewModel.PastedText);
         Assert.Same(originalDocument, viewModel.Document);
@@ -440,13 +440,13 @@ public sealed class MemberFileViewModelTests
         var viewModel = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
             new FakePreferences(), dialogs, dialogs, gateway, dialogs);
 
-        Assert.False(viewModel.ImportCurrentMembersCommand.CanExecute(null));
+        Assert.False(viewModel.Import.ImportCurrentMembersCommand.CanExecute(null));
         viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発", null));
-        Assert.False(viewModel.ImportCurrentMembersCommand.CanExecute(null));
+        Assert.False(viewModel.Import.ImportCurrentMembersCommand.CanExecute(null));
         viewModel.SelectedInputIndex = 1;
-        Assert.True(viewModel.ImportCurrentMembersCommand.CanExecute(null));
+        Assert.True(viewModel.Import.ImportCurrentMembersCommand.CanExecute(null));
         viewModel.SetEnabled(false);
-        Assert.False(viewModel.ImportCurrentMembersCommand.CanExecute(null));
+        Assert.False(viewModel.Import.ImportCurrentMembersCommand.CanExecute(null));
     }
 
     [Fact]
@@ -473,13 +473,13 @@ public sealed class MemberFileViewModelTests
         var originalDocument = viewModel.Document;
         viewModel.SetSelectedTeam(new TeamInfo("team-a", "チームA", null));
 
-        var importing = viewModel.ImportCurrentMembersCommand.ExecuteAsync(null);
+        var importing = viewModel.Import.ImportCurrentMembersCommand.ExecuteAsync(null);
         await started.Task;
         viewModel.SetSelectedTeam(new TeamInfo("team-b", "チームB", null));
         await importing;
 
         Assert.Equal("old@example.com", viewModel.PastedText);
         Assert.Same(originalDocument, viewModel.Document);
-        Assert.False(viewModel.IsImportingMembers);
+        Assert.False(viewModel.Import.IsImportingMembers);
     }
 }
