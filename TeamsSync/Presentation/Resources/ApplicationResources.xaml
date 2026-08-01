@@ -6,6 +6,15 @@
         <ui:ThemesDictionary Theme="Light" />
         <ui:ControlsDictionary />
     </ResourceDictionary.MergedDictionaries>
+    <!-- AccentFillColorDefault/Secondary/Tertiaryは、通常はApplicationAccentColorManagerが
+         実行時にOSのアクセント色から生成するリソースで、wpf-uiのテーマXAML側には静的な
+         フォールバックが無い。ライトテーマ固定のため上記マネージャーを呼ばない方針にした結果、
+         これらが未定義(=透明)のままになり、ラジオボタンのホバー時などにチェックマークが
+         消えて見えていた。SystemAccentColorPrimary(#0067C0、Accent.xamlの既定値)を基準に、
+         wpf-ui本来の計算式(80%/90%不透明度)と同じ値を静的に定義して補う。 -->
+    <Color x:Key="AccentFillColorDefault">#FF0067C0</Color>
+    <Color x:Key="AccentFillColorSecondary">#E50067C0</Color>
+    <Color x:Key="AccentFillColorTertiary">#CC0067C0</Color>
     <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     <converters:HeightMinusOffsetConverter x:Key="HeightMinusOffsetConverter" />
     <GridLength x:Key="SectionLabelColumnWidth">Auto</GridLength>

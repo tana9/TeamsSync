@@ -19,7 +19,14 @@ public partial class MainWindow
         _viewModel = viewModel;
         DataContext = viewModel;
         interactionHost.SetHosts(DialogHost, SnackbarPresenter);
-        ApplicationThemeManager.Apply(ApplicationTheme.Light, WindowBackdropType.None, updateAccent: true);
+        // 配色はApplicationResources.xamlの<ui:ThemesDictionary Theme="Light" />とアクセント色の
+        // 静的定義(AccentFillColorDefault/Secondary/Tertiary)で固定済みのため、ここではランタイムの
+        // テーマ切り替えAPI(ApplicationThemeManager.Apply/SystemThemeWatcher.Watch/
+        // ApplicationAccentColorManager.Apply)を呼ばない。これらはOSのテーマ変更を監視・再適用する
+        // 仕組みで、その切り替え処理(ResourceDictionaryの差し替え)自体が、バインディング経由の
+        // 再描画(同期モードのラジオボタン等)をマウスを動かすまで止めてしまう副作用を持つため。
+        // タイトルバーの非クライアント領域だけライト表示に合わせるため、初回1回だけ明示的に適用する。
+        WindowBackgroundManager.UpdateBackground(this, ApplicationTheme.Light, WindowBackdropType.None);
         Closing += OnClosing;
     }
 
