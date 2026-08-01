@@ -42,6 +42,13 @@ public partial class MemberFileViewModel : ObservableObject
             () => Document is not null || _fileDocument is not null || !string.IsNullOrWhiteSpace(PastedText));
         Import.Imported += OnMembersImported;
         Import.StatusChanged += (message, isError) => StatusChanged?.Invoke(message, isError);
+        Import.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(TeamMemberImportViewModel.IsImportingMembers))
+            {
+                CopyFileContentToTextCommand.NotifyCanExecuteChanged();
+            }
+        };
         DocumentChanged += () => OnPropertyChanged(nameof(HasUnappliedPastedText));
     }
 
@@ -59,10 +66,12 @@ public partial class MemberFileViewModel : ObservableObject
 
     /// <summary>貼り付けテキストを解析中かどうか。</summary>
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CopyFileContentToTextCommand))]
     public partial bool IsParsing { get; set; }
 
     /// <summary>ファイルを読み込み中かどうか。</summary>
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CopyFileContentToTextCommand))]
     public partial bool IsLoadingFile { get; set; }
 
     /// <summary>貼り付け入力の解析でエラーが発生したかどうか。</summary>

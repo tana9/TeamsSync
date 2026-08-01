@@ -19,6 +19,7 @@ public sealed class MemberFileViewModelTests
         MemberFileViewModel viewModel = new(new FakeMemberListReader(fileDocument), new MemberTextParser(),
             new FakePreferences(), dialogs, dialogs, new FakeTeamsGateway(), dialogs);
         await viewModel.LoadDroppedFileCommand.ExecuteAsync("C:\\members.csv");
+        Assert.True(viewModel.CopyFileContentToTextCommand.CanExecute(null));
 
         await viewModel.CopyFileContentToTextCommand.ExecuteAsync(null);
 
@@ -246,12 +247,14 @@ public sealed class MemberFileViewModelTests
 
         Assert.True(viewModel.IsLoadingFile);
         Assert.False(viewModel.BrowseCommand.CanExecute(null));
+        Assert.False(viewModel.CopyFileContentToTextCommand.CanExecute(null));
 
         reader.Release.Set();
         await execution;
 
         Assert.False(viewModel.IsLoadingFile);
         Assert.Same(document, viewModel.Document);
+        Assert.True(viewModel.CopyFileContentToTextCommand.CanExecute(null));
     }
 
     [Fact]
