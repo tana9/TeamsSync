@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
 using TeamsSync.Application.Abstractions;
+using TeamsSync.Infrastructure.Files;
 
 namespace TeamsSync.Infrastructure.Settings;
 
@@ -39,8 +40,8 @@ public sealed class JsonUserPreferences : IUserPreferences
     /// <summary>現在の設定値をJSONファイルへ書き出す。</summary>
     public void Save()
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-        File.WriteAllText(_path, JsonSerializer.Serialize(new Data(LastFolder)));
+        byte[] json = JsonSerializer.SerializeToUtf8Bytes(new Data(LastFolder));
+        AtomicFileWriter.Write(_path, stream => stream.Write(json), true);
     }
 
     /// <summary>

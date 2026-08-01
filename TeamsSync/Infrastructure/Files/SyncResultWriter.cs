@@ -38,8 +38,14 @@ public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultW
     {
         Directory.CreateDirectory(_logDirectory);
         string stem = $"{DateTime.Now:yyyyMMdd_HHmmss_fff}_{executionId:N}_{SanitizeFileName(plan.Team.DisplayName)}";
-        FileStream stream = CreateUniqueFile(stem, out string path);
-        using StreamWriter writer = new(stream, new UTF8Encoding(true));
+        string path = CreateUniquePath(stem);
+        AtomicFileWriter.Write(path, stream => WriteCsv(stream, plan, result), false);
+        return path;
+    }
+
+    private static void WriteCsv(Stream stream, SyncPlan plan, SyncExecutionResult result)
+    {
+        using StreamWriter writer = new(stream, new UTF8Encoding(true), leaveOpen: true);
         writer.WriteLine("チーム,同期モード,操作,表示名,メールアドレス,結果,エラー");
         IReadOnlyList<SyncChange> plannedOperations = plan.Changes
             .Where(change => change.Kind is ChangeKind.Add or ChangeKind.Remove)
@@ -67,7 +73,7 @@ public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultW
             }
         }
 
-        return path;
+        writer.Flush();
     }
 
     /// <summary>同期操作1件をCSVへ出力する。</summary>
@@ -102,20 +108,13 @@ public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultW
     }
 
     /// <summary>既存ファイルを上書きせず、衝突時は連番を付けた別名で新規作成する。</summary>
-    private FileStream CreateUniqueFile(string stem, out string path)
+    private string CreateUniquePath(string stem)
     {
         for (int suffix = 1;; suffix++)
         {
             string fileName = suffix == 1 ? $"{stem}.csv" : $"{stem}_{suffix}.csv";
-            path = Path.Combine(_logDirectory, fileName);
-            try
-            {
-                return new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read);
-            }
-            catch (IOException) when (File.Exists(path))
-            {
-                // 同名ログが既にある場合だけ別名を試す。ディスク障害などのIOExceptionは呼び出し元へ返す。
-            }
+            string path = Path.Combine(_logDirectory, fileName);
+            if (!File.Exists(path)) return path;
         }
     }
 
