@@ -147,10 +147,14 @@ public partial class TeamSelectionViewModel : ObservableObject
         return _currentUserId is not null && !IsBusy && !_externallyBusy;
     }
 
-    /// <summary>所有チーム一覧をGraph APIから取得し、<see cref="Teams"/>へ反映する。</summary>
+    /// <summary>
+    /// 所有チーム一覧をGraph APIから取得し、<see cref="Teams"/>へ反映する。選択中のチームが
+    /// 再取得後も引き続き所有チームに含まれていれば、選択状態を維持する。
+    /// </summary>
     private async Task LoadAsync(CancellationToken cancellationToken = default)
     {
         if (_currentUserId is null) return;
+        var previouslySelectedTeamId = SelectedTeam?.Id;
         IsBusy = true;
         RefreshCommand.NotifyCanExecuteChanged();
         try
@@ -159,7 +163,9 @@ public partial class TeamSelectionViewModel : ObservableObject
             var owned = await _teamsGateway.GetOwnedTeamsAsync(_currentUserId, cancellationToken);
             Teams.Clear();
             foreach (var team in owned) Teams.Add(team);
-            SelectedTeam = null;
+            SelectedTeam = previouslySelectedTeamId is not null
+                ? Teams.FirstOrDefault(team => team.Id == previouslySelectedTeamId)
+                : null;
             StatusChanged?.Invoke(Teams.Count == 0
                 ? "所有しているチームが見つかりません"
                 : $"{Teams.Count}件のチームが見つかりました", false);

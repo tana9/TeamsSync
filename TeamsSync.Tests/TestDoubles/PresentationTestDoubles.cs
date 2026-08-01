@@ -262,7 +262,7 @@ internal sealed class FakeDialogs : IFilePickerService, ISyncConfirmationService
 
 internal sealed class FakeTeamsGateway : ITeamsGateway
 {
-    public IReadOnlyList<TeamInfo> OwnedTeams { get; init; } = [];
+    public IReadOnlyList<TeamInfo> OwnedTeams { get; set; } = [];
     public IReadOnlyList<TeamMember> Members { get; set; } = [];
     public Dictionary<string, DirectoryUser> Users { get; } = new(StringComparer.OrdinalIgnoreCase);
     public List<(string TeamId, string UserId)> Added { get; } = [];
