@@ -415,6 +415,17 @@ TeamsSync の今後の改善項目。メンバー削除を伴うアプリケー�
 完了条件: 軽微なC#イディオムの取りこぼしが解消され、`[NotifyPropertyChangedFor]`/`[NotifyCanExecuteChangedFor]`の
 採用可否を単純な転送箇所について意図的に判断した状態になっている。
 
+### 各クラスの責務を単一責任原則へ近づける
+
+- [x] `WpfSyncConfirmationService`の`ConfirmSyncAsync`(同期最終確認)と`ConfirmReplaceMemberInputAsync`(入力置き換え確認)を責務ごとに別クラスへ分離し、doc commentが実際の責務と一致するようにする(`WpfSyncConfirmationService`は同期最終確認専用に、`WpfMemberInputConfirmationService`を新設。共通のタイトル組み立て・フォーカス復元処理は`ConfirmationDialogHelper`へ切り出した)
+- [x] `MemberFileViewModel.ImportCurrentMembersAsync`(Teamsからのメンバー取得)を、ファイル/貼り付け入力管理とは別のクラスへ切り出す(`TeamMemberImportViewModel`を新設し`MemberFileViewModel.Import`として公開。入力欄側の実行可否・既存入力有無はコンストラクター引数のFuncで注入し、取り込み成功時は`Imported`イベント経由で`MemberFileViewModel`側の入力欄状態へ反映する構成にした。XAMLバインディングと関連テストを`Import.`プレフィックス付きへ更新)
+- [x] `GraphTeamsGateway`の所有権キャッシュ、バッチ再試行・スロットリング、レスポンス解析、ユーザー検索フォールバックを責務ごとに分離する(`TeamOwnershipCache`/`TeamMembersBatchFetcher`/`GraphResponseParser`/`GraphUserSearchService`を新設し、`GraphTeamsGateway`はこれらを組み合わせるオーケストレーターとして残した。公開APIは無変更で、Graph通信の既存テストが全て通ることを確認)
+- [x] `MemberListReader`のファイル形式パース(CSV/Excel)と、zip-bomb対策・サイズ制限・エンコーディング検出などのセキュリティ検証を分離する(`MemberFileSecurityValidator`(サイズ・行数・列数上限、Zip展開後サイズ、SHA-256)と`CsvEncodingDetector`(文字コード判定)を新設。`MemberListReader`はCSV/Excelのパースに専念する構成にした。公開定数`MaximumFileSizeBytes`等は既存テストとの互換のため委譲定数として維持。セキュリティ関連テストが全て通ることを確認)
+- [ ] `SyncWorkspaceTextFormatter`と`SyncWorkspacePresentation`の境界(同じVMの表示文字列生成が2クラスに分かれている)を見直し、統合または明確な分担基準を定める
+- [ ] `WpfUserInteractionHost`のような1メソッドのみの薄いラッパーを、呼び出し元へ統合できないか検討する
+
+完了条件: 上記クラスがそれぞれ単一の責務に対応し、doc commentが実際の責務と一致している。
+
 ## 優先度: 低・配布準備
 
 ### ユーザー設定と同期結果CSVを原子的に保存する
