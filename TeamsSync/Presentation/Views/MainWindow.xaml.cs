@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Windows.Input;
 
 using TeamsSync.Presentation.ViewModels;
 
@@ -31,7 +32,30 @@ public partial class MainWindow
         // 再描画(同期モードのラジオボタン等)をマウスを動かすまで止めてしまう副作用を持つため。
         // タイトルバーの非クライアント領域だけライト表示に合わせるため、初回1回だけ明示的に適用する。
         WindowBackgroundManager.UpdateBackground(this, ApplicationTheme.Light, WindowBackdropType.None);
+        PreviewKeyDown += OnPreviewKeyDown;
         Closing += OnClosing;
+    }
+
+    /// <summary>
+    ///     同期中のESCは既存のCancelCommandへ渡し、それ以外では表示中のSnackbarを閉じる。
+    /// </summary>
+    private void OnPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        // ContentDialogはSnackbarより前面の一時UIなので、表示中はダイアログ自身の
+        // ESC処理を優先する。PreviewKeyDownで先にHandledにするとダイアログを閉じられない。
+        if (e.Key != Key.Escape || _viewModel.SyncWorkspace.IsSyncing || DialogHost.Content is not null)
+        {
+            return;
+        }
+
+        Snackbar? snackbar = SnackbarPresenter.Content;
+        if (snackbar?.IsShown != true)
+        {
+            return;
+        }
+
+        snackbar.IsShown = false;
+        e.Handled = true;
     }
 
     /// <summary>同期実行中はウィンドウを閉じる前にキャンセル完了を待ってから終了する。</summary>
