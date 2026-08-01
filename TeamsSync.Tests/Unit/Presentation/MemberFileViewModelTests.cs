@@ -16,15 +16,21 @@ public sealed class MemberFileViewModelTests
         MemberListDocument document = new(["user@example.com"], "members.csv", "C:\\members.csv",
             new DateTime(2026, 7, 28), "CSV", "email");
         FakePreferences preferences = new() { SaveException = new IOException("disk full") };
+        FakeFilePickerService picker = new();
         RecordingNotificationService notifications = new();
         MemberFileViewModel viewModel = new(new FakeMemberListReader(document), new MemberTextParser(),
-            preferences, new FakeDialogs(), notifications, new FakeTeamsGateway(), new FakeDialogs());
+            preferences, picker, notifications, new FakeTeamsGateway(), new FakeDialogs());
 
         await viewModel.LoadDroppedFileCommand.ExecuteAsync(document.FullPath);
 
         Assert.Same(document, viewModel.Document);
         Assert.Contains("設定を保存できません", notifications.WarningTitle);
         Assert.Null(notifications.ErrorMessage);
+        Assert.Equal(@"C:\", preferences.LastFolder);
+
+        await viewModel.BrowseCommand.ExecuteAsync(null);
+
+        Assert.Equal(@"C:\", picker.InitialDirectory);
     }
 
     [Fact]

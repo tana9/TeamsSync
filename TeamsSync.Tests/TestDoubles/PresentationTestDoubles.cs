@@ -235,9 +235,13 @@ internal sealed class RecordingSavedFileLauncher : ISavedFileLauncher
 
 internal sealed class FakeFilePickerService : IFilePickerService
 {
+    public string? InitialDirectory { get; private set; }
+    public string? ResultPath { get; set; }
+
     public string? PickMemberFile(string? initialDirectory)
     {
-        return null;
+        InitialDirectory = initialDirectory;
+        return ResultPath;
     }
 }
 
