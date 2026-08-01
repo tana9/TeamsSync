@@ -295,4 +295,76 @@ public sealed class SyncWorkspaceTextFormatterTests
         return new SyncPlan(Team, [new SyncChange(ChangeKind.Add, "新規", "new@example.com", "追加")],
             ["new@example.com"]);
     }
+
+    [Fact]
+    public void BuildPlan_件数サマリーに追加_削除_変更なし_所有者_未所属_エラーの内訳を含む()
+    {
+        var plan = new SyncPlan(Team,
+        [
+            new SyncChange(ChangeKind.Add, "追加太郎", "add@example.com", "追加"),
+            new SyncChange(ChangeKind.Remove, "削除太郎", "remove@example.com", "削除"),
+            new SyncChange(ChangeKind.Keep, "維持太郎", "keep@example.com", "変更なし"),
+            new SyncChange(ChangeKind.Protected, "所有太郎", "owner@example.com", "所有者"),
+            new SyncChange(ChangeKind.NotMember, "未所属太郎", "notmember@example.com", "未所属"),
+            new SyncChange(ChangeKind.Error, "不明太郎", "unknown@example.com", "未解決")
+        ], []);
+
+        var presentation = SyncWorkspaceTextFormatter.BuildPlan(plan);
+
+        Assert.Equal("追加 1 / 削除 1 / 変更なし 1 / 所有者 1 / 未所属 1 / エラー 1", presentation.Summary);
+        Assert.Equal("削除対象があります", presentation.RemovalTitle);
+    }
+
+    [Fact]
+    public void BuildPlan_指定削除モードでは指定した一般メンバーを削除する旨のメッセージになる()
+    {
+        var plan = new SyncPlan(Team, [new SyncChange(ChangeKind.Remove, "削除太郎", "remove@example.com", "削除")],
+            [], Mode: SyncMode.RemoveSpecified);
+
+        var presentation = SyncWorkspaceTextFormatter.BuildPlan(plan);
+
+        Assert.Equal("入力リストで指定した一般メンバー 1名を削除します。", presentation.RemovalMessage);
+    }
+
+    [Theory]
+    [InlineData(SyncMode.FullSync)]
+    [InlineData(SyncMode.AddOnly)]
+    public void BuildPlan_指定削除以外のモードではリストにない一般メンバーを削除する旨のメッセージになる(SyncMode mode)
+    {
+        var plan = new SyncPlan(Team, [new SyncChange(ChangeKind.Remove, "削除太郎", "remove@example.com", "削除")],
+            [], Mode: mode);
+
+        var presentation = SyncWorkspaceTextFormatter.BuildPlan(plan);
+
+        Assert.Equal("リストにない一般メンバー 1名を削除します。", presentation.RemovalMessage);
+    }
+
+    [Fact]
+    public void BuildFailedRows_結果がnullの場合は空の一覧を返す()
+    {
+        var rows = SyncWorkspaceTextFormatter.BuildFailedRows(null);
+
+        Assert.Empty(rows);
+    }
+
+    [Fact]
+    public void BuildFailedRows_成功した操作を除外し失敗した操作だけを行モデルへ変換する()
+    {
+        var result = new SyncExecutionResult(
+        [
+            new SyncOperationResult(ChangeKind.Add, "ok@example.com", true, null),
+            new SyncOperationResult(ChangeKind.Add, "add-failed@example.com", false, "追加に失敗しました"),
+            new SyncOperationResult(ChangeKind.Remove, "remove-failed@example.com", false, "削除に失敗しました")
+        ], false);
+
+        var rows = SyncWorkspaceTextFormatter.BuildFailedRows(result);
+
+        Assert.Equal(2, rows.Count);
+        Assert.Equal("add-failed@example.com", rows[0].Email);
+        Assert.Equal("追加", rows[0].KindLabel);
+        Assert.Equal("追加に失敗しました", rows[0].Error);
+        Assert.Equal("remove-failed@example.com", rows[1].Email);
+        Assert.Equal("削除", rows[1].KindLabel);
+        Assert.Equal("削除に失敗しました", rows[1].Error);
+    }
 }
