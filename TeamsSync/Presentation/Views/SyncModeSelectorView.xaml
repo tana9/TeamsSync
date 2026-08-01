@@ -25,14 +25,8 @@
                     <ui:SymbolIcon Symbol="PersonAdd24" FontSize="14" Margin="0,0,4,0"
                                    AutomationProperties.Name="">
                         <ui:SymbolIcon.Style>
-                            <Style TargetType="ui:SymbolIcon">
+                            <Style TargetType="ui:SymbolIcon" BasedOn="{StaticResource RadioButtonSymbolIconStyle}">
                                 <Setter Property="Foreground" Value="{DynamicResource SystemFillColorSuccessBrush}" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsEnabled, RelativeSource={RelativeSource AncestorType=RadioButton}}"
-                                                 Value="False">
-                                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
-                                    </DataTrigger>
-                                </Style.Triggers>
                             </Style>
                         </ui:SymbolIcon.Style>
                     </ui:SymbolIcon>
@@ -47,14 +41,8 @@
                     <ui:SymbolIcon Symbol="PersonDelete24" FontSize="14" Margin="0,0,4,0"
                                    AutomationProperties.Name="">
                         <ui:SymbolIcon.Style>
-                            <Style TargetType="ui:SymbolIcon">
+                            <Style TargetType="ui:SymbolIcon" BasedOn="{StaticResource RadioButtonSymbolIconStyle}">
                                 <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCautionBrush}" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsEnabled, RelativeSource={RelativeSource AncestorType=RadioButton}}"
-                                                 Value="False">
-                                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
-                                    </DataTrigger>
-                                </Style.Triggers>
                             </Style>
                         </ui:SymbolIcon.Style>
                     </ui:SymbolIcon>
@@ -69,14 +57,8 @@
                     <ui:SymbolIcon Symbol="ArrowSync24" FontSize="14" Margin="0,0,4,0"
                                    AutomationProperties.Name="">
                         <ui:SymbolIcon.Style>
-                            <Style TargetType="ui:SymbolIcon">
+                            <Style TargetType="ui:SymbolIcon" BasedOn="{StaticResource RadioButtonSymbolIconStyle}">
                                 <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsEnabled, RelativeSource={RelativeSource AncestorType=RadioButton}}"
-                                                 Value="False">
-                                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
-                                    </DataTrigger>
-                                </Style.Triggers>
                             </Style>
                         </ui:SymbolIcon.Style>
                     </ui:SymbolIcon>

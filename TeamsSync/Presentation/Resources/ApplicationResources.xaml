@@ -18,6 +18,16 @@
     <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     <converters:HeightMinusOffsetConverter x:Key="HeightMinusOffsetConverter" />
     <GridLength x:Key="SectionLabelColumnWidth">Auto</GridLength>
+    <!-- SyncModeSelectorViewの各RadioButton内アイコンで共通のDisabled表現(トリガー部分)だけを切り出す。
+         平常時のForegroundは意味ごとに異なる(成功/注意/危険)ため、利用側でBasedOnして上書きする。 -->
+    <Style x:Key="RadioButtonSymbolIconStyle" TargetType="ui:SymbolIcon">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsEnabled, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                         Value="False">
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
     <Style x:Key="StableCellFocusVisualStyle">
         <Setter Property="Control.Template">
             <Setter.Value>

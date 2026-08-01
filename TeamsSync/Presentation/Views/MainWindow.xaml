@@ -8,6 +8,14 @@
                  Icon="pack://application:,,,/TeamsSync;component/Resources/AppIcon.ico"
                  WindowStartupLocation="CenterScreen" WindowCornerPreference="Round"
                  UseLayoutRounding="True">
+    <!-- ここで拡張する既定スタイル(ui:ControlsDictionary由来)は、Application.Resources
+         (ApplicationResources.xaml)側でMergedDictionariesとして読み込まれている。
+         同じResourceDictionary本体でMergedDictionariesとBasedOn自己参照(暗黙キーによる
+         TargetTypeスタイル)を両方書くと、wpf-ui本来のControlTemplate(アイコン表示・影・
+         角丸など)が継承されず、素のWPFコントロールの見た目にフォールバックしてしまう。
+         そのためBasedOn拡張は、既定スタイルを含むApplication.Resourcesとは別レベルの
+         Window.Resourcesに置く必要がある。UiHarness等でView単体をプレビューする場合は
+         このWindow.Resourcesの外側になるため、ここで定義した強調配色は適用されない。 -->
     <ui:FluentWindow.Resources>
         <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
             <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
@@ -40,6 +48,11 @@
         </Style>
         <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="BorderBrush" Value="{DynamicResource ControlStrongStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <Style TargetType="ui:Card" BasedOn="{StaticResource {x:Type ui:Card}}">
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultSolidBrush}" />
             <Setter Property="BorderThickness" Value="1" />
         </Style>
     </ui:FluentWindow.Resources>
@@ -89,24 +102,18 @@
                 <StackPanel Margin="0,0,16,0">
                     <views:HeaderView Margin="0,0,0,12" />
 
-                    <ui:Card IsEnabled="{Binding InputsEnabled}" Padding="12" Margin="0,0,0,12"
-                             Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                             BorderBrush="{DynamicResource CardStrokeColorDefaultSolidBrush}" BorderThickness="1">
+                    <ui:Card IsEnabled="{Binding InputsEnabled}" Padding="12" Margin="0,0,0,12">
                         <views:TeamSelectionCardContent DataContext="{Binding TeamSelection}" />
                     </ui:Card>
 
                     <ui:Card IsEnabled="{Binding InputsEnabled}" Padding="12" Margin="0,0,0,12"
-                             behaviors:FileDropBehavior.Command="{Binding MemberFile.LoadDroppedFileCommand}"
-                             Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                             BorderBrush="{DynamicResource CardStrokeColorDefaultSolidBrush}" BorderThickness="1">
+                             behaviors:FileDropBehavior.Command="{Binding MemberFile.LoadDroppedFileCommand}">
                         <views:MemberListInputView DataContext="{Binding MemberFile}" />
                     </ui:Card>
 
                     <!-- 「同期モード」を独立した手順3として扱う。以前はメンバーリストのカードに同居しており、
                          番号なしの選択肢に見えていたため、専用カードへ分離して手順番号を付けた。 -->
-                    <ui:Card IsEnabled="{Binding InputsEnabled}" Padding="12" Margin="0,0,0,12"
-                             Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                             BorderBrush="{DynamicResource CardStrokeColorDefaultSolidBrush}" BorderThickness="1">
+                    <ui:Card IsEnabled="{Binding InputsEnabled}" Padding="12" Margin="0,0,0,12">
                         <views:SyncModeSelectorView DataContext="{Binding SyncWorkspace}" />
                     </ui:Card>
 
@@ -124,9 +131,7 @@
                  ここでは上マージンを付けない。以前は両側に12pxずつ付けており、他のカード間(12px)の
                  2倍の間隔になっていた。 -->
             <ui:Card Grid.Row="1" Padding="12" MinHeight="208" Margin="0,0,16,0"
-                     VerticalAlignment="Stretch" VerticalContentAlignment="Stretch"
-                     Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                     BorderBrush="{DynamicResource CardStrokeColorDefaultSolidBrush}" BorderThickness="1">
+                     VerticalAlignment="Stretch" VerticalContentAlignment="Stretch">
                 <views:SyncDiffCardContent DataContext="{Binding SyncWorkspace}" VerticalAlignment="Stretch" />
             </ui:Card>
 
