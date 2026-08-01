@@ -8,14 +8,11 @@ namespace TeamsSync.Presentation.Services;
 /// <param name="InputSummary">入力内容の要約テキスト。</param>
 public sealed record SyncConfirmation(SyncPlan Plan, string FileName, string InputSummary = "");
 
-/// <summary>メンバーリストファイル・同期結果ファイルの選択ダイアログを表示する。</summary>
+/// <summary>メンバーリストファイルの選択ダイアログを表示する。</summary>
 public interface IFilePickerService
 {
     /// <summary>メンバーリストファイル(CSV/Excel)を選択するダイアログを表示する。</summary>
     string? PickMemberFile(string? initialDirectory);
-
-    /// <summary>同期結果の保存先ファイルを選択するダイアログを表示する。</summary>
-    string? PickResultFile(string? initialDirectory, string teamName);
 }
 
 /// <summary>同期実行前の最終確認ダイアログを表示する。</summary>

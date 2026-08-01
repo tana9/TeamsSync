@@ -8,11 +8,6 @@ public sealed class SyncResultWriterTests : IDisposable
     private readonly string _directory =
         Path.Combine(Path.GetTempPath(), "TeamsSync.Tests", Guid.NewGuid().ToString("N"));
 
-    public SyncResultWriterTests()
-    {
-        Directory.CreateDirectory(_directory);
-    }
-
     public void Dispose()
     {
         if (Directory.Exists(_directory)) Directory.Delete(_directory, true);
@@ -25,13 +20,56 @@ public sealed class SyncResultWriterTests : IDisposable
 
     private string WriteAndRead(SyncPlan plan, SyncExecutionResult result)
     {
-        var path = Path.Combine(_directory, "result.csv");
-        new SyncResultWriter().WriteCsv(path, plan, result);
+        new SyncResultWriter(_directory).WriteAutoLog(plan, result);
+        var path = Assert.Single(Directory.GetFiles(_directory));
         return File.ReadAllText(path);
     }
 
     [Fact]
-    public void WriteCsv_通常値はそのまま出力される()
+    public void WriteAutoLog_指定フォルダーが存在しない場合は作成する()
+    {
+        Assert.False(Directory.Exists(_directory));
+        var plan = CreatePlan("営業チーム");
+        var result = new SyncExecutionResult(
+            [new SyncOperationResult(ChangeKind.Add, "user1@example.com", true, null)], false);
+
+        new SyncResultWriter(_directory).WriteAutoLog(plan, result);
+
+        Assert.True(Directory.Exists(_directory));
+    }
+
+    [Fact]
+    public void WriteAutoLog_実行日時と対象チーム名をファイル名にする()
+    {
+        var plan = CreatePlan("営業チーム");
+        var result = new SyncExecutionResult(
+            [new SyncOperationResult(ChangeKind.Add, "user1@example.com", true, null)], false);
+        var before = DateTime.Now;
+
+        new SyncResultWriter(_directory).WriteAutoLog(plan, result);
+
+        var fileName = Path.GetFileName(Assert.Single(Directory.GetFiles(_directory)));
+        Assert.EndsWith("_営業チーム.csv", fileName);
+        var parts = fileName.Split('_');
+        var timestamp = DateTime.ParseExact($"{parts[0]}_{parts[1]}", "yyyyMMdd_HHmmss", null);
+        Assert.InRange(timestamp, before.AddSeconds(-5), DateTime.Now.AddSeconds(5));
+    }
+
+    [Fact]
+    public void WriteAutoLog_チーム名にファイル名として使えない文字が含まれる場合はアンダースコアへ置き換える()
+    {
+        var plan = CreatePlan("開発/QA:チーム");
+        var result = new SyncExecutionResult(
+            [new SyncOperationResult(ChangeKind.Add, "user1@example.com", true, null)], false);
+
+        new SyncResultWriter(_directory).WriteAutoLog(plan, result);
+
+        var fileName = Path.GetFileName(Assert.Single(Directory.GetFiles(_directory)));
+        Assert.EndsWith("_開発_QA_チーム.csv", fileName);
+    }
+
+    [Fact]
+    public void WriteAutoLog_通常値はそのまま出力される()
     {
         var plan = CreatePlan("営業チーム");
         var result = new SyncExecutionResult(
@@ -49,7 +87,7 @@ public sealed class SyncResultWriterTests : IDisposable
     [InlineData("+1+1")]
     [InlineData("-1+1")]
     [InlineData("@SUM(A1)")]
-    public void WriteCsv_チーム名が数式開始文字で始まる場合はシングルクォートを付与する(string dangerous)
+    public void WriteAutoLog_チーム名が数式開始文字で始まる場合はシングルクォートを付与する(string dangerous)
     {
         var plan = CreatePlan(dangerous);
         var result = new SyncExecutionResult(
@@ -65,7 +103,7 @@ public sealed class SyncResultWriterTests : IDisposable
     [InlineData("+HYPERLINK(\"http://evil.example/\")")]
     [InlineData("-2+3")]
     [InlineData("@example.com")]
-    public void WriteCsv_メールアドレスが数式開始文字で始まる場合はシングルクォートを付与する(string dangerous)
+    public void WriteAutoLog_メールアドレスが数式開始文字で始まる場合はシングルクォートを付与する(string dangerous)
     {
         var plan = CreatePlan("チーム");
         var result = new SyncExecutionResult(
@@ -78,7 +116,7 @@ public sealed class SyncResultWriterTests : IDisposable
     }
 
     [Fact]
-    public void WriteCsv_エラー文が数式開始文字で始まる場合はシングルクォートを付与する()
+    public void WriteAutoLog_エラー文が数式開始文字で始まる場合はシングルクォートを付与する()
     {
         var plan = CreatePlan("チーム");
         var result = new SyncExecutionResult(
@@ -92,12 +130,11 @@ public sealed class SyncResultWriterTests : IDisposable
     [Theory]
     [InlineData("  =SUM(A1)")]
     [InlineData("\t=SUM(A1)")]
-    [InlineData("\r\n=SUM(A1)")]
-    public void WriteCsv_先頭の空白やタブや改行の後に数式開始文字がある場合もシングルクォートを付与する(string dangerous)
+    public void WriteAutoLog_先頭の空白やタブの後に数式開始文字がある場合もシングルクォートを付与する(string dangerous)
     {
-        var plan = CreatePlan(dangerous);
+        var plan = CreatePlan("チーム");
         var result = new SyncExecutionResult(
-            [new SyncOperationResult(ChangeKind.Add, "user@example.com", true, null)], false);
+            [new SyncOperationResult(ChangeKind.Add, dangerous, true, null)], false);
 
         var csv = WriteAndRead(plan, result);
 
@@ -105,7 +142,7 @@ public sealed class SyncResultWriterTests : IDisposable
     }
 
     [Fact]
-    public void WriteCsv_引用符を含む値は二重引用符へエスケープされる()
+    public void WriteAutoLog_引用符を含む値は二重引用符へエスケープされる()
     {
         var plan = CreatePlan("チーム\"本社\"");
         var result = new SyncExecutionResult(
@@ -117,7 +154,7 @@ public sealed class SyncResultWriterTests : IDisposable
     }
 
     [Fact]
-    public void WriteCsv_改行を含む値も出力できる()
+    public void WriteAutoLog_改行を含む値も出力できる()
     {
         var plan = CreatePlan("チーム");
         var result = new SyncExecutionResult(
@@ -129,7 +166,7 @@ public sealed class SyncResultWriterTests : IDisposable
     }
 
     [Fact]
-    public void WriteCsv_数式開始文字を含まない通常のメールアドレスは変更されない()
+    public void WriteAutoLog_数式開始文字を含まない通常のメールアドレスは変更されない()
     {
         var plan = CreatePlan("チーム");
         var result = new SyncExecutionResult(

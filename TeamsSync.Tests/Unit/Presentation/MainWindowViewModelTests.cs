@@ -18,7 +18,7 @@ public sealed class MainWindowViewModelTests
         var memberFile = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
             preferences, dialogs, dialogs, gateway, dialogs);
         var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), preferences, dialogs, dialogs, dialogs);
+            new FakeResultWriter(), dialogs, dialogs);
         var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, dialogs,
             preferences, teamSelection, memberFile, syncWorkspace, new ManualViewModel(new FakeManualService(), dialogs));
 
@@ -39,7 +39,7 @@ public sealed class MainWindowViewModelTests
         var memberFile = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
             preferences, dialogs, dialogs, gateway, dialogs);
         var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), preferences, dialogs, dialogs, dialogs);
+            new FakeResultWriter(), dialogs, dialogs);
         var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, dialogs,
             preferences, teamSelection, memberFile, syncWorkspace, new ManualViewModel(new FakeManualService(), dialogs));
 
@@ -57,7 +57,7 @@ public sealed class MainWindowViewModelTests
         var memberFile = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
             preferences, dialogs, dialogs, gateway, dialogs);
         var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), preferences, dialogs, dialogs, dialogs);
+            new FakeResultWriter(), dialogs, dialogs);
         var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, notifications,
             preferences, teamSelection, memberFile, syncWorkspace, new ManualViewModel(new ThrowingManualService(), notifications));
 
@@ -80,7 +80,7 @@ public sealed class MainWindowViewModelTests
         var memberFile = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
             preferences, dialogs, dialogs, gateway, dialogs);
         var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), preferences, dialogs, dialogs, dialogs);
+            new FakeResultWriter(), dialogs, dialogs);
         var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, dialogs,
             preferences, teamSelection, memberFile, syncWorkspace, new ManualViewModel(new FakeManualService(), dialogs));
         await teamSelection.InitializeAsync("current-user", TestContext.Current.CancellationToken);
@@ -112,7 +112,7 @@ public sealed class MainWindowViewModelTests
         var memberFile = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
             preferences, dialogs, dialogs, gateway, dialogs);
         var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), preferences, dialogs, dialogs, dialogs);
+            new FakeResultWriter(), dialogs, dialogs);
         var auth = new FakeAuthenticationService
         {
             SignOutException = new InvalidOperationException("MSALのアカウント削除に失敗しました")
@@ -148,7 +148,7 @@ public sealed class MainWindowViewModelTests
         var memberFile = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
             preferences, dialogs, dialogs, gateway, dialogs);
         var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), preferences, dialogs, dialogs, dialogs);
+            new FakeResultWriter(), dialogs, dialogs);
         var auth = new FakeAuthenticationService { SignOutException = new OperationCanceledException() };
         var viewModel = new MainWindowViewModel(auth, gateway, dialogs,
             preferences, teamSelection, memberFile, syncWorkspace, new ManualViewModel(new FakeManualService(), dialogs));
@@ -185,7 +185,7 @@ public sealed class MainWindowViewModelTests
         var memberFile = new MemberFileViewModel(reader, new MemberTextParser(), preferences, dialogs, dialogs,
             gateway, dialogs);
         var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), preferences, dialogs, dialogs, dialogs);
+            new FakeResultWriter(), dialogs, dialogs);
         var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, dialogs,
             preferences, teamSelection, memberFile, syncWorkspace, new ManualViewModel(new FakeManualService(), dialogs));
 
@@ -241,7 +241,7 @@ public sealed class MainWindowViewModelTests
         var memberFile = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
             preferences, dialogs, dialogs, gateway, dialogs);
         var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), preferences, dialogs, dialogs, dialogs);
+            new FakeResultWriter(), dialogs, dialogs);
         var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, dialogs,
             preferences, teamSelection, memberFile, syncWorkspace, new ManualViewModel(new FakeManualService(), dialogs));
         viewModel.SignIn.IsSignedIn = true;

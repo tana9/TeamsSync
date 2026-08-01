@@ -18,7 +18,7 @@ public sealed class SyncWorkspaceViewModelTests
             OnConfirm = _ => throw new InvalidOperationException("dialog failed")
         };
         var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), new FakePreferences(), new FakeDialogs(), confirmation, notifications);
+            new FakeResultWriter(), confirmation, notifications);
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
                 new DateTime(2026, 8, 1), "CSV", "email"), true);
@@ -31,26 +31,25 @@ public sealed class SyncWorkspaceViewModelTests
     }
 
     [Fact]
-    public async Task SyncWorkspace_結果保存失敗を通知して例外を伝播しない()
+    public async Task SyncWorkspace_実行ログの自動保存に失敗しても警告のみで同期結果は維持する()
     {
         var gateway = new FakeTeamsGateway();
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New", "new@example.com", "new@example.com");
         var writer = new FakeResultWriter { Exception = new IOException("disk full") };
-        var picker = new FakeDialogs { ResultPath = "C:\\result.csv" };
         var notifications = new RecordingNotificationService();
         var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway), writer,
-            new FakePreferences(), picker, new FakeDialogs(), notifications);
+            new FakeDialogs(), notifications);
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
                 new DateTime(2026, 7, 28), "CSV", "email"), true);
         await viewModel.PreviewCommand.ExecuteAsync(null);
+
         await viewModel.ExecuteSyncCommand.ExecuteAsync(null);
 
-        viewModel.SaveResultCommand.Execute(null);
-
-        Assert.Equal("結果を保存できませんでした", notifications.ErrorTitle);
-        Assert.Equal("disk full", notifications.ErrorMessage);
+        Assert.Equal("実行ログを保存できませんでした", notifications.WarningTitle);
+        Assert.True(viewModel.HasSyncResult);
+        Assert.Equal(1, viewModel.ResultSuccessCount);
     }
 
     [Fact]
@@ -60,7 +59,7 @@ public sealed class SyncWorkspaceViewModelTests
         gateway.Users["missing@example.com"] = new DirectoryUser(
             "user-1", "User", "missing@example.com", "missing@example.com");
         var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeDialogs());
+            new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         Assert.Contains("サインイン", viewModel.SyncUnavailableReason);
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["missing@example.com"], "members.csv", "C:\\members.csv",
@@ -92,7 +91,7 @@ public sealed class SyncWorkspaceViewModelTests
         gateway.Users["missing@example.com"] = new DirectoryUser(
             "user-1", "User", "missing@example.com", "missing@example.com");
         var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeDialogs());
+            new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["missing@example.com"], "members.csv", "C:\\members.csv",
                 DateTime.Now, "CSV", "email"), true);
@@ -115,7 +114,7 @@ public sealed class SyncWorkspaceViewModelTests
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
         var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeDialogs());
+            new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         var team = new TeamInfo("team-1", "開発", null);
         var document = new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
             new DateTime(2026, 7, 28), "CSV", "email");
@@ -149,7 +148,7 @@ public sealed class SyncWorkspaceViewModelTests
             return Task.CompletedTask;
         };
         var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeDialogs());
+            new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         viewModel.IsRemoveSpecifiedSelected = true;
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["target@example.com", "owner@example.com"], "members.csv",
@@ -178,7 +177,7 @@ public sealed class SyncWorkspaceViewModelTests
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
         var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeDialogs());
+            new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         var team = new TeamInfo("team-1", "開発", null);
         var document = new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
             new DateTime(2026, 7, 28), "CSV", "email");
@@ -198,7 +197,7 @@ public sealed class SyncWorkspaceViewModelTests
     public void SyncWorkspace_差分未確認の状態で同期モードを切り替えても通知しない()
     {
         var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(new FakeTeamsGateway()),
-            new FakeResultWriter(), new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeDialogs());
+            new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         var notifications = new List<string>();
         viewModel.StatusChanged += (message, _) => notifications.Add(message);
 
@@ -214,7 +213,7 @@ public sealed class SyncWorkspaceViewModelTests
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
         var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeDialogs());
+            new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         var document = new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
             new DateTime(2026, 7, 28), "CSV", "email");
         viewModel.SetContext(new TeamInfo("team-1", "開発", null), document, true);
@@ -244,7 +243,7 @@ public sealed class SyncWorkspaceViewModelTests
             }
         };
         var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), new FakePreferences(), dialogs, dialogs, dialogs);
+            new FakeResultWriter(), dialogs, dialogs);
         viewModel.SelectedMode = viewModel.Modes.Single(mode => mode.Mode == SyncMode.FullSync);
         var team = new TeamInfo("team-1", "開発", null);
         var document = new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
@@ -275,7 +274,7 @@ public sealed class SyncWorkspaceViewModelTests
         };
         gateway.OnRemove = (_, _, _) => Task.FromException(new InvalidOperationException("remove failed"));
         var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeDialogs());
+            new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         viewModel.SelectedMode = viewModel.Modes.Single(mode => mode.Mode == SyncMode.FullSync);
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
@@ -315,7 +314,7 @@ public sealed class SyncWorkspaceViewModelTests
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
         var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeDialogs());
+            new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         viewModel.SelectedMode = viewModel.Modes.Single(mode => mode.Mode == SyncMode.FullSync);
         var document = new MemberListDocument(["new@example.com", "keep@example.com"], "members.csv",
             "C:\\members.csv", new DateTime(2026, 7, 28), "CSV", "email");
@@ -348,7 +347,7 @@ public sealed class SyncWorkspaceViewModelTests
             return Task.CompletedTask;
         };
         var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeDialogs());
+            new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
                 new DateTime(2026, 7, 28), "CSV", "email"), true);
@@ -380,7 +379,7 @@ public sealed class SyncWorkspaceViewModelTests
         };
         gateway.OnRemove = (_, _, _) => Task.FromException(new InvalidOperationException("remove failed"));
         var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeDialogs());
+            new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         viewModel.SelectedMode = viewModel.Modes.Single(mode => mode.Mode == SyncMode.FullSync);
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
@@ -404,7 +403,7 @@ public sealed class SyncWorkspaceViewModelTests
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
         var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeDialogs());
+            new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         var document = new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
             new DateTime(2026, 7, 28), "CSV", "email");
         viewModel.SetContext(new TeamInfo("team-1", "開発", null), document, true);
@@ -426,7 +425,7 @@ public sealed class SyncWorkspaceViewModelTests
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
         var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeDialogs());
+            new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
                 new DateTime(2026, 7, 28), "CSV", "email"), true);
@@ -452,7 +451,7 @@ public sealed class SyncWorkspaceViewModelTests
         };
         var dialogs = new FakeDialogs();
         var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), new FakePreferences(), dialogs, dialogs, dialogs);
+            new FakeResultWriter(), dialogs, dialogs);
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
                 new DateTime(2026, 7, 28), "CSV", "email"), true);

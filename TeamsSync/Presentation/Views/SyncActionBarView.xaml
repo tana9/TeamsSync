@@ -56,10 +56,6 @@
                 </TextBlock>
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <ui:Button Content="結果を_保存" AutomationProperties.Name="同期結果をCSVで保存"
-                           Command="{Binding SyncWorkspace.SaveResultCommand}"
-                           Icon="{ui:SymbolIcon Symbol=Save24}" Margin="4,0"
-                           Appearance="Secondary" ToolTip="同期結果を保存" />
                 <ui:Button Content="同期を_実行" Command="{Binding SyncWorkspace.ExecuteSyncCommand}"
                            Icon="{ui:SymbolIcon Symbol=ArrowSync24}"
                            Appearance="Primary" Margin="4,0"

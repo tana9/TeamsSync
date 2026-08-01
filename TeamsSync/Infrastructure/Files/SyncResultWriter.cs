@@ -5,25 +5,42 @@ using TeamsSync.Domain.Teams;
 namespace TeamsSync.Infrastructure.Files;
 
 /// <summary>
-/// 同期プランと実行結果をCSVファイルとして書き出す。CSVインジェクション対策として
-/// 外部由来の値は数式として解釈されないよう無害化する。
+/// 同期プランと実行結果を、日時と対象チーム名をファイル名としたCSVログとして自動的に記録する。
+/// CSVインジェクション対策として外部由来の値は数式として解釈されないよう無害化する。
 /// </summary>
-public sealed class SyncResultWriter : ISyncResultWriter
+/// <param name="logDirectory">
+/// ログの出力先フォルダー。省略時はEXEと同じフォルダー内の"logs"フォルダーを使う。
+/// テストから一時フォルダーを指定できるようにコンストラクター引数にしている。
+/// </param>
+public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultWriter
 {
     // OWASPが推奨するCSVインジェクション対策として、数式の開始として解釈され得る文字。
     private static readonly char[] FormulaTriggerChars = ['=', '+', '-', '@'];
+    private readonly string _logDirectory = logDirectory ?? Path.Combine(AppContext.BaseDirectory, "logs");
 
     /// <summary>
-    /// 同期実行結果を、チーム名・モード・操作種別・アドレス・成否・エラーの列を持つCSVとして書き出す。
+    /// 同期実行結果を、チーム名・モード・操作種別・アドレス・成否・エラーの列を持つCSVとして
+    /// "{実行日時}_{対象チーム名}.csv"のファイル名でログフォルダーへ書き出す。
     /// </summary>
-    public void WriteCsv(string path, SyncPlan plan, SyncExecutionResult result)
+    public void WriteAutoLog(SyncPlan plan, SyncExecutionResult result)
     {
+        Directory.CreateDirectory(_logDirectory);
+        var fileName = $"{DateTime.Now:yyyyMMdd_HHmmss}_{SanitizeFileName(plan.Team.DisplayName)}.csv";
+        var path = Path.Combine(_logDirectory, fileName);
         using var writer = new StreamWriter(path, false, new UTF8Encoding(true));
         writer.WriteLine("team,mode,operation,email,result,error");
         foreach (var item in result.Operations)
             writer.WriteLine(string.Join(",", CsvExternal(plan.Team.DisplayName), Csv(plan.Mode.ToString()),
                 Csv(item.Kind.ToString()),
                 CsvExternal(item.Email), item.Succeeded ? "成功" : "失敗", CsvExternal(item.Error ?? "")));
+    }
+
+    /// <summary>ファイル名として使えない文字を"_"へ置き換える。</summary>
+    private static string SanitizeFileName(string value)
+    {
+        var invalidChars = Path.GetInvalidFileNameChars();
+        var sanitized = string.Concat(value.Select(c => invalidChars.Contains(c) ? '_' : c)).Trim();
+        return sanitized.Length == 0 ? "team" : sanitized;
     }
 
     /// <summary>値をダブルクォートで囲み、内部のダブルクォートをエスケープしてCSVフィールド化する。</summary>

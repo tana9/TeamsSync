@@ -181,7 +181,7 @@ internal sealed class FakeResultWriter : ISyncResultWriter
 {
     public Exception? Exception { get; set; }
 
-    public void WriteCsv(string path, SyncPlan plan, SyncExecutionResult result)
+    public void WriteAutoLog(SyncPlan plan, SyncExecutionResult result)
     {
         if (Exception is not null) throw Exception;
     }
@@ -189,9 +189,7 @@ internal sealed class FakeResultWriter : ISyncResultWriter
 
 internal sealed class FakeFilePickerService : IFilePickerService
 {
-    public string? ResultPath { get; init; }
     public string? PickMemberFile(string? initialDirectory) => null;
-    public string? PickResultFile(string? initialDirectory, string teamName) => ResultPath;
 }
 
 internal sealed class FailingNotificationService : INotificationService
@@ -236,7 +234,7 @@ internal sealed class FakeDialogs : IFilePickerService, ISyncConfirmationService
 
     public FakeDialogs()
     {
-        _filePicker = new FakeFilePickerService { ResultPath = ResultPath };
+        _filePicker = new FakeFilePickerService();
         _syncConfirmation = new FakeSyncConfirmationService { OnConfirm = value => OnConfirm?.Invoke(value) ?? true };
         _inputConfirmation = new FakeMemberInputConfirmationService
             { OnConfirmReplaceMemberInput = (team, count) => OnConfirmReplaceMemberInput?.Invoke(team, count) ?? true };
@@ -244,11 +242,9 @@ internal sealed class FakeDialogs : IFilePickerService, ISyncConfirmationService
 
     public Func<SyncConfirmation, bool>? OnConfirm { get; init; }
     public Func<string, int, bool>? OnConfirmReplaceMemberInput { get; init; }
-    public string? ResultPath { get; init; }
     public int ReplaceMemberInputConfirmationCount => _inputConfirmation.ConfirmationCount;
     public string WarningTitle => _notifications.WarningTitle;
     public string? PickMemberFile(string? initialDirectory) => _filePicker.PickMemberFile(initialDirectory);
-    public string? PickResultFile(string? initialDirectory, string teamName) => ResultPath;
     public void ShowSuccess(string title, string message) => _notifications.ShowSuccess(title, message);
     public void ShowWarning(string title, string message) => _notifications.ShowWarning(title, message);
     public Task ShowErrorAsync(string message, string title = "エラー", Action? onClosed = null) =>

@@ -21,9 +21,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 {
     private readonly BusyOperationRunner _busyRunner;
     private readonly ISyncConfirmationService _confirmation;
-    private readonly IFilePickerService _filePicker;
     private readonly INotificationService _notifications;
-    private readonly IUserPreferences _preferences;
     private readonly ISyncResultWriter _resultWriter;
     private readonly TeamSyncService _syncService;
     private string? _actorObjectId;
@@ -100,13 +98,10 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
     /// <summary>コンストラクター。差分一覧の絞り込みビューと既定の選択状態を初期化する。</summary>
     public SyncWorkspaceViewModel(TeamSyncService syncService, ISyncResultWriter resultWriter,
-        IUserPreferences preferences, IFilePickerService filePicker,
         ISyncConfirmationService confirmation, INotificationService notifications)
     {
         _syncService = syncService;
         _resultWriter = resultWriter;
-        _preferences = preferences;
-        _filePicker = filePicker;
         _confirmation = confirmation;
         _notifications = notifications;
         _busyRunner = new BusyOperationRunner(_notifications,
@@ -427,13 +422,13 @@ public partial class SyncWorkspaceViewModel : ObservableObject
                 _plan, progress, _syncCancellation.Token, auditContext);
             HasSyncResult = true;
             UpdateResultCounts();
+            WriteAutoLog();
 
             if (_lastResult.Cancelled)
                 HandleSyncCancelled();
             else
                 await ReconcileAfterSyncAsync();
 
-            SaveResultCommand.NotifyCanExecuteChanged();
             ExecuteSyncCommand.NotifyCanExecuteChanged();
         }
         finally
@@ -443,6 +438,23 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             _syncCancellation = null;
             _syncCompletion?.TrySetResult();
             _syncCompletion = null;
+        }
+    }
+
+    // 保存操作を利用者に意識させず、実行のたびに監査証跡を残すため、
+    // 実行結果を確定した直後に自動でログフォルダーへ書き出す。書き出しに失敗しても
+    // 同期自体は完了しているため、警告に留めて後続の後処理は継続する。
+    /// <summary>直近の同期実行結果を、EXEと同じフォルダー内のlogsフォルダーへ自動的に記録する。</summary>
+    private void WriteAutoLog()
+    {
+        try
+        {
+            _resultWriter.WriteAutoLog(_lastExecutedPlan!, _lastResult!);
+        }
+        catch (Exception ex)
+        {
+            _notifications.ShowWarning("実行ログを保存できませんでした",
+                $"同期処理自体は完了しています。{Environment.NewLine}{ex.Message}");
         }
     }
 
@@ -546,42 +558,6 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         return IsSyncing && _syncCancellation is not null;
     }
 
-    /// <summary>保存先を選択し、直近の同期実行結果をCSVとして書き出す。</summary>
-    [RelayCommand(CanExecute = nameof(CanSaveResult))]
-    private async Task SaveResultAsync()
-    {
-        if (_lastResult is null || _lastExecutedPlan is null) return;
-        var path = _filePicker.PickResultFile(_preferences.LastFolder, _lastExecutedPlan.Team.DisplayName);
-        if (path is null) return;
-        try
-        {
-            _resultWriter.WriteCsv(path, _lastExecutedPlan, _lastResult);
-            _preferences.LastFolder = Path.GetDirectoryName(path);
-            try
-            {
-                _preferences.Save();
-            }
-            catch (Exception ex)
-            {
-                _notifications.ShowWarning("結果は保存しましたが、設定を保存できませんでした",
-                    $"保存先: {path}{Environment.NewLine}{ex.Message}");
-                return;
-            }
-
-            _notifications.ShowSuccess("結果を保存しました", path);
-        }
-        catch (Exception ex)
-        {
-            await _notifications.ShowErrorAsync(ex.Message, "結果を保存できませんでした");
-        }
-    }
-
-    private bool CanSaveResult()
-    {
-        return _lastResult is not null && _lastExecutedPlan is not null &&
-               !_externallyBusy && !IsBusy && !IsSyncing;
-    }
-
     /// <summary>
     /// 現在の差分プランを無効化する。<paramref name="clearResult"/>がtrueの場合は
     /// 直近の実行結果もあわせてクリアする。
@@ -606,7 +582,6 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             ResultRemainingCount = -1;
             FailedResults.Clear();
             OnPropertyChanged(nameof(HasFailedResults));
-            SaveResultCommand.NotifyCanExecuteChanged();
         }
 
         ExecuteSyncCommand.NotifyCanExecuteChanged();
@@ -699,7 +674,6 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         PreviewCommand.NotifyCanExecuteChanged();
         ExecuteSyncCommand.NotifyCanExecuteChanged();
         CancelCommand.NotifyCanExecuteChanged();
-        SaveResultCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(SyncUnavailableReason));
     }
 }

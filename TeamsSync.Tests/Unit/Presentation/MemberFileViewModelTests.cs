@@ -89,7 +89,7 @@ public sealed class MemberFileViewModelTests
         var memberFile = new MemberFileViewModel(reader, new MemberTextParser(), preferences,
             new FakeDialogs(), notifications, gateway, new FakeDialogs());
         var workspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
-            new FakeResultWriter(), preferences, new FakeDialogs(), new FakeDialogs(), notifications);
+            new FakeResultWriter(), new FakeDialogs(), notifications);
         var main = new MainWindowViewModel(new FakeAuthenticationService(), gateway, notifications,
             preferences, teamSelection, memberFile, workspace, new ManualViewModel(new FakeManualService(), notifications));
         main.SignIn.IsSignedIn = true;

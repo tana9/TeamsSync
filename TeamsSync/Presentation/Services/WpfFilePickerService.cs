@@ -16,17 +16,4 @@ public sealed class WpfFilePickerService : IFilePickerService
         };
         return dialog.ShowDialog() == true ? dialog.FileName : null;
     }
-
-    public string? PickResultFile(string? initialDirectory, string teamName)
-    {
-        var safeName = string.Concat(teamName.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
-        var dialog = new SaveFileDialog
-        {
-            Title = "同期結果を保存",
-            Filter = "CSV (*.csv)|*.csv",
-            FileName = $"{safeName}_sync_{DateTime.Now:yyyyMMdd_HHmmss}.csv",
-            InitialDirectory = Directory.Exists(initialDirectory) ? initialDirectory : null
-        };
-        return dialog.ShowDialog() == true ? dialog.FileName : null;
-    }
 }
