@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows.Data;
+
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Application.Services;
 using TeamsSync.Domain.Teams;
@@ -14,8 +16,8 @@ namespace TeamsSync.Presentation.ViewModels;
 // SyncWorkspaceModels.csへ、結果サマリー等の表示用テキスト組み立てはSyncWorkspaceTextFormatterへ
 // 分離している。このクラスは同期実行ロジック(Graph API呼び出し・進捗・キャンセル)に専念する。
 /// <summary>
-/// 同期モードの選択、差分プレビュー、同期の実行・キャンセル・結果保存を管理する
-/// 同期ワークスペース画面のViewModel。
+///     同期モードの選択、差分プレビュー、同期の実行・キャンセル・結果保存を管理する
+///     同期ワークスペース画面のViewModel。
 /// </summary>
 public partial class SyncWorkspaceViewModel : ObservableObject
 {
@@ -35,66 +37,6 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     private TaskCompletionSource? _syncCompletion;
     private TeamInfo? _team;
     private string? _tenantId;
-    /// <summary>差分確認・再検証などの処理中かどうか。</summary>
-    [ObservableProperty] public partial bool IsBusy { get; set; }
-
-    /// <summary>削除警告(InfoBar)を表示中かどうか。</summary>
-    [ObservableProperty] public partial bool IsRemovalWarningOpen { get; set; }
-
-    /// <summary>同期の実行中かどうか。</summary>
-    [ObservableProperty] public partial bool IsSyncing { get; set; }
-
-    /// <summary>差分確認の進捗の最大値。</summary>
-    [ObservableProperty] public partial int PreviewProgressMaximum { get; set; } = 1;
-
-    /// <summary>差分確認の進捗の現在値。</summary>
-    [ObservableProperty] public partial int PreviewProgressValue { get; set; }
-
-    /// <summary>同期実行の進捗の最大値。</summary>
-    [ObservableProperty] public partial int ProgressMaximum { get; set; } = 1;
-
-    /// <summary>同期実行中の進捗テキスト。</summary>
-    [ObservableProperty] public partial string ProgressText { get; set; } = "";
-
-    /// <summary>同期実行の進捗の現在値。</summary>
-    [ObservableProperty] public partial int ProgressValue { get; set; }
-
-    /// <summary>削除警告InfoBarの本文。</summary>
-    [ObservableProperty] public partial string RemovalWarningMessage { get; set; } = "";
-
-    /// <summary>削除警告InfoBarのタイトル。</summary>
-    [ObservableProperty] public partial string RemovalWarningTitle { get; set; } = "";
-
-    // 「3 同期モード」「差分確認・実行」の手順が完了しているかを画面の手順表示へ伝えるための状態。
-    // HasPlanは差分確認済みか(モード変更で差分をクリアするとfalseに戻る)、
-    // HasSyncResultは一度でも同期を実行したかを表す。
-    /// <summary>差分確認済みかどうか(同期モード変更でfalseに戻る)。</summary>
-    [ObservableProperty] public partial bool HasPlan { get; set; }
-
-    /// <summary>一度でも同期を実行したかどうか。</summary>
-    [ObservableProperty] public partial bool HasSyncResult { get; set; }
-
-    // Snackbar(一時通知)が消えた後も成功・失敗・未反映件数を画面内に残すための実行結果サマリー。
-    /// <summary>直近の同期実行における成功件数。</summary>
-    [ObservableProperty] public partial int ResultSuccessCount { get; set; }
-
-    /// <summary>直近の同期実行における失敗件数。</summary>
-    [ObservableProperty] public partial int ResultFailureCount { get; set; }
-
-    /// <summary>直近の同期実行がキャンセルされたかどうか。</summary>
-    [ObservableProperty] public partial bool ResultCancelled { get; set; }
-
-    /// <summary>同期後もTeams側に反映が残っている件数。-1は最終状態を未確認であることを表す。</summary>
-    [ObservableProperty] public partial int ResultRemainingCount { get; set; } = -1; // -1: 最終状態を未確認(再取得前または再取得失敗)
-
-    /// <summary>差分一覧に適用中の絞り込みフィルター。</summary>
-    [ObservableProperty] public partial ChangeFilter SelectedFilter { get; set; }
-
-    /// <summary>選択中の同期モード。</summary>
-    [ObservableProperty] public partial SyncModeOption SelectedMode { get; set; }
-
-    /// <summary>差分件数の要約テキスト。</summary>
-    [ObservableProperty] public partial string SummaryText { get; set; } = "";
 
     /// <summary>コンストラクター。差分一覧の絞り込みビューと既定の選択状態を初期化する。</summary>
     public SyncWorkspaceViewModel(TeamSyncService syncService, ISyncResultWriter resultWriter,
@@ -113,10 +55,90 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         SelectedMode = Modes[0];
     }
 
+    /// <summary>差分確認・再検証などの処理中かどうか。</summary>
+    [ObservableProperty]
+    public partial bool IsBusy { get; set; }
+
+    /// <summary>削除警告(InfoBar)を表示中かどうか。</summary>
+    [ObservableProperty]
+    public partial bool IsRemovalWarningOpen { get; set; }
+
+    /// <summary>同期の実行中かどうか。</summary>
+    [ObservableProperty]
+    public partial bool IsSyncing { get; set; }
+
+    /// <summary>差分確認の進捗の最大値。</summary>
+    [ObservableProperty]
+    public partial int PreviewProgressMaximum { get; set; } = 1;
+
+    /// <summary>差分確認の進捗の現在値。</summary>
+    [ObservableProperty]
+    public partial int PreviewProgressValue { get; set; }
+
+    /// <summary>同期実行の進捗の最大値。</summary>
+    [ObservableProperty]
+    public partial int ProgressMaximum { get; set; } = 1;
+
+    /// <summary>同期実行中の進捗テキスト。</summary>
+    [ObservableProperty]
+    public partial string ProgressText { get; set; } = "";
+
+    /// <summary>同期実行の進捗の現在値。</summary>
+    [ObservableProperty]
+    public partial int ProgressValue { get; set; }
+
+    /// <summary>削除警告InfoBarの本文。</summary>
+    [ObservableProperty]
+    public partial string RemovalWarningMessage { get; set; } = "";
+
+    /// <summary>削除警告InfoBarのタイトル。</summary>
+    [ObservableProperty]
+    public partial string RemovalWarningTitle { get; set; } = "";
+
+    // 「3 同期モード」「差分確認・実行」の手順が完了しているかを画面の手順表示へ伝えるための状態。
+    // HasPlanは差分確認済みか(モード変更で差分をクリアするとfalseに戻る)、
+    // HasSyncResultは一度でも同期を実行したかを表す。
+    /// <summary>差分確認済みかどうか(同期モード変更でfalseに戻る)。</summary>
+    [ObservableProperty]
+    public partial bool HasPlan { get; set; }
+
+    /// <summary>一度でも同期を実行したかどうか。</summary>
+    [ObservableProperty]
+    public partial bool HasSyncResult { get; set; }
+
+    // Snackbar(一時通知)が消えた後も成功・失敗・未反映件数を画面内に残すための実行結果サマリー。
+    /// <summary>直近の同期実行における成功件数。</summary>
+    [ObservableProperty]
+    public partial int ResultSuccessCount { get; set; }
+
+    /// <summary>直近の同期実行における失敗件数。</summary>
+    [ObservableProperty]
+    public partial int ResultFailureCount { get; set; }
+
+    /// <summary>直近の同期実行がキャンセルされたかどうか。</summary>
+    [ObservableProperty]
+    public partial bool ResultCancelled { get; set; }
+
+    /// <summary>同期後もTeams側に反映が残っている件数。-1は最終状態を未確認であることを表す。</summary>
+    [ObservableProperty]
+    public partial int ResultRemainingCount { get; set; } = -1; // -1: 最終状態を未確認(再取得前または再取得失敗)
+
+    /// <summary>差分一覧に適用中の絞り込みフィルター。</summary>
+    [ObservableProperty]
+    public partial ChangeFilter SelectedFilter { get; set; }
+
+    /// <summary>選択中の同期モード。</summary>
+    [ObservableProperty]
+    public partial SyncModeOption SelectedMode { get; set; }
+
+    /// <summary>差分件数の要約テキスト。</summary>
+    [ObservableProperty]
+    public partial string SummaryText { get; set; } = "";
+
     /// <summary>差分一覧の行データ。</summary>
     public ObservableCollection<SyncChangeRowViewModel> Changes { get; } = [];
 
-    /// <summary>絞り込みフィルターを適用した<see cref="Changes"/>のビュー。</summary>
+    /// <summary>絞り込みフィルターを適用した<see cref="Changes" />のビュー。</summary>
     public ICollectionView ChangesView { get; }
 
     // 実行結果の失敗項目だけを持つ一覧。成功分を含めず「絞り込み済み」の状態で公開することで、
@@ -189,7 +211,10 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         get => SelectedMode.Mode == SyncMode.AddOnly;
         set
         {
-            if (value) SelectedMode = Modes[0];
+            if (value)
+            {
+                SelectedMode = Modes[0];
+            }
         }
     }
 
@@ -199,7 +224,10 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         get => SelectedMode.Mode == SyncMode.FullSync;
         set
         {
-            if (value) SelectedMode = Modes.Single(mode => mode.Mode == SyncMode.FullSync);
+            if (value)
+            {
+                SelectedMode = Modes.Single(mode => mode.Mode == SyncMode.FullSync);
+            }
         }
     }
 
@@ -209,7 +237,10 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         get => SelectedMode.Mode == SyncMode.RemoveSpecified;
         set
         {
-            if (value) SelectedMode = Modes.Single(mode => mode.Mode == SyncMode.RemoveSpecified);
+            if (value)
+            {
+                SelectedMode = Modes.Single(mode => mode.Mode == SyncMode.RemoveSpecified);
+            }
         }
     }
 
@@ -226,7 +257,11 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         string? tenantId = null, string? actorObjectId = null)
     {
         if (_team == team && _document == document && _signedIn == signedIn &&
-            _tenantId == tenantId && _actorObjectId == actorObjectId) return;
+            _tenantId == tenantId && _actorObjectId == actorObjectId)
+        {
+            return;
+        }
+
         _team = team;
         _document = document;
         _signedIn = signedIn;
@@ -259,10 +294,12 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         OnPropertyChanged(nameof(IsAddOnlySelected));
         OnPropertyChanged(nameof(IsRemoveSpecifiedSelected));
         OnPropertyChanged(nameof(IsFullSyncSelected));
-        var hadPlan = _plan is not null;
+        bool hadPlan = _plan is not null;
         InvalidatePlan();
         if (hadPlan)
+        {
             StatusChanged?.Invoke("同期モードを変更したため差分をクリアしました。「差分を確認」を再実行してください", false);
+        }
     }
 
     /// <summary>処理中状態の変化に応じて関連コマンドの実行可否を再評価する。</summary>
@@ -323,12 +360,16 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     {
         await _busyRunner.RunAsync(async () =>
         {
-            if (_team is null || _document is null) return;
+            if (_team is null || _document is null)
+            {
+                return;
+            }
+
             StatusChanged?.Invoke("ユーザーと現在のメンバーを照合しています…", false);
             PreviewProgressValue = 0;
             PreviewProgressMaximum = Math.Max(1, _document.Addresses.Count);
-            var progress = new Progress<int>(count => PreviewProgressValue = count);
-            var plan = await _syncService.BuildPlanAsync(_team, _document.Addresses,
+            Progress<int> progress = new(count => PreviewProgressValue = count);
+            SyncPlan plan = await _syncService.BuildPlanAsync(_team, _document.Addresses,
                 mode: SelectedMode.Mode, progress: progress);
             ApplyPlan(plan);
         });
@@ -348,9 +389,15 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         {
             if (_plan is null || _document is null ||
                 !await _confirmation.ConfirmSyncAsync(new SyncConfirmation(
-                    _plan, _document.FileName, $"{InputSummary}{Environment.NewLine}{InputPreview}"))) return;
+                    _plan, _document.FileName, $"{InputSummary}{Environment.NewLine}{InputPreview}")))
+            {
+                return;
+            }
 
-            if (!await RevalidateBeforeExecuteAsync()) return;
+            if (!await RevalidateBeforeExecuteAsync())
+            {
+                return;
+            }
 
             await RunSyncAndReconcileAsync();
         }
@@ -373,11 +420,14 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         try
         {
             StatusChanged?.Invoke("実行直前のメンバー構成を確認しています…", false);
-            var revalidation = await _syncService.RevalidatePlanAsync(_plan!);
+            SyncPlanRevalidation revalidation = await _syncService.RevalidatePlanAsync(_plan!);
             // ApplyPlan既定の案内文はこの後の分岐でより具体的なメッセージに置き換えるため、
             // 同じ内容をスクリーンリーダーへ二重に読み上げさせないようannounceStatus: falseで抑制する。
-            ApplyPlan(revalidation.LatestPlan, announceStatus: false);
-            if (revalidation.IsCurrent) return true;
+            ApplyPlan(revalidation.LatestPlan, false);
+            if (revalidation.IsCurrent)
+            {
+                return true;
+            }
 
             _notifications.ShowWarning("同期差分が変更されました",
                 "チームのメンバー構成がプレビュー後に変更されました。最新の差分を確認して、もう一度同期を実行してください。");
@@ -402,8 +452,8 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 同期プランを実行し、結果を画面へ反映する。キャンセルされた場合と正常終了した場合とで
-    /// 後処理(<see cref="HandleSyncCancelled"/>/<see cref="ReconcileAfterSyncAsync"/>)を分ける。
+    ///     同期プランを実行し、結果を画面へ反映する。キャンセルされた場合と正常終了した場合とで
+    ///     後処理(<see cref="HandleSyncCancelled" />/<see cref="ReconcileAfterSyncAsync" />)を分ける。
     /// </summary>
     private async Task RunSyncAndReconcileAsync()
     {
@@ -414,9 +464,9 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         ProgressMaximum = Math.Max(1, _plan!.AddCount + _plan.RemoveCount);
         try
         {
-            var progress = new Progress<SyncProgress>(ReportSyncProgress);
+            Progress<SyncProgress> progress = new(ReportSyncProgress);
             _lastExecutedPlan = _plan;
-            var auditContext = new SyncAuditContext(Guid.NewGuid(),
+            SyncAuditContext auditContext = new(Guid.NewGuid(),
                 _document!.FileName, _document.ContentSha256, _tenantId, _actorObjectId);
             _lastResult = await _syncService.ExecuteAsync(
                 _plan, progress, _syncCancellation.Token, auditContext);
@@ -425,9 +475,13 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             WriteAutoLog();
 
             if (_lastResult.Cancelled)
+            {
                 HandleSyncCancelled();
+            }
             else
+            {
                 await ReconcileAfterSyncAsync();
+            }
 
             ExecuteSyncCommand.NotifyCanExecuteChanged();
         }
@@ -484,26 +538,31 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     // 実行後にTeams側の最終状態を再取得し、未反映分だけを新しい差分として表示する。
     // 再取得自体に失敗しても既に完了した操作結果は保存できるため、差分だけを無効化して継続可能にする。
     /// <summary>
-    /// 同期完了後にTeams側の最終状態を再取得し、未反映分を新しい差分として表示する。
-    /// 再取得に失敗しても既に完了した実行結果は保持したまま、差分だけを無効化する。
+    ///     同期完了後にTeams側の最終状態を再取得し、未反映分を新しい差分として表示する。
+    ///     再取得に失敗しても既に完了した実行結果は保持したまま、差分だけを無効化する。
     /// </summary>
     private async Task ReconcileAfterSyncAsync()
     {
         try
         {
             StatusChanged?.Invoke("Teams側の最新状態を確認しています…", false);
-            var remaining = await _syncService.ReconcileAsync(_lastExecutedPlan!);
+            SyncPlan remaining = await _syncService.ReconcileAsync(_lastExecutedPlan!);
             // ApplyPlan既定の案内文はこの直後により具体的な完了メッセージへ置き換えるため、
             // 同じ内容をスクリーンリーダーへ二重に読み上げさせないようannounceStatus: falseで抑制する。
-            ApplyPlan(remaining, announceStatus: false);
-            var remainingCount = remaining.AddCount + remaining.RemoveCount;
+            ApplyPlan(remaining, false);
+            int remainingCount = remaining.AddCount + remaining.RemoveCount;
             ResultRemainingCount = remainingCount;
             if (_lastResult!.FailureCount > 0)
+            {
                 _notifications.ShowWarning("一部の操作に失敗しました",
                     $"成功 {_lastResult.SuccessCount}件 / 失敗 {_lastResult.FailureCount}件。未反映 {remainingCount}件を再実行できます。");
+            }
             else
+            {
                 _notifications.ShowSuccess("同期完了",
                     $"{_lastResult.SuccessCount}件の変更が完了し、Teams側の状態を確認しました。");
+            }
+
             StatusChanged?.Invoke(remainingCount > 0
                 ? $"最終状態を確認しました。未反映 {remainingCount}件を再実行できます"
                 : "同期完了: Teams側の状態を確認済みです", remainingCount > 0);
@@ -541,9 +600,12 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     /// <summary>実行中の同期をキャンセルし、後処理が完了するまで待機する。</summary>
     public async Task CancelAndWaitAsync()
     {
-        var completion = _syncCompletion;
+        TaskCompletionSource? completion = _syncCompletion;
         _syncCancellation?.Cancel();
-        if (completion is not null) await completion.Task;
+        if (completion is not null)
+        {
+            await completion.Task;
+        }
     }
 
     /// <summary>実行中の同期をキャンセルする。</summary>
@@ -559,8 +621,8 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 現在の差分プランを無効化する。<paramref name="clearResult"/>がtrueの場合は
-    /// 直近の実行結果もあわせてクリアする。
+    ///     現在の差分プランを無効化する。<paramref name="clearResult" />がtrueの場合は
+    ///     直近の実行結果もあわせてクリアする。
     /// </summary>
     private void InvalidatePlan(bool clearResult = true)
     {
@@ -595,22 +657,26 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         ResultFailureCount = _lastResult?.FailureCount ?? 0;
         ResultCancelled = _lastResult?.Cancelled ?? false;
         FailedResults.Clear();
-        foreach (var row in SyncWorkspaceTextFormatter.BuildFailedRows(_lastResult)) FailedResults.Add(row);
+        foreach (SyncResultRowViewModel row in SyncWorkspaceTextFormatter.BuildFailedRows(_lastResult))
+        {
+            FailedResults.Add(row);
+        }
+
         OnPropertyChanged(nameof(HasFailedResults));
     }
 
     // announceStatus: falseの呼び出し元は、この直後に自分でより具体的な状況(再検証結果・完了結果など)を
     // StatusChangedへ通知する。既定の案内文と二重にスクリーンリーダーへ読み上げさせないための引数。
     /// <summary>
-    /// 作成した同期プランを画面へ反映する(差分一覧・件数サマリー・削除警告)。
-    /// <paramref name="announceStatus"/>がfalseの場合、既定の案内文とフォーカス移動は行わない。
+    ///     作成した同期プランを画面へ反映する(差分一覧・件数サマリー・削除警告)。
+    ///     <paramref name="announceStatus" />がfalseの場合、既定の案内文とフォーカス移動は行わない。
     /// </summary>
     private void ApplyPlan(SyncPlan plan, bool announceStatus = true)
     {
         _plan = plan;
         HasPlan = true;
         ReplaceChanges(plan.Changes);
-        var presentation = SyncWorkspaceTextFormatter.BuildPlan(plan);
+        PlanPresentation presentation = SyncWorkspaceTextFormatter.BuildPlan(plan);
         SummaryText = presentation.Summary;
         IsRemovalWarningOpen = plan.RemoveCount > 0;
         RemovalWarningTitle = presentation.RemovalTitle;
@@ -626,6 +692,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             // 上書きしてしまう。
             DiffFocusRequested?.Invoke();
         }
+
         ExecuteSyncCommand.NotifyCanExecuteChanged();
     }
 
@@ -633,12 +700,15 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     private void ReplaceChanges(IEnumerable<SyncChange> changes)
     {
         Changes.Clear();
-        foreach (var change in changes.OrderBy(x => x.Kind switch
+        foreach (SyncChange change in changes.OrderBy(x => x.Kind switch
                  {
                      ChangeKind.Error => 0, ChangeKind.Remove => 1, ChangeKind.Add => 2, ChangeKind.Protected => 3,
                      _ => 4
                  }))
+        {
             Changes.Add(new SyncChangeRowViewModel(change));
+        }
+
         ChangesView.Refresh();
         UpdateFilterCounts();
     }
@@ -662,9 +732,16 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     /// <summary>差分一覧の1項目が現在選択中のフィルター条件に一致するかどうかを判定する。</summary>
     private bool FilterChange(object item)
     {
-        if (item is not SyncChangeRowViewModel row) return false;
+        if (item is not SyncChangeRowViewModel row)
+        {
+            return false;
+        }
+
         if (SelectedFilter.ChangesOnly)
+        {
             return row.Kind is ChangeKind.Add or ChangeKind.Remove or ChangeKind.Error;
+        }
+
         return SelectedFilter.Kind is null || row.Kind == SelectedFilter.Kind;
     }
 

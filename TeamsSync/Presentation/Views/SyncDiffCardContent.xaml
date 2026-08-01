@@ -19,7 +19,8 @@
                                    VerticalAlignment="Center" AutomationProperties.Name="" />
                     <TextBlock Text="4  同期差分" FontWeight="SemiBold" VerticalAlignment="Center" />
                 </StackPanel>
-                <TextBlock Text="追加・削除される変更内容を確認します" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                <TextBlock Text="追加・削除される変更内容を確認します" FontSize="12"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left"
                         Margin="20,0,0,0" VerticalAlignment="Center">
@@ -52,8 +53,9 @@
                 <ui:Button.Style>
                     <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding DataContext.WorkflowSteps.Step3State, RelativeSource={RelativeSource AncestorType=Window}}"
-                                         Value="{x:Static vm:WorkflowStepState.Current}">
+                            <DataTrigger
+                                Binding="{Binding DataContext.WorkflowSteps.Step3State, RelativeSource={RelativeSource AncestorType=Window}}"
+                                Value="{x:Static vm:WorkflowStepState.Current}">
                                 <Setter Property="Appearance" Value="Primary" />
                             </DataTrigger>
                         </Style.Triggers>
@@ -72,12 +74,12 @@
                        Visibility="{Binding IsNameColumn, Converter={StaticResource BooleanToVisibilityConverter}}" />
         </StackPanel>
         <ui:DataGrid x:Name="ChangesGrid" Grid.Row="2" ItemsSource="{Binding ChangesView}"
-                  AutoGenerateColumns="False" IsReadOnly="True"
-                  CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                  SelectionMode="Single" ColumnHeaderHeight="36"
-                  RowHeight="28" FontSize="12" BorderThickness="0"
-                  ClipboardCopyMode="ExcludeHeader" CanUserSortColumns="True"
-                  AutomationProperties.Name="同期差分一覧">
+                     AutoGenerateColumns="False" IsReadOnly="True"
+                     CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                     SelectionMode="Single" ColumnHeaderHeight="36"
+                     RowHeight="28" FontSize="12" BorderThickness="0"
+                     ClipboardCopyMode="ExcludeHeader" CanUserSortColumns="True"
+                     AutomationProperties.Name="同期差分一覧">
             <!-- 読込中はGrid.Row="2"に重なるオーバーレイが視覚的にDataGridを覆うが、
                  既定ではTabキーによるフォーカスはヒットテストと無関係に背後の行へ入ってしまう。
                  IsBusy中はDataGrid自体を無効化し、キーボードフォーカスも到達しないようにする。 -->
@@ -126,12 +128,14 @@
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding Kind}"
                                                          Value="{x:Static domain:ChangeKind.Add}">
-                                                <Setter Property="Background" Value="{DynamicResource SystemFillColorSuccessBackgroundBrush}" />
+                                                <Setter Property="Background"
+                                                        Value="{DynamicResource SystemFillColorSuccessBackgroundBrush}" />
                                                 <Setter Property="BorderBrush" Value="#9FD89F" />
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding Kind}"
                                                          Value="{x:Static domain:ChangeKind.Remove}">
-                                                <Setter Property="Background" Value="{DynamicResource SystemFillColorCriticalBackgroundBrush}" />
+                                                <Setter Property="Background"
+                                                        Value="{DynamicResource SystemFillColorCriticalBackgroundBrush}" />
                                                 <Setter Property="BorderBrush" Value="#F1AEB5" />
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding Kind}"
@@ -146,7 +150,8 @@
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding Kind}"
                                                          Value="{x:Static domain:ChangeKind.Error}">
-                                                <Setter Property="Background" Value="{DynamicResource SystemFillColorCautionBackgroundBrush}" />
+                                                <Setter Property="Background"
+                                                        Value="{DynamicResource SystemFillColorCautionBackgroundBrush}" />
                                                 <Setter Property="BorderBrush" Value="#E6C94C" />
                                             </DataTrigger>
                                         </Style.Triggers>
@@ -158,13 +163,25 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 <DataGridTextColumn Header="表示名" Binding="{Binding DisplayName}" Width="2*">
-                    <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="ToolTip" Value="{Binding DisplayName}" /></Style></DataGridTextColumn.ElementStyle>
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="ToolTip" Value="{Binding DisplayName}" />
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
                 <DataGridTextColumn Header="氏名 / メールアドレス" Binding="{Binding Email}" Width="2*">
-                    <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="ToolTip" Value="{Binding Email}" /></Style></DataGridTextColumn.ElementStyle>
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="ToolTip" Value="{Binding Email}" />
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
                 <DataGridTextColumn Header="詳細" Binding="{Binding Detail}" Width="3*">
-                    <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="ToolTip" Value="{Binding Detail}" /></Style></DataGridTextColumn.ElementStyle>
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="ToolTip" Value="{Binding Detail}" />
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
             </ui:DataGrid.Columns>
         </ui:DataGrid>

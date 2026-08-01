@@ -1,6 +1,5 @@
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Domain.Teams;
-using TeamsSync.Presentation.Services;
 
 namespace TeamsSync.UiHarness;
 
@@ -27,27 +26,6 @@ internal sealed class DemoAuthenticationService : IAuthenticationService
 
 public sealed class DemoTeamsGateway : ITeamsGateway
 {
-    private readonly object _gate = new();
-    private readonly IReadOnlyList<TeamInfo> _teams =
-    [
-        new("demo-team", "UI確認用チーム", "追加・削除・保護・エラーを確認するためのデモチーム"),
-        new("long-team", "非常に長いチーム名を使った高DPI・折り返しレイアウト確認用チーム", "長文確認用")
-    ];
-    private readonly Dictionary<string, List<TeamMember>> _members = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["demo-team"] =
-        [
-            new("membership-owner", "user-owner", "佐藤 オーナー", "owner@example.com", true),
-            new("membership-taro", "user-taro", "山田 太郎", "taro@example.com", false),
-            new("membership-hanako", "user-hanako", "鈴木 花子", "hanako@example.com", false),
-            new("membership-long", "user-long", "とても長い表示名を持つレイアウト確認用ユーザー", "long.user@example.com", false)
-        ],
-        ["long-team"] =
-        [
-            new("long-owner-membership", "user-owner", "佐藤 オーナー", "owner@example.com", true),
-            new("long-member-membership", "user-taro", "山田 太郎", "taro@example.com", false)
-        ]
-    };
     private readonly IReadOnlyList<DirectoryUser> _directory =
     [
         new("user-owner", "佐藤 オーナー", "owner@example.com", "owner@example.com"),
@@ -58,55 +36,66 @@ public sealed class DemoTeamsGateway : ITeamsGateway
         new("user-second", "田中 追加", "second.new@example.com", "second.new@example.com")
     ];
 
+    private readonly object _gate = new();
+
+    private readonly Dictionary<string, List<TeamMember>> _members = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["demo-team"] =
+        [
+            new TeamMember("membership-owner", "user-owner", "佐藤 オーナー", "owner@example.com", true),
+            new TeamMember("membership-taro", "user-taro", "山田 太郎", "taro@example.com", false),
+            new TeamMember("membership-hanako", "user-hanako", "鈴木 花子", "hanako@example.com", false),
+            new TeamMember("membership-long", "user-long", "とても長い表示名を持つレイアウト確認用ユーザー", "long.user@example.com", false)
+        ],
+        ["long-team"] =
+        [
+            new TeamMember("long-owner-membership", "user-owner", "佐藤 オーナー", "owner@example.com", true),
+            new TeamMember("long-member-membership", "user-taro", "山田 太郎", "taro@example.com", false)
+        ]
+    };
+
+    private readonly IReadOnlyList<TeamInfo> _teams =
+    [
+        new("demo-team", "UI確認用チーム", "追加・削除・保護・エラーを確認するためのデモチーム"),
+        new("long-team", "非常に長いチーム名を使った高DPI・折り返しレイアウト確認用チーム", "長文確認用")
+    ];
+
     public string? FailingUserId { get; set; }
 
-    public void Reset()
+    public Task<(string Id, string DisplayName, string UserPrincipalName)> GetMeAsync(
+        CancellationToken cancellationToken = default)
     {
-        lock (_gate)
-        {
-            _members["demo-team"] =
-            [
-                new("membership-owner", "user-owner", "佐藤 オーナー", "owner@example.com", true),
-                new("membership-taro", "user-taro", "山田 太郎", "taro@example.com", false),
-                new("membership-hanako", "user-hanako", "鈴木 花子", "hanako@example.com", false),
-                new("membership-long", "user-long", "とても長い表示名を持つレイアウト確認用ユーザー", "long.user@example.com", false)
-            ];
-            _members["long-team"] =
-            [
-                new("long-owner-membership", "user-owner", "佐藤 オーナー", "owner@example.com", true),
-                new("long-member-membership", "user-taro", "山田 太郎", "taro@example.com", false)
-            ];
-            FailingUserId = null;
-        }
+        return Task.FromResult(("demo-admin", "デモ管理者", "demo.admin@example.com"));
     }
 
-    public Task<(string Id, string DisplayName, string UserPrincipalName)> GetMeAsync(
-        CancellationToken cancellationToken = default) =>
-        Task.FromResult(("demo-admin", "デモ管理者", "demo.admin@example.com"));
-
     public Task<IReadOnlyList<TeamInfo>> GetOwnedTeamsAsync(string currentUserId,
-        CancellationToken cancellationToken = default) => Task.FromResult(_teams);
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(_teams);
+    }
 
     public Task<IReadOnlyList<TeamMember>> GetTeamMembersAsync(string teamId,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)
+        {
             return Task.FromResult<IReadOnlyList<TeamMember>>(
-                _members.TryGetValue(teamId, out var members) ? members.ToList() : []);
+                _members.TryGetValue(teamId, out List<TeamMember>? members) ? members.ToList() : []);
+        }
     }
 
     public Task<IReadOnlyList<DirectoryUser>> FindUsersAsync(string identifier,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var normalized = identifier.Replace(" ", "", StringComparison.Ordinal)
+        string normalized = identifier.Replace(" ", "", StringComparison.Ordinal)
             .Replace("　", "", StringComparison.Ordinal);
         IReadOnlyList<DirectoryUser> result = _directory.Where(user =>
-            string.Equals(user.UserPrincipalName, identifier, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(user.Mail, identifier, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(user.DisplayName.Replace(" ", "", StringComparison.Ordinal)
-                .Replace("　", "", StringComparison.Ordinal), normalized, StringComparison.OrdinalIgnoreCase))
+                string.Equals(user.UserPrincipalName, identifier, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(user.Mail, identifier, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(user.DisplayName.Replace(" ", "", StringComparison.Ordinal)
+                    .Replace("　", "", StringComparison.Ordinal), normalized, StringComparison.OrdinalIgnoreCase))
             .ToList();
         return Task.FromResult(result);
     }
@@ -116,16 +105,22 @@ public sealed class DemoTeamsGateway : ITeamsGateway
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (string.Equals(FailingUserId, userId, StringComparison.OrdinalIgnoreCase))
+        {
             throw new InvalidOperationException("Harnessで再現したメンバー追加エラーです。");
+        }
+
         lock (_gate)
         {
-            var user = _directory.Single(directoryUser =>
+            DirectoryUser user = _directory.Single(directoryUser =>
                 string.Equals(directoryUser.Id, userId, StringComparison.OrdinalIgnoreCase));
-            var members = _members[teamId];
+            List<TeamMember> members = _members[teamId];
             if (members.All(member => !string.Equals(member.UserId, userId, StringComparison.OrdinalIgnoreCase)))
+            {
                 members.Add(new TeamMember($"demo-membership-{user.Id}", user.Id, user.DisplayName,
                     user.UserPrincipalName, false));
+            }
         }
+
         return Task.CompletedTask;
     }
 
@@ -134,9 +129,33 @@ public sealed class DemoTeamsGateway : ITeamsGateway
     {
         cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)
+        {
             _members[teamId].RemoveAll(member =>
                 string.Equals(member.MembershipId, membershipId, StringComparison.OrdinalIgnoreCase));
+        }
+
         return Task.CompletedTask;
+    }
+
+    public void Reset()
+    {
+        lock (_gate)
+        {
+            _members["demo-team"] =
+            [
+                new TeamMember("membership-owner", "user-owner", "佐藤 オーナー", "owner@example.com", true),
+                new TeamMember("membership-taro", "user-taro", "山田 太郎", "taro@example.com", false),
+                new TeamMember("membership-hanako", "user-hanako", "鈴木 花子", "hanako@example.com", false),
+                new TeamMember("membership-long", "user-long", "とても長い表示名を持つレイアウト確認用ユーザー", "long.user@example.com",
+                    false)
+            ];
+            _members["long-team"] =
+            [
+                new TeamMember("long-owner-membership", "user-owner", "佐藤 オーナー", "owner@example.com", true),
+                new TeamMember("long-member-membership", "user-taro", "山田 太郎", "taro@example.com", false)
+            ];
+            FailingUserId = null;
+        }
     }
 }
 

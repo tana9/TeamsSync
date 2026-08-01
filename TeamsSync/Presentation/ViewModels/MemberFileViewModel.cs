@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Domain.Teams;
 using TeamsSync.Presentation.Services;
@@ -7,9 +8,9 @@ using TeamsSync.Presentation.Services;
 namespace TeamsSync.Presentation.ViewModels;
 
 /// <summary>
-/// メンバーリストの入力(ファイル選択・ドラッグ&ドロップ・テキスト貼り付け)を管理し、
-/// 解析結果の<see cref="MemberListDocument"/>を保持する。Teamsからの現在メンバー取り込みは
-/// <see cref="Import"/>(<see cref="TeamMemberImportViewModel"/>)へ委譲する。
+///     メンバーリストの入力(ファイル選択・ドラッグ&ドロップ・テキスト貼り付け)を管理し、
+///     解析結果の<see cref="MemberListDocument" />を保持する。Teamsからの現在メンバー取り込みは
+///     <see cref="Import" />(<see cref="TeamMemberImportViewModel" />)へ委譲する。
 /// </summary>
 public partial class MemberFileViewModel : ObservableObject
 {
@@ -22,34 +23,6 @@ public partial class MemberFileViewModel : ObservableObject
     private MemberListDocument? _fileDocument;
     private CancellationTokenSource? _loadCancellation;
     private CancellationTokenSource? _parseCancellation;
-
-    /// <summary>ファイル入力の状態説明テキスト。</summary>
-    [ObservableProperty] public partial string FileInfoText { get; set; } = "ファイルを選択するか、ここへドロップしてください";
-
-    /// <summary>選択中のファイルパス。</summary>
-    [ObservableProperty] public partial string FilePath { get; set; } = "";
-
-    /// <summary>テキスト貼り付け入力の状態説明テキスト。</summary>
-    [ObservableProperty] public partial string PasteInfoText { get; set; } = "1行につき1ユーザー（氏名またはメールアドレス）";
-
-    /// <summary>貼り付けテキストを解析中かどうか。</summary>
-    [ObservableProperty] public partial bool IsParsing { get; set; }
-
-    /// <summary>ファイルを読み込み中かどうか。</summary>
-    [ObservableProperty] public partial bool IsLoadingFile { get; set; }
-
-    /// <summary>貼り付け入力の解析でエラーが発生したかどうか。</summary>
-    [ObservableProperty] public partial bool IsPasteError { get; set; }
-
-    /// <summary>テキスト貼り付け入力欄の内容。</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasUnappliedPastedText))]
-    public partial string PastedText { get; set; } = "";
-
-    /// <summary>選択中の入力方法(0=ファイル、1=テキスト貼り付け)。</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasUnappliedPastedText))]
-    public partial int SelectedInputIndex { get; set; }
 
     /// <summary>コンストラクター。</summary>
     public MemberFileViewModel(IMemberListReader reader, IMemberTextParser textParser,
@@ -69,6 +42,40 @@ public partial class MemberFileViewModel : ObservableObject
         DocumentChanged += () => OnPropertyChanged(nameof(HasUnappliedPastedText));
     }
 
+    /// <summary>ファイル入力の状態説明テキスト。</summary>
+    [ObservableProperty]
+    public partial string FileInfoText { get; set; } = "ファイルを選択するか、ここへドロップしてください";
+
+    /// <summary>選択中のファイルパス。</summary>
+    [ObservableProperty]
+    public partial string FilePath { get; set; } = "";
+
+    /// <summary>テキスト貼り付け入力の状態説明テキスト。</summary>
+    [ObservableProperty]
+    public partial string PasteInfoText { get; set; } = "1行につき1ユーザー（氏名またはメールアドレス）";
+
+    /// <summary>貼り付けテキストを解析中かどうか。</summary>
+    [ObservableProperty]
+    public partial bool IsParsing { get; set; }
+
+    /// <summary>ファイルを読み込み中かどうか。</summary>
+    [ObservableProperty]
+    public partial bool IsLoadingFile { get; set; }
+
+    /// <summary>貼り付け入力の解析でエラーが発生したかどうか。</summary>
+    [ObservableProperty]
+    public partial bool IsPasteError { get; set; }
+
+    /// <summary>テキスト貼り付け入力欄の内容。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUnappliedPastedText))]
+    public partial string PastedText { get; set; } = "";
+
+    /// <summary>選択中の入力方法(0=ファイル、1=テキスト貼り付け)。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUnappliedPastedText))]
+    public partial int SelectedInputIndex { get; set; }
+
     /// <summary>Teamsからの現在メンバー取り込みを管理するViewModel。</summary>
     public TeamMemberImportViewModel Import { get; }
 
@@ -79,7 +86,7 @@ public partial class MemberFileViewModel : ObservableObject
     public bool HasUnappliedPastedText =>
         SelectedInputIndex == 1 && Document is null && !string.IsNullOrWhiteSpace(PastedText);
 
-    /// <summary><see cref="Document"/>が変化したときに発行される。</summary>
+    /// <summary><see cref="Document" />が変化したときに発行される。</summary>
     public event Action? DocumentChanged;
 
     /// <summary>ステータスメッセージを通知するために発行される。</summary>
@@ -101,7 +108,10 @@ public partial class MemberFileViewModel : ObservableObject
     }
 
     /// <summary>現在選択されているチームを設定し、メンバー取り込みコマンドの状態を更新する。</summary>
-    public void SetSelectedTeam(TeamInfo? team) => Import.SetSelectedTeam(team);
+    public void SetSelectedTeam(TeamInfo? team)
+    {
+        Import.SetSelectedTeam(team);
+    }
 
     /// <summary>ファイル読込関連コマンドのCanExecute状態を再評価させる。</summary>
     private void NotifyFileLoadCommandsCanExecuteChanged()
@@ -122,7 +132,11 @@ public partial class MemberFileViewModel : ObservableObject
     /// <summary>貼り付けテキストの変更を検知し、反映前の文書を無効化して状態を更新する。</summary>
     partial void OnPastedTextChanged(string value)
     {
-        if (SelectedInputIndex != 1) return;
+        if (SelectedInputIndex != 1)
+        {
+            return;
+        }
+
         Document = null;
         PasteInfoText = string.IsNullOrWhiteSpace(value)
             ? "1行につき1ユーザー（氏名またはメールアドレス）"
@@ -136,15 +150,22 @@ public partial class MemberFileViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanLoad))]
     private async Task Browse()
     {
-        var path = _filePicker.PickMemberFile(_preferences.LastFolder);
-        if (path is not null) await Load(path);
+        string? path = _filePicker.PickMemberFile(_preferences.LastFolder);
+        if (path is not null)
+        {
+            await Load(path);
+        }
     }
 
     /// <summary>ドラッグ&ドロップされたファイルを読み込む。</summary>
     [RelayCommand(CanExecute = nameof(CanLoad))]
     private async Task LoadDroppedFile(string? path)
     {
-        if (string.IsNullOrWhiteSpace(path)) return;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
         SelectedInputIndex = 0;
         await Load(path);
     }
@@ -157,14 +178,14 @@ public partial class MemberFileViewModel : ObservableObject
     // CSV/Excelの解析は行数・列数によって時間がかかりうるため、貼り付け入力(ApplyPastedTextInputAsync)と同様に
     // UIスレッド外(Task.Run)で実行し、IsLoadingFileで処理中表示、CancellationTokenSourceでキャンセルを可能にする。
     /// <summary>
-    /// 指定したパスのファイルをUIスレッド外で読み込み、成功時は<see cref="Document"/>と
-    /// 前回フォルダー設定を更新する。失敗・キャンセル時は状態を適切にロールバックする。
+    ///     指定したパスのファイルをUIスレッド外で読み込み、成功時は<see cref="Document" />と
+    ///     前回フォルダー設定を更新する。失敗・キャンセル時は状態を適切にロールバックする。
     /// </summary>
     private async Task Load(string path)
     {
         _loadCancellation?.Cancel();
         _loadCancellation?.Dispose();
-        var cts = new CancellationTokenSource();
+        CancellationTokenSource cts = new();
         _loadCancellation = cts;
         IsLoadingFile = true;
         FilePath = path;
@@ -172,7 +193,7 @@ public partial class MemberFileViewModel : ObservableObject
         NotifyFileLoadCommandsCanExecuteChanged();
         try
         {
-            var document = await Task.Run(() => _reader.Read(path, cts.Token), cts.Token);
+            MemberListDocument document = await Task.Run(() => _reader.Read(path, cts.Token), cts.Token);
             _fileDocument = document;
             Document = document;
             FilePath = path;
@@ -188,6 +209,7 @@ public partial class MemberFileViewModel : ObservableObject
                 _notifications.ShowWarning("設定を保存できませんでした",
                     $"メンバーリストは読み込み済みです。前回のフォルダーだけ保存できませんでした。{Environment.NewLine}{ex.Message}");
             }
+
             NotifyDocumentChanged();
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
@@ -212,7 +234,10 @@ public partial class MemberFileViewModel : ObservableObject
         {
             IsLoadingFile = false;
             if (ReferenceEquals(_loadCancellation, cts))
+            {
                 _loadCancellation = null;
+            }
+
             cts.Dispose();
             NotifyFileLoadCommandsCanExecuteChanged();
         }
@@ -230,7 +255,7 @@ public partial class MemberFileViewModel : ObservableObject
         return IsLoadingFile && _loadCancellation is not null;
     }
 
-    /// <summary>選択中の入力方法に応じて<see cref="Document"/>をファイル文書または未反映状態へ切り替える。</summary>
+    /// <summary>選択中の入力方法に応じて<see cref="Document" />をファイル文書または未反映状態へ切り替える。</summary>
     private void ApplySelectedInput()
     {
         if (SelectedInputIndex == 0)
@@ -248,16 +273,20 @@ public partial class MemberFileViewModel : ObservableObject
         }
     }
 
-    /// <summary>貼り付けテキストをUIスレッド外で解析し、成功時は<see cref="Document"/>へ反映する。</summary>
+    /// <summary>貼り付けテキストをUIスレッド外で解析し、成功時は<see cref="Document" />へ反映する。</summary>
     [RelayCommand(CanExecute = nameof(CanApplyPastedText))]
     private async Task ApplyPastedTextInputAsync()
     {
-        if (string.IsNullOrWhiteSpace(PastedText)) return;
+        if (string.IsNullOrWhiteSpace(PastedText))
+        {
+            return;
+        }
+
         _parseCancellation?.Cancel();
         _parseCancellation?.Dispose();
-        var cts = new CancellationTokenSource();
+        CancellationTokenSource cts = new();
         _parseCancellation = cts;
-        var text = PastedText;
+        string text = PastedText;
         IsParsing = true;
         IsPasteError = false;
         PasteInfoText = "入力内容を解析しています…";
@@ -265,7 +294,7 @@ public partial class MemberFileViewModel : ObservableObject
         CancelParsingCommand.NotifyCanExecuteChanged();
         try
         {
-            var document = await Task.Run(() => _textParser.Parse(text, cts.Token), cts.Token);
+            MemberListDocument document = await Task.Run(() => _textParser.Parse(text, cts.Token), cts.Token);
             if (!string.Equals(text, PastedText, StringComparison.Ordinal))
             {
                 PasteInfoText = "解析中に内容が変更されました。「入力を反映」を押してください";
@@ -273,8 +302,8 @@ public partial class MemberFileViewModel : ObservableObject
             }
 
             Document = document;
-            var entered = text.Split(["\r\n", "\n", "\r"], StringSplitOptions.RemoveEmptyEntries).Length;
-            var duplicates = Math.Max(0, entered - document.Addresses.Count);
+            int entered = text.Split(["\r\n", "\n", "\r"], StringSplitOptions.RemoveEmptyEntries).Length;
+            int duplicates = Math.Max(0, entered - document.Addresses.Count);
             PasteInfoText = $"{document.Addresses.Count}件 • 重複{duplicates}件を除外";
             NotifyDocumentChanged();
         }
@@ -296,15 +325,25 @@ public partial class MemberFileViewModel : ObservableObject
             IsParsing = false;
             ApplyPastedTextInputCommand.NotifyCanExecuteChanged();
             CancelParsingCommand.NotifyCanExecuteChanged();
-            if (ReferenceEquals(_parseCancellation, cts)) _parseCancellation = null;
+            if (ReferenceEquals(_parseCancellation, cts))
+            {
+                _parseCancellation = null;
+            }
+
             cts.Dispose();
         }
     }
 
     [RelayCommand(CanExecute = nameof(CanCancelParsing))]
-    private void CancelParsing() => _parseCancellation?.Cancel();
+    private void CancelParsing()
+    {
+        _parseCancellation?.Cancel();
+    }
 
-    private bool CanCancelParsing() => IsParsing && _parseCancellation is not null;
+    private bool CanCancelParsing()
+    {
+        return IsParsing && _parseCancellation is not null;
+    }
 
     private bool CanApplyPastedText()
     {
@@ -323,11 +362,13 @@ public partial class MemberFileViewModel : ObservableObject
         NotifyDocumentChanged();
     }
 
-    /// <summary><see cref="DocumentChanged"/>を発行し、成功時は件数をステータスとして通知する。</summary>
+    /// <summary><see cref="DocumentChanged" />を発行し、成功時は件数をステータスとして通知する。</summary>
     private void NotifyDocumentChanged()
     {
         DocumentChanged?.Invoke();
         if (Document is not null)
+        {
             StatusChanged?.Invoke($"{Document.Addresses.Count}件の一意な氏名／メールアドレスを読み込みました", false);
+        }
     }
 }

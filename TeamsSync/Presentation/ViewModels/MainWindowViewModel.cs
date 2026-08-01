@@ -1,30 +1,20 @@
 using System.Reflection;
+
 using CommunityToolkit.Mvvm.ComponentModel;
+
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Presentation.Services;
 
 namespace TeamsSync.Presentation.ViewModels;
 
 /// <summary>
-/// メインウィンドウ全体の状態(ステータス表示・入力の有効化)を管理し、
-/// 子ViewModel(サインイン・チーム選択・メンバーリスト・同期ワークスペース)を束ねる。
+///     メインウィンドウ全体の状態(ステータス表示・入力の有効化)を管理し、
+///     子ViewModel(サインイン・チーム選択・メンバーリスト・同期ワークスペース)を束ねる。
 /// </summary>
 public partial class MainWindowViewModel : ObservableObject
 {
-    /// <summary>ウィンドウタイトル(アプリ名とバージョン)。</summary>
-    public string WindowTitle { get; } = $"TeamsSync {Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}";
-
-    /// <summary>各種入力操作が有効かどうか。</summary>
-    [ObservableProperty] public partial bool InputsEnabled { get; set; } = true;
-
-    /// <summary>直近のステータスがエラーかどうか。</summary>
-    [ObservableProperty] public partial bool IsStatusError { get; set; }
-
-    /// <summary>画面下部に表示するステータスメッセージ。</summary>
-    [ObservableProperty] public partial string StatusText { get; set; } = "サインインしてください";
-
     /// <summary>
-    /// 子ViewModelのイベントを購読して連動させ、既定のステータスを設定する。
+    ///     子ViewModelのイベントを購読して連動させ、既定のステータスを設定する。
     /// </summary>
     public MainWindowViewModel(IAuthenticationService authentication, ITeamsGateway teamsGateway,
         INotificationService dialogs, IUserPreferences preferences,
@@ -43,7 +33,11 @@ public partial class MainWindowViewModel : ObservableObject
         // 専用のカスタムイベントを設けず、子ViewModelのPropertyChangedをプロパティ名でフィルターして購読する。
         SignIn.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(SignInViewModel.IsBusy)) UpdateAvailability();
+            if (e.PropertyName == nameof(SignInViewModel.IsBusy))
+            {
+                UpdateAvailability();
+            }
+
             if (e.PropertyName == nameof(SignInViewModel.IsSignedIn))
             {
                 UpdateSyncContext();
@@ -53,25 +47,56 @@ public partial class MainWindowViewModel : ObservableObject
         SignIn.SignedOut += () => TeamSelection.Clear();
         TeamSelection.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(TeamSelectionViewModel.SelectedTeam)) UpdateSyncContext();
-            if (e.PropertyName == nameof(TeamSelectionViewModel.IsBusy)) UpdateAvailability();
+            if (e.PropertyName == nameof(TeamSelectionViewModel.SelectedTeam))
+            {
+                UpdateSyncContext();
+            }
+
+            if (e.PropertyName == nameof(TeamSelectionViewModel.IsBusy))
+            {
+                UpdateAvailability();
+            }
         };
         TeamSelection.StatusChanged += SetStatus;
         MemberFile.DocumentChanged += UpdateSyncContext;
         MemberFile.StatusChanged += SetStatus;
         MemberFile.Import.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(TeamMemberImportViewModel.IsImportingMembers)) UpdateAvailability();
+            if (e.PropertyName == nameof(TeamMemberImportViewModel.IsImportingMembers))
+            {
+                UpdateAvailability();
+            }
         };
         SyncWorkspace.StatusChanged += SetStatus;
         SyncWorkspace.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName is nameof(SyncWorkspaceViewModel.IsBusy) or nameof(SyncWorkspaceViewModel.IsSyncing))
+            {
                 UpdateAvailability();
+            }
         };
-        if (preferences.LoadWarning is not null) SetStatus(preferences.LoadWarning, true);
+        if (preferences.LoadWarning is not null)
+        {
+            SetStatus(preferences.LoadWarning, true);
+        }
+
         UpdateAvailability();
     }
+
+    /// <summary>ウィンドウタイトル(アプリ名とバージョン)。</summary>
+    public string WindowTitle { get; } = $"TeamsSync {Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}";
+
+    /// <summary>各種入力操作が有効かどうか。</summary>
+    [ObservableProperty]
+    public partial bool InputsEnabled { get; set; } = true;
+
+    /// <summary>直近のステータスがエラーかどうか。</summary>
+    [ObservableProperty]
+    public partial bool IsStatusError { get; set; }
+
+    /// <summary>画面下部に表示するステータスメッセージ。</summary>
+    [ObservableProperty]
+    public partial string StatusText { get; set; } = "サインインしてください";
 
     /// <summary>サインイン状態・アカウント表示を管理するViewModel。</summary>
     public SignInViewModel SignIn { get; }
@@ -107,12 +132,12 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     /// <summary>
-    /// サインイン状態・実行中フラグから各種入力の有効/無効を判定し、子ViewModelへ反映する。
+    ///     サインイン状態・実行中フラグから各種入力の有効/無効を判定し、子ViewModelへ反映する。
     /// </summary>
     private void UpdateAvailability()
     {
-        var memberImportActive = MemberFile.Import.IsImportingMembers;
-        var syncActive = SyncWorkspace.IsBusy || SyncWorkspace.IsSyncing;
+        bool memberImportActive = MemberFile.Import.IsImportingMembers;
+        bool syncActive = SyncWorkspace.IsBusy || SyncWorkspace.IsSyncing;
         InputsEnabled = SignIn.IsSignedIn && !SignIn.IsBusy && !TeamSelection.IsBusy && !syncActive;
         InputsEnabled &= !memberImportActive;
         TeamSelection.SetExternalBusy(SignIn.IsBusy || syncActive || memberImportActive);

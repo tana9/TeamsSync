@@ -1,14 +1,16 @@
 using System.Globalization;
 using System.Text.Json;
+
 using Microsoft.Extensions.Logging;
+
 using TeamsSync.Domain.Teams;
 
 namespace TeamsSync.Infrastructure.Graph;
 
 /// <summary>
-/// 複数チームのメンバー一覧をGraphの$batchでまとめて取得し、429/503応答は
-/// 待機のうえ再試行する。バッチ送信とスロットリング再試行のみを担当し、
-/// 再試行上限に達してもなお取得できなかった項目は呼び出し元の個別フォールバックに委ねる。
+///     複数チームのメンバー一覧をGraphの$batchでまとめて取得し、429/503応答は
+///     待機のうえ再試行する。バッチ送信とスロットリング再試行のみを担当し、
+///     再試行上限に達してもなお取得できなかった項目は呼び出し元の個別フォールバックに委ねる。
 /// </summary>
 internal sealed class TeamMembersBatchFetcher(GraphHttpClient http, ILogger logger)
 {
@@ -26,31 +28,33 @@ internal sealed class TeamMembersBatchFetcher(GraphHttpClient http, ILogger logg
     //   呼び出し元の個別フォールバックに委ねる。
     // - 再試行上限(MaxBatchAttempts)に達してもなお429/503の項目も同様に結果へ含めない。
     /// <summary>
-    /// バッチリクエストを送信し、429/503応答は待機のうえ再試行する。403/400等の応答や
-    /// 再試行上限に達した項目は結果に含めない。
+    ///     バッチリクエストを送信し、429/503応答は待機のうえ再試行する。403/400等の応答や
+    ///     再試行上限に達した項目は結果に含めない。
     /// </summary>
     public async Task<Dictionary<int, List<TeamMember>>> FetchAsync(IReadOnlyList<TeamInfo> candidates,
         IReadOnlyList<int> batch, CancellationToken cancellationToken)
     {
-        var membersByIndex = new Dictionary<int, List<TeamMember>>();
-        var pending = batch.ToList();
+        Dictionary<int, List<TeamMember>> membersByIndex = new();
+        List<int> pending = batch.ToList();
 
-        for (var attempt = 1; attempt <= MaxBatchAttempts && pending.Count > 0; attempt++)
+        for (int attempt = 1; attempt <= MaxBatchAttempts && pending.Count > 0; attempt++)
         {
-            var isLastAttempt = attempt == MaxBatchAttempts;
-            var requests = pending.Select(index => (
+            bool isLastAttempt = attempt == MaxBatchAttempts;
+            List<(string Id, string Url)> requests = pending.Select(index => (
                 Id: index.ToString(CultureInfo.InvariantCulture),
                 Url: $"/teams/{candidates[index].Id}/members?$top=999")).ToList();
-            var responses = await http.SendBatchAsync(requests, cancellationToken);
+            Dictionary<string, JsonElement> responses = await http.SendBatchAsync(requests, cancellationToken);
 
             List<int> retryable = [];
             TimeSpan? retryAfter = null;
-            foreach (var index in pending)
+            foreach (int index in pending)
             {
-                if (!responses.TryGetValue(index.ToString(CultureInfo.InvariantCulture), out var response))
+                if (!responses.TryGetValue(index.ToString(CultureInfo.InvariantCulture), out JsonElement response))
+                {
                     continue; // membersByIndexに残らず、最後に個別フォールバックされる
+                }
 
-                var status = response.GetProperty("status").GetInt32();
+                int status = response.GetProperty("status").GetInt32();
                 if (status == 200)
                 {
                     membersByIndex[index] = await ParseBatchMemberResponseAsync(response, cancellationToken);
@@ -58,9 +62,11 @@ internal sealed class TeamMembersBatchFetcher(GraphHttpClient http, ILogger logg
                 else if (!isLastAttempt && status is 429 or 503)
                 {
                     retryable.Add(index);
-                    var itemRetryAfter = ParseRetryAfter(response);
+                    TimeSpan? itemRetryAfter = ParseRetryAfter(response);
                     if (itemRetryAfter is { } value && (retryAfter is null || value > retryAfter))
+                    {
                         retryAfter = value;
+                    }
                 }
                 // それ以外(403/400等、または再試行上限に達した429/503)はmembersByIndexに残さず
                 // 個別フォールバックへ委ねる。
@@ -70,7 +76,7 @@ internal sealed class TeamMembersBatchFetcher(GraphHttpClient http, ILogger logg
             if (pending.Count > 0)
             {
                 // 複数バッチが同時に429を受けても再試行が一斉に集中しないよう、Retry-Afterにジッターを加える。
-                var delay = (retryAfter ?? DefaultThrottleRetryDelay) + JitterDelay();
+                TimeSpan delay = (retryAfter ?? DefaultThrottleRetryDelay) + JitterDelay();
                 logger.LogWarning(
                     "バッチ内で{Count}件がスロットリング・過負荷応答のため{DelayMs}ms待機して再試行します。Attempt={Attempt}",
                     pending.Count, (int)delay.TotalMilliseconds, attempt);
@@ -85,12 +91,12 @@ internal sealed class TeamMembersBatchFetcher(GraphHttpClient http, ILogger logg
     private async Task<List<TeamMember>> ParseBatchMemberResponseAsync(JsonElement response,
         CancellationToken cancellationToken)
     {
-        var body = response.GetProperty("body");
-        var members = GraphResponseParser.ParseTeamMembers(body.GetProperty("value").EnumerateArray());
-        if (body.TryGetProperty("@odata.nextLink", out var nextLink) &&
+        JsonElement body = response.GetProperty("body");
+        List<TeamMember> members = GraphResponseParser.ParseTeamMembers(body.GetProperty("value").EnumerateArray());
+        if (body.TryGetProperty("@odata.nextLink", out JsonElement nextLink) &&
             nextLink.ValueKind == JsonValueKind.String)
         {
-            var extra = await http.GetPagedAsync(nextLink.GetString()!, cancellationToken);
+            List<JsonElement> extra = await http.GetPagedAsync(nextLink.GetString()!, cancellationToken);
             members.AddRange(GraphResponseParser.ParseTeamMembers(extra));
         }
 
@@ -102,28 +108,38 @@ internal sealed class TeamMembersBatchFetcher(GraphHttpClient http, ILogger logg
     /// <summary>バッチ応答項目のヘッダーからRetry-After(秒数)を解析する。</summary>
     private static TimeSpan? ParseRetryAfter(JsonElement response)
     {
-        if (!response.TryGetProperty("headers", out var headers) || headers.ValueKind != JsonValueKind.Object)
+        if (!response.TryGetProperty("headers", out JsonElement headers) || headers.ValueKind != JsonValueKind.Object)
+        {
             return null;
+        }
 
-        foreach (var header in headers.EnumerateObject())
+        foreach (JsonProperty header in headers.EnumerateObject())
         {
             if (!string.Equals(header.Name, "Retry-After", StringComparison.OrdinalIgnoreCase))
+            {
                 continue;
-            var text = header.Value.ValueKind switch
+            }
+
+            string? text = header.Value.ValueKind switch
             {
                 JsonValueKind.String => header.Value.GetString(),
                 JsonValueKind.Number => header.Value.GetRawText(),
                 _ => null
             };
             if (text is not null &&
-                int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var seconds) &&
+                int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int seconds) &&
                 seconds >= 0)
+            {
                 return TimeSpan.FromSeconds(seconds);
+            }
         }
 
         return null;
     }
 
     /// <summary>再試行の集中を避けるための、0～500msのランダムなジッター遅延。</summary>
-    private static TimeSpan JitterDelay() => TimeSpan.FromMilliseconds(Random.Shared.Next(0, 500));
+    private static TimeSpan JitterDelay()
+    {
+        return TimeSpan.FromMilliseconds(Random.Shared.Next(0, 500));
+    }
 }

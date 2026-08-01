@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+
 using Serilog;
 using Serilog.Events;
 using Serilog.Formatting.Json;
@@ -7,7 +8,7 @@ using Serilog.Formatting.Json;
 namespace TeamsSync.Infrastructure.Logging;
 
 /// <summary>
-/// appsettings.jsonから束縛される監査ログのファイルローテーション設定。
+///     appsettings.jsonから束縛される監査ログのファイルローテーション設定。
 /// </summary>
 public sealed class AuditLoggingOptions
 {
@@ -22,7 +23,7 @@ public sealed class AuditLoggingOptions
 }
 
 /// <summary>
-/// Serilogを用いた監査ログ(JSON Lines形式)の設定・登録を行う。
+///     Serilogを用いた監査ログ(JSON Lines形式)の設定・登録を行う。
 /// </summary>
 public static class AuditLogging
 {
@@ -32,16 +33,16 @@ public static class AuditLogging
         "TeamsSync", "Logs");
 
     /// <summary>
-    /// 設定値に基づきSerilogをJSON Lines形式・日次ローテーションで構成し、
-    /// DIコンテナへログプロバイダーとして登録する。
+    ///     設定値に基づきSerilogをJSON Lines形式・日次ローテーションで構成し、
+    ///     DIコンテナへログプロバイダーとして登録する。
     /// </summary>
     public static IServiceCollection AddAuditLogging(this IServiceCollection services,
         IConfiguration configuration)
     {
-        var options = configuration.GetSection(AuditLoggingOptions.SectionName)
+        AuditLoggingOptions options = configuration.GetSection(AuditLoggingOptions.SectionName)
             .Get<AuditLoggingOptions>() ?? new AuditLoggingOptions();
-        var retainedCount = Math.Clamp(options.RetainedFileCount, 1, 365);
-        var fileSizeLimit = Math.Clamp(options.FileSizeLimitBytes, 1024 * 1024, 1024L * 1024 * 1024);
+        int retainedCount = Math.Clamp(options.RetainedFileCount, 1, 365);
+        long fileSizeLimit = Math.Clamp(options.FileSizeLimitBytes, 1024 * 1024, 1024L * 1024 * 1024);
         Directory.CreateDirectory(LogDirectory);
         services.AddSerilog(logger => logger
             .MinimumLevel.Information()

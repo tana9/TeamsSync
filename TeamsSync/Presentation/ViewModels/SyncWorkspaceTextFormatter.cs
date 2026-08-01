@@ -10,7 +10,7 @@ public static class SyncWorkspaceTextFormatter
     /// <summary>同期実行結果の要約テキスト(中止・一部失敗・完了)を組み立てる。</summary>
     public static string BuildResultSummaryText(bool cancelled, int successCount, int failureCount)
     {
-        var processedCount = successCount + failureCount;
+        int processedCount = successCount + failureCount;
         return cancelled
             ? $"中止しました — 処理済み {processedCount}件（成功 {successCount} / 失敗 {failureCount}）"
             : failureCount > 0
@@ -69,20 +69,52 @@ public static class SyncWorkspaceTextFormatter
     }
 
     /// <summary>
-    /// 同期を実行できない理由を、実行中・他処理中・未サインイン・未選択・未確認・エラーあり・
-    /// 変更なしの優先順位で判定して返す。実行可能な場合は「同期を実行できます」を返す。
+    ///     同期を実行できない理由を、実行中・他処理中・未サインイン・未選択・未確認・エラーあり・
+    ///     変更なしの優先順位で判定して返す。実行可能な場合は「同期を実行できます」を返す。
     /// </summary>
     public static string BuildSyncUnavailableReason(bool isSyncing, bool isBusy, bool externallyBusy,
         bool signedIn, TeamInfo? team, MemberListDocument? document, SyncPlan? plan)
     {
-        if (isSyncing) return "同期を実行中です";
-        if (isBusy || externallyBusy) return "別の処理が完了するまでお待ちください";
-        if (!signedIn) return "Microsoft 365へサインインしてください";
-        if (team is null) return "同期先のチームを選択してください";
-        if (document is null) return "メンバーリストを指定してください";
-        if (plan is null) return "先に「差分を確認」を実行してください";
-        if (plan.HasErrors) return "未解決ユーザーを修正してください";
-        if (plan.AddCount + plan.RemoveCount == 0) return "実行する変更はありません";
+        if (isSyncing)
+        {
+            return "同期を実行中です";
+        }
+
+        if (isBusy || externallyBusy)
+        {
+            return "別の処理が完了するまでお待ちください";
+        }
+
+        if (!signedIn)
+        {
+            return "Microsoft 365へサインインしてください";
+        }
+
+        if (team is null)
+        {
+            return "同期先のチームを選択してください";
+        }
+
+        if (document is null)
+        {
+            return "メンバーリストを指定してください";
+        }
+
+        if (plan is null)
+        {
+            return "先に「差分を確認」を実行してください";
+        }
+
+        if (plan.HasErrors)
+        {
+            return "未解決ユーザーを修正してください";
+        }
+
+        if (plan.AddCount + plan.RemoveCount == 0)
+        {
+            return "実行する変更はありません";
+        }
+
         return "同期を実行できます";
     }
 
@@ -92,10 +124,14 @@ public static class SyncWorkspaceTextFormatter
     public static void UpdateFilterCounts(IReadOnlyList<ChangeFilter> filters,
         IReadOnlyCollection<SyncChangeRowViewModel> changes)
     {
-        foreach (var filter in filters)
+        foreach (ChangeFilter filter in filters)
+        {
             filter.Count = filter.ChangesOnly
                 ? changes.Count(change => change.Kind is ChangeKind.Add or ChangeKind.Remove or ChangeKind.Error)
-                : filter.Kind is null ? changes.Count : changes.Count(change => change.Kind == filter.Kind);
+                : filter.Kind is null
+                    ? changes.Count
+                    : changes.Count(change => change.Kind == filter.Kind);
+        }
     }
 
     // メンバーリストの再指定などで差分が無効化されたときは、古い件数を0件と表示するのではなく
@@ -104,24 +140,31 @@ public static class SyncWorkspaceTextFormatter
     /// <summary>すべてのフィルターの件数表示を未確認状態(-1)へ戻す。</summary>
     public static void ClearFilterCounts(IReadOnlyList<ChangeFilter> filters)
     {
-        foreach (var filter in filters)
+        foreach (ChangeFilter filter in filters)
+        {
             filter.Count = -1;
+        }
     }
 
     /// <summary>同期プランから、件数サマリーと削除警告(タイトル・本文)を組み立てる。</summary>
-    public static PlanPresentation BuildPlan(SyncPlan plan) => new(
-        $"追加 {plan.AddCount} / 削除 {plan.RemoveCount} / 変更なし {plan.KeepCount} / 所有者 {plan.ProtectedCount} / 未所属 {plan.NotMemberCount} / エラー {plan.ErrorCount}",
-        "削除対象があります",
-        plan.Mode == SyncMode.RemoveSpecified
-            ? $"入力リストで指定した一般メンバー {plan.RemoveCount}名を削除します。"
-            : $"リストにない一般メンバー {plan.RemoveCount}名を削除します。");
+    public static PlanPresentation BuildPlan(SyncPlan plan)
+    {
+        return new PlanPresentation(
+            $"追加 {plan.AddCount} / 削除 {plan.RemoveCount} / 変更なし {plan.KeepCount} / 所有者 {plan.ProtectedCount} / 未所属 {plan.NotMemberCount} / エラー {plan.ErrorCount}",
+            "削除対象があります",
+            plan.Mode == SyncMode.RemoveSpecified
+                ? $"入力リストで指定した一般メンバー {plan.RemoveCount}名を削除します。"
+                : $"リストにない一般メンバー {plan.RemoveCount}名を削除します。");
+    }
 
     /// <summary>実行結果から失敗した操作だけを行モデルへ変換する。</summary>
-    public static IReadOnlyList<SyncResultRowViewModel> BuildFailedRows(SyncExecutionResult? result) =>
-        (result?.Operations ?? [])
-        .Where(operation => !operation.Succeeded)
-        .Select(operation => new SyncResultRowViewModel(operation))
-        .ToList();
+    public static IReadOnlyList<SyncResultRowViewModel> BuildFailedRows(SyncExecutionResult? result)
+    {
+        return (result?.Operations ?? [])
+            .Where(operation => !operation.Succeeded)
+            .Select(operation => new SyncResultRowViewModel(operation))
+            .ToList();
+    }
 }
 
 /// <summary>同期プランの件数サマリーと削除警告の表示テキスト。</summary>

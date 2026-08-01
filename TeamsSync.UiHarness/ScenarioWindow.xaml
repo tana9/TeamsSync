@@ -1,12 +1,12 @@
 <ui:FluentWindow x:Class="TeamsSync.UiHarness.ScenarioWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-        Title="UI Harness シナリオ" Width="390" Height="290"
-        WindowStartupLocation="CenterOwner" ResizeMode="CanMinimize" Topmost="True"
-        WindowBackdropType="None"
-        Background="{DynamicResource ApplicationBackgroundFillColorPrimaryBrush}"
-        Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 Title="UI Harness シナリオ" Width="390" Height="290"
+                 WindowStartupLocation="CenterOwner" ResizeMode="CanMinimize" Topmost="True"
+                 WindowBackdropType="None"
+                 Background="{DynamicResource ApplicationBackgroundFillColorPrimaryBrush}"
+                 Foreground="{DynamicResource TextFillColorPrimaryBrush}">
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />

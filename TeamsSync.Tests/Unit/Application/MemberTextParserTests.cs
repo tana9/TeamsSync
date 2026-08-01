@@ -1,3 +1,4 @@
+using TeamsSync.Domain.Teams;
 using TeamsSync.Infrastructure.Files;
 
 namespace TeamsSync.Tests.Unit.Application;
@@ -9,7 +10,7 @@ public sealed class MemberTextParserTests
     [Fact]
     public void Parse_キャンセル済みトークンでは解析を開始しない()
     {
-        using var cancellation = new CancellationTokenSource();
+        using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
 
         Assert.Throws<OperationCanceledException>(() => _parser.Parse("user@example.com", cancellation.Token));
@@ -18,7 +19,7 @@ public sealed class MemberTextParserTests
     [Fact]
     public void Parse_改行と空行を正規化し重複を除去する()
     {
-        var document = _parser.Parse(
+        MemberListDocument document = _parser.Parse(
             " user@example.com\r\n\r\nUSER@example.com\n山田　太郎\r佐藤 花子 ", TestContext.Current.CancellationToken);
 
         Assert.Equal(
@@ -31,8 +32,9 @@ public sealed class MemberTextParserTests
     [Fact]
     public void Parse_正規化後の内容が同じなら同じハッシュを返す()
     {
-        var first = _parser.Parse("user@example.com\r\n山田 太郎", TestContext.Current.CancellationToken);
-        var second = _parser.Parse(" user@example.com \n山田 太郎\nUSER@example.com", TestContext.Current.CancellationToken);
+        MemberListDocument first = _parser.Parse("user@example.com\r\n山田 太郎", TestContext.Current.CancellationToken);
+        MemberListDocument second = _parser.Parse(" user@example.com \n山田 太郎\nUSER@example.com",
+            TestContext.Current.CancellationToken);
 
         Assert.Equal(first.ContentSha256, second.ContentSha256);
     }
@@ -40,8 +42,9 @@ public sealed class MemberTextParserTests
     [Fact]
     public void Parse_表示名付きの行は山括弧内のメールアドレスだけを使用する()
     {
-        var document = _parser.Parse(
-            "山田 太郎 <taro@example.com>\n鈴木 花子 <hanako@example.com>\ntaro@example.com", TestContext.Current.CancellationToken);
+        MemberListDocument document = _parser.Parse(
+            "山田 太郎 <taro@example.com>\n鈴木 花子 <hanako@example.com>\ntaro@example.com",
+            TestContext.Current.CancellationToken);
 
         Assert.Equal(["taro@example.com", "hanako@example.com"], document.Addresses);
     }
@@ -74,7 +77,7 @@ public sealed class MemberTextParserTests
     [Fact]
     public void Parse_長すぎる行を拒否する()
     {
-        var text = new string('a', MemberTextParser.MaximumLineLength + 1);
+        string text = new('a', MemberTextParser.MaximumLineLength + 1);
 
         Assert.Throws<InvalidDataException>(() => _parser.Parse(text, TestContext.Current.CancellationToken));
     }
@@ -82,7 +85,7 @@ public sealed class MemberTextParserTests
     [Fact]
     public void Parse_上限を超える件数を拒否する()
     {
-        var text = string.Join('\n',
+        string text = string.Join('\n',
             Enumerable.Range(0, MemberTextParser.MaximumEntries + 1)
                 .Select(index => $"user{index}@example.com"));
 

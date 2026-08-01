@@ -1,4 +1,5 @@
 using System.ComponentModel;
+
 using TeamsSync.Domain.Teams;
 
 namespace TeamsSync.Presentation.ViewModels;
@@ -11,7 +12,7 @@ namespace TeamsSync.Presentation.ViewModels;
 /// <param name="Label">画面表示用のラベル。</param>
 public sealed record SyncModeOption(SyncMode Mode, string Label)
 {
-    /// <summary>コンボボックス表示用に<see cref="Label"/>を返す。</summary>
+    /// <summary>コンボボックス表示用に<see cref="Label" />を返す。</summary>
     public override string ToString()
     {
         return Label;
@@ -36,7 +37,11 @@ public sealed record ChangeFilter(string Label, ChangeKind? Kind, bool ChangesOn
         get => _count;
         set
         {
-            if (_count == value) return;
+            if (_count == value)
+            {
+                return;
+            }
+
             _count = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Count)));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DisplayText)));
@@ -46,18 +51,23 @@ public sealed record ChangeFilter(string Label, ChangeKind? Kind, bool ChangesOn
     /// <summary>件数を含めたコンボボックス表示用テキスト(未確認の場合は件数なし)。</summary>
     public string DisplayText => Count >= 0 ? $"{Label} ({Count})" : Label;
 
-    /// <inheritdoc/>
-    public event PropertyChangedEventHandler? PropertyChanged;
-
     // recordの既定Equals/GetHashCodeはCountも比較対象に含めてしまう。UpdateFilterCountsで
     // 件数を更新するたびにハッシュ値が変わり、WPFのComboBoxが選択中の項目を見失う不具合になったため、
     // 識別に使う3項目だけで明示的に判定する。
     /// <summary>Countを除く3項目(Label・Kind・ChangesOnly)のみで等価性を判定する。</summary>
-    public bool Equals(ChangeFilter? other) =>
-        other is not null && Label == other.Label && Kind == other.Kind && ChangesOnly == other.ChangesOnly;
+    public bool Equals(ChangeFilter? other)
+    {
+        return other is not null && Label == other.Label && Kind == other.Kind && ChangesOnly == other.ChangesOnly;
+    }
+
+    /// <inheritdoc />
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     /// <summary>Countを除く3項目(Label・Kind・ChangesOnly)から算出するハッシュ値。</summary>
-    public override int GetHashCode() => HashCode.Combine(Label, Kind, ChangesOnly);
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(Label, Kind, ChangesOnly);
+    }
 }
 
 /// <summary>差分一覧DataGridの1行分の表示用ラップ。</summary>

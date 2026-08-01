@@ -6,7 +6,7 @@ namespace TeamsSync.Domain.Teams;
 /// <param name="Description">チームの説明(未設定の場合はnull)。</param>
 public sealed record TeamInfo(string Id, string DisplayName, string? Description)
 {
-    /// <summary>UI表示用に<see cref="DisplayName"/>を返す。</summary>
+    /// <summary>UI表示用に<see cref="DisplayName" />を返す。</summary>
     public override string ToString()
     {
         return DisplayName;
@@ -78,8 +78,10 @@ public sealed record SyncChange(
     string? UserId = null,
     string? MembershipId = null);
 
-/// <summary>再検証(<see cref="TeamSyncService.RevalidatePlanAsync"/>)用の、
-/// プラン作成時点のメンバーシップのスナップショット。</summary>
+/// <summary>
+///     再検証(<see cref="TeamSyncService.RevalidatePlanAsync" />)用の、
+///     プラン作成時点のメンバーシップのスナップショット。
+/// </summary>
 /// <param name="MembershipId">メンバーシップのオブジェクトID。</param>
 /// <param name="UserId">ユーザーのオブジェクトID。</param>
 /// <param name="IsOwner">所有者かどうか。</param>

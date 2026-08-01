@@ -1,7 +1,7 @@
-using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
+
 using TeamsSync.Domain.Teams;
 using TeamsSync.Presentation.ViewModels;
 
@@ -25,14 +25,22 @@ public partial class SyncDiffCardContent
         Subscribe(e.NewValue as SyncWorkspaceViewModel, true);
     }
 
-    /// <summary>ViewModelの<see cref="SyncWorkspaceViewModel.DiffFocusRequested"/>イベントを購読/解除する。</summary>
+    /// <summary>ViewModelの<see cref="SyncWorkspaceViewModel.DiffFocusRequested" />イベントを購読/解除する。</summary>
     private void Subscribe(SyncWorkspaceViewModel? viewModel, bool subscribe)
     {
-        if (viewModel is null) return;
+        if (viewModel is null)
+        {
+            return;
+        }
+
         if (subscribe)
+        {
             viewModel.DiffFocusRequested += FocusSummaryOrFirstError;
+        }
         else
+        {
             viewModel.DiffFocusRequested -= FocusSummaryOrFirstError;
+        }
     }
 
     // 差分確認・再検証・同期後の再取得で一覧が更新されたときに呼ばれる。
@@ -42,18 +50,27 @@ public partial class SyncDiffCardContent
     {
         Dispatcher.BeginInvoke(() =>
         {
-            if (DataContext is not SyncWorkspaceViewModel viewModel) return;
+            if (DataContext is not SyncWorkspaceViewModel viewModel)
+            {
+                return;
+            }
 
-            var firstError = viewModel.Changes.FirstOrDefault(change => change.Kind == ChangeKind.Error);
+            SyncChangeRowViewModel? firstError =
+                viewModel.Changes.FirstOrDefault(change => change.Kind == ChangeKind.Error);
             if (firstError is not null && ChangesGrid.Items.Contains(firstError))
             {
                 ChangesGrid.SelectedItem = firstError;
                 ChangesGrid.ScrollIntoView(firstError);
                 ChangesGrid.UpdateLayout();
                 if (ChangesGrid.ItemContainerGenerator.ContainerFromItem(firstError) is DataGridRow row)
+                {
                     row.Focus();
+                }
                 else
+                {
                     ChangesGrid.Focus();
+                }
+
                 return;
             }
 

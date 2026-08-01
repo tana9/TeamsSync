@@ -13,8 +13,8 @@ public sealed class AccessibilityMarkupTests
     [Fact]
     public void MainWindow_テキスト入力と競合する単独Enter割当がない()
     {
-        var document = XDocument.Load(MainWindowPath);
-        var keyBindings = document.Descendants()
+        XDocument document = XDocument.Load(MainWindowPath);
+        IEnumerable<XElement> keyBindings = document.Descendants()
             .Where(element => element.Name.LocalName == "KeyBinding");
 
         Assert.DoesNotContain(keyBindings, binding =>
@@ -25,7 +25,7 @@ public sealed class AccessibilityMarkupTests
     [Fact]
     public void MainWindow_主要な操作にAutomationNameが設定されている()
     {
-        var text = string.Concat(Directory.GetFiles(ViewsDirectory, "*.xaml").Select(File.ReadAllText));
+        string text = string.Concat(Directory.GetFiles(ViewsDirectory, "*.xaml").Select(File.ReadAllText));
         string[] names =
         [
             "Microsoft 365へサインイン", "同期対象チームの検索と選択", "メンバー入力方法",
@@ -33,14 +33,16 @@ public sealed class AccessibilityMarkupTests
             "同期差分を確認", "確認した差分で同期を実行"
         ];
 
-        foreach (var name in names)
+        foreach (string name in names)
+        {
             Assert.Contains($"AutomationProperties.Name=\"{name}\"", text);
+        }
     }
 
     [Fact]
     public void Views_フォーカス表示を無効化せず動的状態をLiveRegionとして公開する()
     {
-        var text = string.Concat(Directory.GetFiles(ViewsDirectory, "*.xaml").Select(File.ReadAllText));
+        string text = string.Concat(Directory.GetFiles(ViewsDirectory, "*.xaml").Select(File.ReadAllText));
 
         Assert.DoesNotContain("FocusVisualStyle\" Value=\"{x:Null}", text);
         Assert.Contains("AutomationProperties.LiveSetting=\"Polite\"", text);

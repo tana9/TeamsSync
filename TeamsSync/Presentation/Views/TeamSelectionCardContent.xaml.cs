@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Input;
+
 using TeamsSync.Presentation.ViewModels;
 
 namespace TeamsSync.Presentation.Views;
@@ -22,14 +23,22 @@ public partial class TeamSelectionCardContent
         Subscribe(e.NewValue as TeamSelectionViewModel, true);
     }
 
-    /// <summary>ViewModelの<see cref="TeamSelectionViewModel.SelectionFocusRequested"/>イベントを購読/解除する。</summary>
+    /// <summary>ViewModelの<see cref="TeamSelectionViewModel.SelectionFocusRequested" />イベントを購読/解除する。</summary>
     private void Subscribe(TeamSelectionViewModel? viewModel, bool subscribe)
     {
-        if (viewModel is null) return;
+        if (viewModel is null)
+        {
+            return;
+        }
+
         if (subscribe)
+        {
             viewModel.SelectionFocusRequested += FocusTeamSelection;
+        }
         else
+        {
             viewModel.SelectionFocusRequested -= FocusTeamSelection;
+        }
     }
 
     /// <summary>チーム選択コンボボックスへフォーカスし、ドロップダウンを開く。</summary>

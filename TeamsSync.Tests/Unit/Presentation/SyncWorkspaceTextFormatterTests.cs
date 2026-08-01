@@ -17,7 +17,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildResultSummaryText_中止時は中止メッセージと処理済み件数を返す()
     {
-        var text = SyncWorkspaceTextFormatter.BuildResultSummaryText(true, 2, 1);
+        string text = SyncWorkspaceTextFormatter.BuildResultSummaryText(true, 2, 1);
 
         Assert.Equal("中止しました — 処理済み 3件（成功 2 / 失敗 1）", text);
     }
@@ -25,7 +25,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildResultSummaryText_失敗が1件以上ある場合は一部失敗メッセージを返す()
     {
-        var text = SyncWorkspaceTextFormatter.BuildResultSummaryText(false, 3, 2);
+        string text = SyncWorkspaceTextFormatter.BuildResultSummaryText(false, 3, 2);
 
         Assert.Equal("一部失敗 — 成功 3件 / 失敗 2件", text);
     }
@@ -33,7 +33,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildResultSummaryText_失敗が0件の場合は同期完了メッセージを返す()
     {
-        var text = SyncWorkspaceTextFormatter.BuildResultSummaryText(false, 5, 0);
+        string text = SyncWorkspaceTextFormatter.BuildResultSummaryText(false, 5, 0);
 
         Assert.Equal("同期完了 — 成功 5件", text);
     }
@@ -59,9 +59,9 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildInputSummary_文書がある場合はソース名_列名_件数を含む()
     {
-        var document = Document(addresses: ["a@example.com", "b@example.com"]);
+        MemberListDocument document = Document(addresses: ["a@example.com", "b@example.com"]);
 
-        var text = SyncWorkspaceTextFormatter.BuildInputSummary(document);
+        string text = SyncWorkspaceTextFormatter.BuildInputSummary(document);
 
         Assert.Equal("入力: members.csv • 列: email • 2件", text);
     }
@@ -75,10 +75,10 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildInputPreview_文書がある場合は先頭5件をスラッシュ区切りで返す()
     {
-        var document = Document(addresses:
+        MemberListDocument document = Document(addresses:
             ["a@example.com", "b@example.com", "c@example.com", "d@example.com", "e@example.com", "f@example.com"]);
 
-        var text = SyncWorkspaceTextFormatter.BuildInputPreview(document);
+        string text = SyncWorkspaceTextFormatter.BuildInputPreview(document);
 
         Assert.Equal("先頭: a@example.com / b@example.com / c@example.com / d@example.com / e@example.com", text);
     }
@@ -100,7 +100,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [InlineData("display name", true)]
     public void IsNameColumn_検出列名が氏名系かどうかを正規化して判定する(string detectedColumn, bool expected)
     {
-        var document = Document(detectedColumn: detectedColumn, addresses: ["a@example.com"]);
+        MemberListDocument document = Document(detectedColumn: detectedColumn, addresses: ["a@example.com"]);
 
         Assert.Equal(expected, SyncWorkspaceTextFormatter.IsNameColumn(document));
     }
@@ -108,7 +108,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildEmptyStateMessage_未サインインの場合はサインインを促す()
     {
-        var text = SyncWorkspaceTextFormatter.BuildEmptyStateMessage(false, Team, Document());
+        string text = SyncWorkspaceTextFormatter.BuildEmptyStateMessage(false, Team, Document());
 
         Assert.Equal("Microsoft 365へサインインしてください", text);
     }
@@ -116,7 +116,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildEmptyStateMessage_サインイン済みでチーム未選択の場合はチーム選択を促す()
     {
-        var text = SyncWorkspaceTextFormatter.BuildEmptyStateMessage(true, null, Document());
+        string text = SyncWorkspaceTextFormatter.BuildEmptyStateMessage(true, null, Document());
 
         Assert.Equal("同期先のチームを選択してください", text);
     }
@@ -124,7 +124,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildEmptyStateMessage_チーム選択済みで文書未選択の場合はファイル選択を促す()
     {
-        var text = SyncWorkspaceTextFormatter.BuildEmptyStateMessage(true, Team, null);
+        string text = SyncWorkspaceTextFormatter.BuildEmptyStateMessage(true, Team, null);
 
         Assert.Equal("ファイルを選択して差分を確認してください", text);
     }
@@ -132,7 +132,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildEmptyStateMessage_文書選択済みの場合は差分確認を促す()
     {
-        var text = SyncWorkspaceTextFormatter.BuildEmptyStateMessage(true, Team, Document());
+        string text = SyncWorkspaceTextFormatter.BuildEmptyStateMessage(true, Team, Document());
 
         Assert.Equal("「差分を確認」を押してください", text);
     }
@@ -140,7 +140,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildPreviewProgressText_進捗が0より大きい場合は件数付きで表示する()
     {
-        var text = SyncWorkspaceTextFormatter.BuildPreviewProgressText(3, 10);
+        string text = SyncWorkspaceTextFormatter.BuildPreviewProgressText(3, 10);
 
         Assert.Equal("確認しています…（3/10件）", text);
     }
@@ -148,7 +148,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildPreviewProgressText_進捗が0の場合は件数なしで表示する()
     {
-        var text = SyncWorkspaceTextFormatter.BuildPreviewProgressText(0, 10);
+        string text = SyncWorkspaceTextFormatter.BuildPreviewProgressText(0, 10);
 
         Assert.Equal("確認しています…", text);
     }
@@ -156,7 +156,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildSyncUnavailableReason_同期実行中の場合はその旨を返す()
     {
-        var text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(true, false, false, true, Team, Document(),
+        string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(true, false, false, true, Team, Document(),
             PlanWithAdd());
 
         Assert.Equal("同期を実行中です", text);
@@ -165,7 +165,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildSyncUnavailableReason_自身がbusyの場合は待機を促す()
     {
-        var text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, true, false, true, Team, Document(),
+        string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, true, false, true, Team, Document(),
             PlanWithAdd());
 
         Assert.Equal("別の処理が完了するまでお待ちください", text);
@@ -174,7 +174,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildSyncUnavailableReason_外部要因でbusyの場合は待機を促す()
     {
-        var text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, true, true, Team, Document(),
+        string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, true, true, Team, Document(),
             PlanWithAdd());
 
         Assert.Equal("別の処理が完了するまでお待ちください", text);
@@ -183,7 +183,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildSyncUnavailableReason_未サインインの場合はサインインを促す()
     {
-        var text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, false, Team,
+        string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, false, Team,
             Document(), PlanWithAdd());
 
         Assert.Equal("Microsoft 365へサインインしてください", text);
@@ -192,7 +192,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildSyncUnavailableReason_チーム未選択の場合はチーム選択を促す()
     {
-        var text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, null,
+        string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, null,
             Document(), PlanWithAdd());
 
         Assert.Equal("同期先のチームを選択してください", text);
@@ -201,7 +201,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildSyncUnavailableReason_文書未選択の場合はメンバーリスト指定を促す()
     {
-        var text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, Team, null,
+        string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, Team, null,
             PlanWithAdd());
 
         Assert.Equal("メンバーリストを指定してください", text);
@@ -210,7 +210,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildSyncUnavailableReason_プラン未確認の場合は差分確認を促す()
     {
-        var text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, Team,
+        string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, Team,
             Document(), null);
 
         Assert.Equal("先に「差分を確認」を実行してください", text);
@@ -219,10 +219,10 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildSyncUnavailableReason_プランにエラーがある場合は未解決ユーザーの修正を促す()
     {
-        var plan = new SyncPlan(Team, [new SyncChange(ChangeKind.Error, "不明", "unknown@example.com", "未解決")],
+        SyncPlan plan = new(Team, [new SyncChange(ChangeKind.Error, "不明", "unknown@example.com", "未解決")],
             ["unknown@example.com"]);
 
-        var text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, Team,
+        string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, Team,
             Document(), plan);
 
         Assert.Equal("未解決ユーザーを修正してください", text);
@@ -231,10 +231,10 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildSyncUnavailableReason_変更が0件の場合は実行する変更がない旨を返す()
     {
-        var plan = new SyncPlan(Team, [new SyncChange(ChangeKind.Keep, "既存", "keep@example.com", "変更なし")],
+        SyncPlan plan = new(Team, [new SyncChange(ChangeKind.Keep, "既存", "keep@example.com", "変更なし")],
             ["keep@example.com"]);
 
-        var text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, Team,
+        string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, Team,
             Document(), plan);
 
         Assert.Equal("実行する変更はありません", text);
@@ -243,7 +243,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildSyncUnavailableReason_実行可能な場合は実行可能メッセージを返す()
     {
-        var text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, Team,
+        string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, Team,
             Document(), PlanWithAdd());
 
         Assert.Equal("同期を実行できます", text);
@@ -252,14 +252,12 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void UpdateFilterCounts_フィルターの種類ごとに該当件数を計算する()
     {
-        var filters = new[]
+        ChangeFilter[] filters = new[]
         {
-            new ChangeFilter("すべて", null),
-            new ChangeFilter("追加", ChangeKind.Add),
-            new ChangeFilter("削除", ChangeKind.Remove),
-            new ChangeFilter("変更あり", null, true)
+            new ChangeFilter("すべて", null), new ChangeFilter("追加", ChangeKind.Add),
+            new ChangeFilter("削除", ChangeKind.Remove), new ChangeFilter("変更あり", null, true)
         };
-        var changes = new[]
+        SyncChangeRowViewModel[] changes = new[]
         {
             new SyncChangeRowViewModel(new SyncChange(ChangeKind.Add, "A", "a@example.com", "")),
             new SyncChangeRowViewModel(new SyncChange(ChangeKind.Add, "B", "b@example.com", "")),
@@ -279,10 +277,9 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void ClearFilterCounts_全フィルターの件数を未確認状態_マイナス1に戻す()
     {
-        var filters = new[]
+        ChangeFilter[] filters = new[]
         {
-            new ChangeFilter("すべて", null) { Count = 3 },
-            new ChangeFilter("追加", ChangeKind.Add) { Count = 1 }
+            new ChangeFilter("すべて", null) { Count = 3 }, new ChangeFilter("追加", ChangeKind.Add) { Count = 1 }
         };
 
         SyncWorkspaceTextFormatter.ClearFilterCounts(filters);
@@ -299,7 +296,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildPlan_件数サマリーに追加_削除_変更なし_所有者_未所属_エラーの内訳を含む()
     {
-        var plan = new SyncPlan(Team,
+        SyncPlan plan = new(Team,
         [
             new SyncChange(ChangeKind.Add, "追加太郎", "add@example.com", "追加"),
             new SyncChange(ChangeKind.Remove, "削除太郎", "remove@example.com", "削除"),
@@ -309,7 +306,7 @@ public sealed class SyncWorkspaceTextFormatterTests
             new SyncChange(ChangeKind.Error, "不明太郎", "unknown@example.com", "未解決")
         ], []);
 
-        var presentation = SyncWorkspaceTextFormatter.BuildPlan(plan);
+        PlanPresentation presentation = SyncWorkspaceTextFormatter.BuildPlan(plan);
 
         Assert.Equal("追加 1 / 削除 1 / 変更なし 1 / 所有者 1 / 未所属 1 / エラー 1", presentation.Summary);
         Assert.Equal("削除対象があります", presentation.RemovalTitle);
@@ -318,10 +315,10 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildPlan_指定削除モードでは指定した一般メンバーを削除する旨のメッセージになる()
     {
-        var plan = new SyncPlan(Team, [new SyncChange(ChangeKind.Remove, "削除太郎", "remove@example.com", "削除")],
+        SyncPlan plan = new(Team, [new SyncChange(ChangeKind.Remove, "削除太郎", "remove@example.com", "削除")],
             [], Mode: SyncMode.RemoveSpecified);
 
-        var presentation = SyncWorkspaceTextFormatter.BuildPlan(plan);
+        PlanPresentation presentation = SyncWorkspaceTextFormatter.BuildPlan(plan);
 
         Assert.Equal("入力リストで指定した一般メンバー 1名を削除します。", presentation.RemovalMessage);
     }
@@ -331,10 +328,10 @@ public sealed class SyncWorkspaceTextFormatterTests
     [InlineData(SyncMode.AddOnly)]
     public void BuildPlan_指定削除以外のモードではリストにない一般メンバーを削除する旨のメッセージになる(SyncMode mode)
     {
-        var plan = new SyncPlan(Team, [new SyncChange(ChangeKind.Remove, "削除太郎", "remove@example.com", "削除")],
+        SyncPlan plan = new(Team, [new SyncChange(ChangeKind.Remove, "削除太郎", "remove@example.com", "削除")],
             [], Mode: mode);
 
-        var presentation = SyncWorkspaceTextFormatter.BuildPlan(plan);
+        PlanPresentation presentation = SyncWorkspaceTextFormatter.BuildPlan(plan);
 
         Assert.Equal("リストにない一般メンバー 1名を削除します。", presentation.RemovalMessage);
     }
@@ -342,7 +339,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildFailedRows_結果がnullの場合は空の一覧を返す()
     {
-        var rows = SyncWorkspaceTextFormatter.BuildFailedRows(null);
+        IReadOnlyList<SyncResultRowViewModel> rows = SyncWorkspaceTextFormatter.BuildFailedRows(null);
 
         Assert.Empty(rows);
     }
@@ -350,14 +347,14 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildFailedRows_成功した操作を除外し失敗した操作だけを行モデルへ変換する()
     {
-        var result = new SyncExecutionResult(
+        SyncExecutionResult result = new(
         [
             new SyncOperationResult(ChangeKind.Add, "ok@example.com", true, null),
             new SyncOperationResult(ChangeKind.Add, "add-failed@example.com", false, "追加に失敗しました"),
             new SyncOperationResult(ChangeKind.Remove, "remove-failed@example.com", false, "削除に失敗しました")
         ], false);
 
-        var rows = SyncWorkspaceTextFormatter.BuildFailedRows(result);
+        IReadOnlyList<SyncResultRowViewModel> rows = SyncWorkspaceTextFormatter.BuildFailedRows(result);
 
         Assert.Equal(2, rows.Count);
         Assert.Equal("add-failed@example.com", rows[0].Email);

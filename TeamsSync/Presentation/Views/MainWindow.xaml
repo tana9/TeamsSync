@@ -64,7 +64,8 @@
             <RowDefinition Height="Auto" /><RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <ui:TitleBar Grid.Row="0" Title="{Binding WindowTitle}" ShowMinimize="True" ShowMaximize="True" ShowClose="True">
+        <ui:TitleBar Grid.Row="0" Title="{Binding WindowTitle}" ShowMinimize="True" ShowMaximize="True"
+                     ShowClose="True">
             <ui:TitleBar.Icon>
                 <ui:ImageIcon Source="pack://application:,,,/TeamsSync;component/Resources/AppIcon.ico" />
             </ui:TitleBar.Icon>
@@ -72,7 +73,8 @@
 
         <Grid x:Name="ContentGrid" Grid.Row="1" Margin="20,12,20,16">
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" /><RowDefinition Height="*" MinHeight="208" /><RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" /><RowDefinition Height="*" MinHeight="208" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <!-- ヘッダーと手順1〜3はここでスクロールし、手順4(同期差分)は下段に固定表示する。

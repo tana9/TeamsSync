@@ -1,9 +1,13 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
+
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+
 using TeamsSync.Application.Abstractions;
+using TeamsSync.Domain.Teams;
 using TeamsSync.Infrastructure.Graph;
 
 namespace TeamsSync.Tests.Unit.Infrastructure;
@@ -13,17 +17,18 @@ public sealed class GraphTeamsGatewayTests
     [Fact]
     public async Task GetMe_CancelsInFlightHttpRequest()
     {
-        var requestStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var handler = new DelegateHandler(async (_, cancellationToken) =>
+        TaskCompletionSource requestStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        DelegateHandler handler = new(async (_, cancellationToken) =>
         {
             requestStarted.SetResult();
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             return new HttpResponseMessage(HttpStatusCode.OK);
         });
-        var gateway = CreateGateway(handler, out var authentication);
-        using var cancellation = new CancellationTokenSource();
+        GraphTeamsGateway gateway = CreateGateway(handler, out FakeAuthentication authentication);
+        using CancellationTokenSource cancellation = new();
 
-        var request = gateway.GetMeAsync(cancellation.Token);
+        Task<(string Id, string DisplayName, string UserPrincipalName)>
+            request = gateway.GetMeAsync(cancellation.Token);
         await requestStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
         cancellation.Cancel();
 
@@ -34,18 +39,19 @@ public sealed class GraphTeamsGatewayTests
     [Fact]
     public async Task GetMe_Gateway単体ではRetryAfterを再試行しない()
     {
-        var responseReturned = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var handler = new DelegateHandler((_, _) =>
+        TaskCompletionSource responseReturned = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        DelegateHandler handler = new((_, _) =>
         {
-            var response = new HttpResponseMessage((HttpStatusCode)429);
+            HttpResponseMessage response = new((HttpStatusCode)429);
             response.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.FromMinutes(1));
             responseReturned.SetResult();
             return Task.FromResult(response);
         });
-        var gateway = CreateGateway(handler, out _);
-        using var cancellation = new CancellationTokenSource();
+        GraphTeamsGateway gateway = CreateGateway(handler, out _);
+        using CancellationTokenSource cancellation = new();
 
-        var request = gateway.GetMeAsync(cancellation.Token);
+        Task<(string Id, string DisplayName, string UserPrincipalName)>
+            request = gateway.GetMeAsync(cancellation.Token);
         await responseReturned.Task.WaitAsync(TestContext.Current.CancellationToken);
 
         await Assert.ThrowsAsync<GraphException>(() => request);
@@ -55,8 +61,8 @@ public sealed class GraphTeamsGatewayTests
     [Fact]
     public async Task GetTeamMembers_FollowsNextLink()
     {
-        var call = 0;
-        var handler = new DelegateHandler((_, _) => Task.FromResult(handlerResponse()));
+        int call = 0;
+        DelegateHandler handler = new((_, _) => Task.FromResult(handlerResponse()));
 
         HttpResponseMessage handlerResponse()
         {
@@ -69,9 +75,10 @@ public sealed class GraphTeamsGatewayTests
                                """);
         }
 
-        var gateway = CreateGateway(handler, out _);
+        GraphTeamsGateway gateway = CreateGateway(handler, out _);
 
-        var members = await gateway.GetTeamMembersAsync("team-1", TestContext.Current.CancellationToken);
+        IReadOnlyList<TeamMember> members =
+            await gateway.GetTeamMembersAsync("team-1", TestContext.Current.CancellationToken);
 
         Assert.Equal(2, members.Count);
         Assert.True(members[1].IsOwner);
@@ -81,11 +88,12 @@ public sealed class GraphTeamsGatewayTests
     [Fact]
     public async Task GetOwnedTeams_バッチリクエストで所有判定しセッション内で再利用する()
     {
-        var batchCalls = 0;
-        var handler = new DelegateHandler(async (request, cancellationToken) =>
+        int batchCalls = 0;
+        DelegateHandler handler = new(async (request, cancellationToken) =>
         {
-            var path = request.RequestUri!.AbsolutePath;
+            string path = request.RequestUri!.AbsolutePath;
             if (path.EndsWith("/me/joinedTeams", StringComparison.OrdinalIgnoreCase))
+            {
                 return JsonResponse("""
                                     {"value":[
                                       {"id":"team-1","displayName":"Zulu"},
@@ -96,33 +104,30 @@ public sealed class GraphTeamsGatewayTests
                                       {"id":"team-6","displayName":"Delta"}
                                     ]}
                                     """);
+            }
 
             Assert.EndsWith("/$batch", path, StringComparison.OrdinalIgnoreCase);
             Interlocked.Increment(ref batchCalls);
-            var requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
-            using var doc = JsonDocument.Parse(requestBody);
+            string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
+            using JsonDocument doc = JsonDocument.Parse(requestBody);
             var responses = doc.RootElement.GetProperty("requests").EnumerateArray().Select(req =>
             {
-                var id = req.GetProperty("id").GetString();
-                var url = req.GetProperty("url").GetString()!;
-                var teamId = url.Split('/')[2];
-                var isOwned = teamId is "team-2" or "team-4";
-                var memberBody = isOwned
+                string? id = req.GetProperty("id").GetString();
+                string url = req.GetProperty("url").GetString()!;
+                string teamId = url.Split('/')[2];
+                bool isOwned = teamId is "team-2" or "team-4";
+                string memberBody = isOwned
                     ? """{"value":[{"id":"membership","userId":"current-user","displayName":"Me","email":"me@example.com","roles":["owner"]}]}"""
                     : """{"value":[]}""";
-                return new
-                {
-                    id, status = 200,
-                    body = JsonDocument.Parse(memberBody).RootElement
-                };
+                return new { id, status = 200, body = JsonDocument.Parse(memberBody).RootElement };
             }).ToList();
             return JsonResponse(JsonSerializer.Serialize(new { responses }));
         });
-        var gateway = CreateGateway(handler, out _);
+        GraphTeamsGateway gateway = CreateGateway(handler, out _);
 
-        var first = await gateway.GetOwnedTeamsAsync(
+        IReadOnlyList<TeamInfo> first = await gateway.GetOwnedTeamsAsync(
             "current-user", TestContext.Current.CancellationToken);
-        var second = await gateway.GetOwnedTeamsAsync(
+        IReadOnlyList<TeamInfo> second = await gateway.GetOwnedTeamsAsync(
             "current-user", TestContext.Current.CancellationToken);
 
         Assert.Equal(["Alpha", "Bravo"], first.Select(team => team.DisplayName));
@@ -140,29 +145,34 @@ public sealed class GraphTeamsGatewayTests
     public async Task GetOwnedTeams_20件を超える候補は複数バッチへ分割する()
     {
         const int teamCount = 25;
-        var batchSizes = new List<int>();
-        var handler = new DelegateHandler(async (request, cancellationToken) =>
+        List<int> batchSizes = new();
+        DelegateHandler handler = new(async (request, cancellationToken) =>
         {
-            var path = request.RequestUri!.AbsolutePath;
+            string path = request.RequestUri!.AbsolutePath;
             if (path.EndsWith("/me/joinedTeams", StringComparison.OrdinalIgnoreCase))
             {
-                var teams = string.Join(',', Enumerable.Range(1, teamCount)
+                string teams = string.Join(',', Enumerable.Range(1, teamCount)
                     .Select(i => $$"""{"id":"team-{{i}}","displayName":"Team {{i}}"}"""));
                 return JsonResponse($$"""{"value":[{{teams}}]}""");
             }
 
-            var requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
-            using var doc = JsonDocument.Parse(requestBody);
-            var requestList = doc.RootElement.GetProperty("requests").EnumerateArray().ToList();
-            lock (batchSizes) batchSizes.Add(requestList.Count);
+            string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
+            using JsonDocument doc = JsonDocument.Parse(requestBody);
+            List<JsonElement> requestList = doc.RootElement.GetProperty("requests").EnumerateArray().ToList();
+            lock (batchSizes)
+            {
+                batchSizes.Add(requestList.Count);
+            }
+
             var responses = requestList.Select(req => new
             {
-                id = req.GetProperty("id").GetString(), status = 200,
+                id = req.GetProperty("id").GetString(),
+                status = 200,
                 body = JsonDocument.Parse("""{"value":[]}""").RootElement
             }).ToList();
             return JsonResponse(JsonSerializer.Serialize(new { responses }));
         });
-        var gateway = CreateGateway(handler, out _);
+        GraphTeamsGateway gateway = CreateGateway(handler, out _);
 
         await gateway.GetOwnedTeamsAsync("current-user", TestContext.Current.CancellationToken);
 
@@ -174,35 +184,38 @@ public sealed class GraphTeamsGatewayTests
     [Fact]
     public async Task GetOwnedTeams_バッチ内の403は待機せず個別取得へフォールバックする()
     {
-        var individualCallCount = 0;
-        var handler = new DelegateHandler(async (request, cancellationToken) =>
+        int individualCallCount = 0;
+        DelegateHandler handler = new(async (request, cancellationToken) =>
         {
-            var path = request.RequestUri!.AbsolutePath;
+            string path = request.RequestUri!.AbsolutePath;
             if (path.EndsWith("/me/joinedTeams", StringComparison.OrdinalIgnoreCase))
+            {
                 return JsonResponse("""
                                     {"value":[
                                       {"id":"team-1","displayName":"Alpha"},
                                       {"id":"team-2","displayName":"Bravo"}
                                     ]}
                                     """);
+            }
 
             if (path.EndsWith("/$batch", StringComparison.OrdinalIgnoreCase))
             {
-                var requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
-                using var doc = JsonDocument.Parse(requestBody);
+                string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
+                using JsonDocument doc = JsonDocument.Parse(requestBody);
                 // 403は権限不足であり待っても解決しないため、429/503と異なり即座に個別フォールバックへ回る。
                 var responses = doc.RootElement.GetProperty("requests").EnumerateArray().Select(req =>
                 {
-                    var id = req.GetProperty("id").GetString();
-                    var url = req.GetProperty("url").GetString()!;
-                    var teamId = url.Split('/')[2];
+                    string? id = req.GetProperty("id").GetString();
+                    string url = req.GetProperty("url").GetString()!;
+                    string teamId = url.Split('/')[2];
                     return teamId == "team-1"
                         ? new { id, status = 403, body = JsonDocument.Parse("{}").RootElement }
                         : new
                         {
-                            id, status = 200,
+                            id,
+                            status = 200,
                             body = JsonDocument.Parse(
-                                """{"value":[{"id":"membership","userId":"current-user","displayName":"Me","email":"me@example.com","roles":["owner"]}]}""")
+                                    """{"value":[{"id":"membership","userId":"current-user","displayName":"Me","email":"me@example.com","roles":["owner"]}]}""")
                                 .RootElement
                         };
                 }).ToList();
@@ -213,9 +226,10 @@ public sealed class GraphTeamsGatewayTests
             return JsonResponse(
                 """{"value":[{"id":"membership","userId":"current-user","displayName":"Me","email":"me@example.com","roles":["owner"]}]}""");
         });
-        var gateway = CreateGateway(handler, out _);
+        GraphTeamsGateway gateway = CreateGateway(handler, out _);
 
-        var owned = await gateway.GetOwnedTeamsAsync("current-user", TestContext.Current.CancellationToken);
+        IReadOnlyList<TeamInfo> owned =
+            await gateway.GetOwnedTeamsAsync("current-user", TestContext.Current.CancellationToken);
 
         Assert.Equal(["Alpha", "Bravo"], owned.Select(team => team.DisplayName));
         Assert.Equal(1, individualCallCount);
@@ -224,44 +238,55 @@ public sealed class GraphTeamsGatewayTests
     [Fact]
     public async Task GetOwnedTeams_バッチ内の429はRetryAfter待機後に同じ項目だけ再試行し個別取得へ回さない()
     {
-        var batchCallCount = 0;
-        var requestCountsPerCall = new List<int>();
-        var individualCallCount = 0;
-        var handler = new DelegateHandler(async (request, cancellationToken) =>
+        int batchCallCount = 0;
+        List<int> requestCountsPerCall = new();
+        int individualCallCount = 0;
+        DelegateHandler handler = new(async (request, cancellationToken) =>
         {
-            var path = request.RequestUri!.AbsolutePath;
+            string path = request.RequestUri!.AbsolutePath;
             if (path.EndsWith("/me/joinedTeams", StringComparison.OrdinalIgnoreCase))
+            {
                 return JsonResponse("""
                                     {"value":[
                                       {"id":"team-1","displayName":"Alpha"},
                                       {"id":"team-2","displayName":"Bravo"}
                                     ]}
                                     """);
+            }
 
             if (path.EndsWith("/$batch", StringComparison.OrdinalIgnoreCase))
             {
-                var callIndex = Interlocked.Increment(ref batchCallCount);
-                var requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
-                using var doc = JsonDocument.Parse(requestBody);
-                var requestList = doc.RootElement.GetProperty("requests").EnumerateArray().ToList();
-                lock (requestCountsPerCall) requestCountsPerCall.Add(requestList.Count);
+                int callIndex = Interlocked.Increment(ref batchCallCount);
+                string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
+                using JsonDocument doc = JsonDocument.Parse(requestBody);
+                List<JsonElement> requestList = doc.RootElement.GetProperty("requests").EnumerateArray().ToList();
+                lock (requestCountsPerCall)
+                {
+                    requestCountsPerCall.Add(requestList.Count);
+                }
+
                 // team-1は1回目のみ429(Retry-After=0秒)を返し、2回目以降は200を返す。
                 // team-2は最初から200(所有者ではない)。
                 var responses = requestList.Select(req =>
                 {
-                    var id = req.GetProperty("id").GetString();
-                    var url = req.GetProperty("url").GetString()!;
-                    var teamId = url.Split('/')[2];
+                    string? id = req.GetProperty("id").GetString();
+                    string url = req.GetProperty("url").GetString()!;
+                    string teamId = url.Split('/')[2];
                     if (teamId == "team-1" && callIndex == 1)
+                    {
                         return new
                         {
-                            id, status = 429,
+                            id,
+                            status = 429,
                             headers = new Dictionary<string, string> { ["Retry-After"] = "0" },
                             body = JsonDocument.Parse("{}").RootElement
                         };
+                    }
+
                     return new
                     {
-                        id, status = 200,
+                        id,
+                        status = 200,
                         headers = new Dictionary<string, string>(),
                         body = JsonDocument.Parse(teamId == "team-1"
                                 ? """{"value":[{"id":"membership","userId":"current-user","displayName":"Me","email":"me@example.com","roles":["owner"]}]}"""
@@ -275,9 +300,10 @@ public sealed class GraphTeamsGatewayTests
             Interlocked.Increment(ref individualCallCount);
             return JsonResponse("""{"value":[]}""");
         });
-        var gateway = CreateGateway(handler, out _);
+        GraphTeamsGateway gateway = CreateGateway(handler, out _);
 
-        var owned = await gateway.GetOwnedTeamsAsync("current-user", TestContext.Current.CancellationToken);
+        IReadOnlyList<TeamInfo> owned =
+            await gateway.GetOwnedTeamsAsync("current-user", TestContext.Current.CancellationToken);
 
         Assert.Equal(["Alpha"], owned.Select(team => team.DisplayName));
         Assert.Equal(0, individualCallCount);
@@ -289,30 +315,34 @@ public sealed class GraphTeamsGatewayTests
     [Fact]
     public async Task GetOwnedTeams_バッチ内の503も429と同様に待機後に再試行する()
     {
-        var batchCallCount = 0;
-        var individualCallCount = 0;
-        var handler = new DelegateHandler(async (request, cancellationToken) =>
+        int batchCallCount = 0;
+        int individualCallCount = 0;
+        DelegateHandler handler = new(async (request, cancellationToken) =>
         {
-            var path = request.RequestUri!.AbsolutePath;
+            string path = request.RequestUri!.AbsolutePath;
             if (path.EndsWith("/me/joinedTeams", StringComparison.OrdinalIgnoreCase))
+            {
                 return JsonResponse("""{"value":[{"id":"team-1","displayName":"Alpha"}]}""");
+            }
 
-            var callIndex = Interlocked.Increment(ref batchCallCount);
-            var requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
-            using var doc = JsonDocument.Parse(requestBody);
+            int callIndex = Interlocked.Increment(ref batchCallCount);
+            string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
+            using JsonDocument doc = JsonDocument.Parse(requestBody);
             var responses = doc.RootElement.GetProperty("requests").EnumerateArray().Select(req =>
             {
-                var id = req.GetProperty("id").GetString();
+                string? id = req.GetProperty("id").GetString();
                 return callIndex == 1
                     ? new
                     {
-                        id, status = 503,
+                        id,
+                        status = 503,
                         headers = new Dictionary<string, string> { ["Retry-After"] = "0" },
                         body = JsonDocument.Parse("{}").RootElement
                     }
                     : new
                     {
-                        id, status = 200,
+                        id,
+                        status = 200,
                         headers = new Dictionary<string, string>(),
                         body = JsonDocument.Parse(
                                 """{"value":[{"id":"membership","userId":"current-user","displayName":"Me","email":"me@example.com","roles":["owner"]}]}""")
@@ -321,9 +351,10 @@ public sealed class GraphTeamsGatewayTests
             }).ToList();
             return JsonResponse(JsonSerializer.Serialize(new { responses }));
         });
-        var gateway = CreateGateway(handler, out _);
+        GraphTeamsGateway gateway = CreateGateway(handler, out _);
 
-        var owned = await gateway.GetOwnedTeamsAsync("current-user", TestContext.Current.CancellationToken);
+        IReadOnlyList<TeamInfo> owned =
+            await gateway.GetOwnedTeamsAsync("current-user", TestContext.Current.CancellationToken);
 
         Assert.Equal(["Alpha"], owned.Select(team => team.DisplayName));
         Assert.Equal(0, individualCallCount);
@@ -333,41 +364,45 @@ public sealed class GraphTeamsGatewayTests
     [Fact]
     public async Task GetOwnedTeams_429が再試行上限に達すると個別取得へフォールバックする()
     {
-        var batchCallCount = 0;
-        var individualCallCount = 0;
-        var handler = new DelegateHandler(async (request, cancellationToken) =>
+        int batchCallCount = 0;
+        int individualCallCount = 0;
+        DelegateHandler handler = new(async (request, cancellationToken) =>
         {
-            var path = request.RequestUri!.AbsolutePath;
+            string path = request.RequestUri!.AbsolutePath;
             if (path.EndsWith("/me/joinedTeams", StringComparison.OrdinalIgnoreCase))
+            {
                 return JsonResponse("""
                                     {"value":[
                                       {"id":"team-1","displayName":"Alpha"},
                                       {"id":"team-2","displayName":"Bravo"}
                                     ]}
                                     """);
+            }
 
             if (path.EndsWith("/$batch", StringComparison.OrdinalIgnoreCase))
             {
                 Interlocked.Increment(ref batchCallCount);
-                var requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
-                using var doc = JsonDocument.Parse(requestBody);
-                var requestList = doc.RootElement.GetProperty("requests").EnumerateArray().ToList();
+                string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
+                using JsonDocument doc = JsonDocument.Parse(requestBody);
+                List<JsonElement> requestList = doc.RootElement.GetProperty("requests").EnumerateArray().ToList();
                 // team-1は常に429を返し続け、再試行上限(3回)に達しても解消しないケースを再現する。
                 var responses = requestList.Select(req =>
                 {
-                    var id = req.GetProperty("id").GetString();
-                    var url = req.GetProperty("url").GetString()!;
-                    var teamId = url.Split('/')[2];
+                    string? id = req.GetProperty("id").GetString();
+                    string url = req.GetProperty("url").GetString()!;
+                    string teamId = url.Split('/')[2];
                     return teamId == "team-1"
                         ? new
                         {
-                            id, status = 429,
+                            id,
+                            status = 429,
                             headers = new Dictionary<string, string> { ["Retry-After"] = "0" },
                             body = JsonDocument.Parse("{}").RootElement
                         }
                         : new
                         {
-                            id, status = 200,
+                            id,
+                            status = 200,
                             headers = new Dictionary<string, string>(),
                             body = JsonDocument.Parse(
                                     """{"value":[{"id":"membership","userId":"current-user","displayName":"Me","email":"me@example.com","roles":["owner"]}]}""")
@@ -381,9 +416,10 @@ public sealed class GraphTeamsGatewayTests
             return JsonResponse(
                 """{"value":[{"id":"membership","userId":"current-user","displayName":"Me","email":"me@example.com","roles":["owner"]}]}""");
         });
-        var gateway = CreateGateway(handler, out _);
+        GraphTeamsGateway gateway = CreateGateway(handler, out _);
 
-        var owned = await gateway.GetOwnedTeamsAsync("current-user", TestContext.Current.CancellationToken);
+        IReadOnlyList<TeamInfo> owned =
+            await gateway.GetOwnedTeamsAsync("current-user", TestContext.Current.CancellationToken);
 
         // team-2はバッチで直接200が返り所有者と判定、team-1は429の再試行上限に達して個別取得へ回り
         // そちらでも所有者と判定される(バッチ成功と個別フォールバックの併存を確認する)。
@@ -395,17 +431,19 @@ public sealed class GraphTeamsGatewayTests
     [Fact]
     public async Task GetOwnedTeams_バッチの再試行待機中にキャンセルすると新たな要求を送らない()
     {
-        var batchCallCount = 0;
-        var firstBatchCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var handler = new DelegateHandler(async (request, cancellationToken) =>
+        int batchCallCount = 0;
+        TaskCompletionSource firstBatchCompleted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        DelegateHandler handler = new(async (request, cancellationToken) =>
         {
-            var path = request.RequestUri!.AbsolutePath;
+            string path = request.RequestUri!.AbsolutePath;
             if (path.EndsWith("/me/joinedTeams", StringComparison.OrdinalIgnoreCase))
+            {
                 return JsonResponse("""{"value":[{"id":"team-1","displayName":"Alpha"}]}""");
+            }
 
             Interlocked.Increment(ref batchCallCount);
-            var requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
-            using var doc = JsonDocument.Parse(requestBody);
+            string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
+            using JsonDocument doc = JsonDocument.Parse(requestBody);
             // Retry-Afterを60秒と長く返し、待機中にキャンセルされることを検証できるようにする。
             var responses = doc.RootElement.GetProperty("requests").EnumerateArray().Select(req => new
             {
@@ -414,14 +452,14 @@ public sealed class GraphTeamsGatewayTests
                 headers = new Dictionary<string, string> { ["Retry-After"] = "60" },
                 body = JsonDocument.Parse("{}").RootElement
             }).ToList();
-            var response = JsonResponse(JsonSerializer.Serialize(new { responses }));
+            HttpResponseMessage response = JsonResponse(JsonSerializer.Serialize(new { responses }));
             firstBatchCompleted.TrySetResult();
             return response;
         });
-        var gateway = CreateGateway(handler, out _);
-        using var cancellation = new CancellationTokenSource();
+        GraphTeamsGateway gateway = CreateGateway(handler, out _);
+        using CancellationTokenSource cancellation = new();
 
-        var request = gateway.GetOwnedTeamsAsync("current-user", cancellation.Token);
+        Task<IReadOnlyList<TeamInfo>> request = gateway.GetOwnedTeamsAsync("current-user", cancellation.Token);
         await firstBatchCompleted.Task.WaitAsync(TestContext.Current.CancellationToken);
         cancellation.Cancel();
 
@@ -433,14 +471,14 @@ public sealed class GraphTeamsGatewayTests
     public async Task GetMe_Gateway単体は429を基盤へ委譲し相関ヘッダーを付ける()
     {
         string? clientRequestId = null;
-        var handlerCallCount = 0;
-        var handler = new DelegateHandler((request, _) =>
+        int handlerCallCount = 0;
+        DelegateHandler handler = new((request, _) =>
         {
             clientRequestId = request.Headers.GetValues("client-request-id").Single();
             Assert.Equal("true", request.Headers.GetValues("return-client-request-id").Single());
             if (handlerCallCount++ == 0)
             {
-                var throttled = new HttpResponseMessage((HttpStatusCode)429);
+                HttpResponseMessage throttled = new((HttpStatusCode)429);
                 throttled.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.Zero);
                 return Task.FromResult(throttled);
             }
@@ -448,7 +486,7 @@ public sealed class GraphTeamsGatewayTests
             return Task.FromResult(JsonResponse(
                 "{\"id\":\"me\",\"displayName\":\"Me\",\"userPrincipalName\":\"me@example.com\"}"));
         });
-        var gateway = CreateGateway(handler, out _);
+        GraphTeamsGateway gateway = CreateGateway(handler, out _);
 
         await Assert.ThrowsAsync<GraphException>(() =>
             gateway.GetMeAsync(TestContext.Current.CancellationToken));
@@ -460,16 +498,16 @@ public sealed class GraphTeamsGatewayTests
     [Fact]
     public async Task GetMe_Gateway単体は503を一度でGraph例外へ変換する()
     {
-        var handler = new DelegateHandler((_, _) =>
+        DelegateHandler handler = new((_, _) =>
         {
-            var response = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+            HttpResponseMessage response = new(HttpStatusCode.ServiceUnavailable);
             response.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.Zero);
             response.Content = new StringContent("service unavailable");
             return Task.FromResult(response);
         });
-        var gateway = CreateGateway(handler, out _);
+        GraphTeamsGateway gateway = CreateGateway(handler, out _);
 
-        var exception = await Assert.ThrowsAsync<GraphException>(() =>
+        GraphException exception = await Assert.ThrowsAsync<GraphException>(() =>
             gateway.GetMeAsync(TestContext.Current.CancellationToken));
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, exception.StatusCode);
@@ -480,10 +518,10 @@ public sealed class GraphTeamsGatewayTests
     public async Task GetMe_IncludesErrorBodyAndCorrelationIdsInGraphException()
     {
         string? sentClientRequestId = null;
-        var handler = new DelegateHandler((request, _) =>
+        DelegateHandler handler = new((request, _) =>
         {
             sentClientRequestId = request.Headers.GetValues("client-request-id").Single();
-            var response = new HttpResponseMessage(HttpStatusCode.Forbidden)
+            HttpResponseMessage response = new(HttpStatusCode.Forbidden)
             {
                 Content = new StringContent("{\"error\":{\"code\":\"Authorization_RequestDenied\"}}")
             };
@@ -491,9 +529,9 @@ public sealed class GraphTeamsGatewayTests
             response.Headers.TryAddWithoutValidation("client-request-id", sentClientRequestId);
             return Task.FromResult(response);
         });
-        var gateway = CreateGateway(handler, out _);
+        GraphTeamsGateway gateway = CreateGateway(handler, out _);
 
-        var exception = await Assert.ThrowsAsync<GraphException>(() =>
+        GraphException exception = await Assert.ThrowsAsync<GraphException>(() =>
             gateway.GetMeAsync(TestContext.Current.CancellationToken));
 
         Assert.Contains("Authorization_RequestDenied", exception.Message);
@@ -504,9 +542,9 @@ public sealed class GraphTeamsGatewayTests
     [Fact]
     public async Task GetMe_PropagatesNetworkFailureWithoutRetrying()
     {
-        var handler = new DelegateHandler((_, _) =>
+        DelegateHandler handler = new((_, _) =>
             Task.FromException<HttpResponseMessage>(new HttpRequestException("network failure")));
-        var gateway = CreateGateway(handler, out _);
+        GraphTeamsGateway gateway = CreateGateway(handler, out _);
 
         await Assert.ThrowsAsync<HttpRequestException>(() =>
             gateway.GetMeAsync(TestContext.Current.CancellationToken));
@@ -517,9 +555,9 @@ public sealed class GraphTeamsGatewayTests
     [Fact]
     public async Task GetMe_PropagatesTimeoutWithoutRetrying()
     {
-        var handler = new DelegateHandler((_, _) =>
+        DelegateHandler handler = new((_, _) =>
             Task.FromException<HttpResponseMessage>(new TaskCanceledException("request timeout")));
-        var gateway = CreateGateway(handler, out _);
+        GraphTeamsGateway gateway = CreateGateway(handler, out _);
 
         await Assert.ThrowsAsync<TaskCanceledException>(() =>
             gateway.GetMeAsync(TestContext.Current.CancellationToken));
@@ -532,11 +570,11 @@ public sealed class GraphTeamsGatewayTests
     [InlineData(HttpStatusCode.Conflict)]
     public async Task MemberWrite_ReportsDeletedOrDuplicateMemberError(HttpStatusCode statusCode)
     {
-        var handler = new DelegateHandler((_, _) => Task.FromResult(
+        DelegateHandler handler = new((_, _) => Task.FromResult(
             new HttpResponseMessage(statusCode) { Content = new StringContent("member write failed") }));
-        var gateway = CreateGateway(handler, out _);
+        GraphTeamsGateway gateway = CreateGateway(handler, out _);
 
-        var exception = statusCode == HttpStatusCode.NotFound
+        GraphException exception = statusCode == HttpStatusCode.NotFound
             ? await Assert.ThrowsAsync<GraphException>(() => gateway.RemoveMemberAsync(
                 "team-1", "deleted-membership", TestContext.Current.CancellationToken))
             : await Assert.ThrowsAsync<GraphException>(() => gateway.AddMemberAsync(
@@ -549,14 +587,18 @@ public sealed class GraphTeamsGatewayTests
     [Fact]
     public async Task FindUsers_SearchesDisplayNameWithConsistencyHeader()
     {
-        var searchHeaderCount = 0;
-        var handler = new DelegateHandler((request, _) =>
+        int searchHeaderCount = 0;
+        DelegateHandler handler = new((request, _) =>
         {
-            var query = Uri.UnescapeDataString(request.RequestUri!.Query);
+            string query = Uri.UnescapeDataString(request.RequestUri!.Query);
             if (query.Contains("$search=", StringComparison.OrdinalIgnoreCase))
             {
-                if (request.Headers.TryGetValues("ConsistencyLevel", out var values) &&
-                    values.Single() == "eventual") searchHeaderCount++;
+                if (request.Headers.TryGetValues("ConsistencyLevel", out IEnumerable<string>? values) &&
+                    values.Single() == "eventual")
+                {
+                    searchHeaderCount++;
+                }
+
                 return Task.FromResult(JsonResponse("""
                                                     {"value":[{"id":"user-1","displayName":"山田 太郎","userPrincipalName":"yamada@example.com","mail":"yamada@example.com"}],"@odata.nextLink":"https://graph.microsoft.com/v1.0/users?$skiptoken=next"}
                                                     """));
@@ -564,23 +606,31 @@ public sealed class GraphTeamsGatewayTests
 
             if (query.Contains("$skiptoken=", StringComparison.OrdinalIgnoreCase))
             {
-                if (request.Headers.TryGetValues("ConsistencyLevel", out var values) &&
-                    values.Single() == "eventual") searchHeaderCount++;
+                if (request.Headers.TryGetValues("ConsistencyLevel", out IEnumerable<string>? values) &&
+                    values.Single() == "eventual")
+                {
+                    searchHeaderCount++;
+                }
+
                 return Task.FromResult(JsonResponse("""
                                                     {"value":[{"id":"user-2","displayName":"山田 太郎","userPrincipalName":"yamada2@example.com","mail":"yamada2@example.com"}]}
                                                     """));
             }
 
             if (query.Contains("$filter=", StringComparison.OrdinalIgnoreCase))
+            {
                 return Task.FromResult(JsonResponse("{\"value\":[]}"));
+            }
+
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound)
             {
                 Content = new StringContent("{\"error\":{\"message\":\"not found\"}}")
             });
         });
-        var gateway = CreateGateway(handler, out _);
+        GraphTeamsGateway gateway = CreateGateway(handler, out _);
 
-        var users = await gateway.FindUsersAsync("山田太郎", TestContext.Current.CancellationToken);
+        IReadOnlyList<DirectoryUser>
+            users = await gateway.FindUsersAsync("山田太郎", TestContext.Current.CancellationToken);
 
         Assert.Equal(2, users.Count);
         Assert.Equal("user-1", users[0].Id);
@@ -591,9 +641,9 @@ public sealed class GraphTeamsGatewayTests
     [Fact]
     public async Task FindUsers_直接参照404から検索成功した場合はErrorログを残さない()
     {
-        var handler = new DelegateHandler((request, _) =>
+        DelegateHandler handler = new((request, _) =>
         {
-            var query = Uri.UnescapeDataString(request.RequestUri!.Query);
+            string query = Uri.UnescapeDataString(request.RequestUri!.Query);
             return Task.FromResult(query.Contains("$filter=", StringComparison.OrdinalIgnoreCase)
                 ? JsonResponse("""
                                {"value":[{"id":"user-1","displayName":"User","userPrincipalName":"user@example.com","mail":"user@example.com"}]}
@@ -603,10 +653,11 @@ public sealed class GraphTeamsGatewayTests
                     Content = new StringContent("{\"error\":{\"message\":\"not found\"}}")
                 });
         });
-        var logger = new RecordingLogger<GraphHttpClient>();
-        var gateway = CreateGateway(handler, out _, logger);
+        RecordingLogger<GraphHttpClient> logger = new();
+        GraphTeamsGateway gateway = CreateGateway(handler, out _, logger);
 
-        var users = await gateway.FindUsersAsync("user@example.com", TestContext.Current.CancellationToken);
+        IReadOnlyList<DirectoryUser> users =
+            await gateway.FindUsersAsync("user@example.com", TestContext.Current.CancellationToken);
 
         Assert.Single(users);
         Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Debug &&
@@ -617,13 +668,10 @@ public sealed class GraphTeamsGatewayTests
     [Fact]
     public async Task GetMe_通常の404はErrorログへ記録する()
     {
-        var handler = new DelegateHandler((_, _) => Task.FromResult(
-            new HttpResponseMessage(HttpStatusCode.NotFound)
-            {
-                Content = new StringContent("not found")
-            }));
-        var logger = new RecordingLogger<GraphHttpClient>();
-        var gateway = CreateGateway(handler, out _, logger);
+        DelegateHandler handler = new((_, _) => Task.FromResult(
+            new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new StringContent("not found") }));
+        RecordingLogger<GraphHttpClient> logger = new();
+        GraphTeamsGateway gateway = CreateGateway(handler, out _, logger);
 
         await Assert.ThrowsAsync<GraphException>(() =>
             gateway.GetMeAsync(TestContext.Current.CancellationToken));
@@ -636,7 +684,7 @@ public sealed class GraphTeamsGatewayTests
     {
         return new HttpResponseMessage(HttpStatusCode.OK)
         {
-            Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json")
+            Content = new StringContent(json, Encoding.UTF8, "application/json")
         };
     }
 
@@ -644,10 +692,10 @@ public sealed class GraphTeamsGatewayTests
         ILogger<GraphHttpClient>? httpLogger = null)
     {
         authentication = new FakeAuthentication();
-        var client = new HttpClient(handler);
-        var http = new GraphHttpClient(new FakeHttpClientFactory(client), authentication,
+        HttpClient client = new(handler);
+        GraphHttpClient http = new(new FakeHttpClientFactory(client), authentication,
             httpLogger ?? NullLogger<GraphHttpClient>.Instance);
-        var sdk = new GraphSdkClient(new FakeHttpClientFactory(client), authentication,
+        GraphSdkClient sdk = new(new FakeHttpClientFactory(client), authentication,
             httpLogger ?? NullLogger<GraphHttpClient>.Instance);
         return new GraphTeamsGateway(http, sdk, NullLogger<GraphTeamsGateway>.Instance);
     }
@@ -696,8 +744,15 @@ public sealed class GraphTeamsGatewayTests
     {
         public List<(LogLevel Level, string Message)> Entries { get; } = [];
 
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-        public bool IsEnabled(LogLevel logLevel) => true;
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull
+        {
+            return null;
+        }
+
+        public bool IsEnabled(LogLevel logLevel)
+        {
+            return true;
+        }
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
             Exception? exception, Func<TState, Exception?, string> formatter)

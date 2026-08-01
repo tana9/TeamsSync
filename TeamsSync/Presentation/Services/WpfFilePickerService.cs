@@ -7,7 +7,7 @@ public sealed class WpfFilePickerService : IFilePickerService
 {
     public string? PickMemberFile(string? initialDirectory)
     {
-        var dialog = new OpenFileDialog
+        OpenFileDialog dialog = new()
         {
             Title = "メンバーリストを選択",
             Filter = "メンバーリスト (*.csv;*.xlsx)|*.csv;*.xlsx|CSV (*.csv)|*.csv|Excel (*.xlsx)|*.xlsx",

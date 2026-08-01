@@ -1,8 +1,10 @@
 using System.Windows;
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+
 using TeamsSync.Application;
 using TeamsSync.Infrastructure;
 using TeamsSync.Infrastructure.Logging;
@@ -12,28 +14,27 @@ using TeamsSync.Presentation.Views;
 namespace TeamsSync;
 
 /// <summary>
-/// アプリケーションのエントリポイント。Generic Hostを構築し、DI・設定・ロギングを
-/// 初期化したうえでメインウィンドウを表示する。
+///     アプリケーションのエントリポイント。Generic Hostを構築し、DI・設定・ロギングを
+///     初期化したうえでメインウィンドウを表示する。
 /// </summary>
 public partial class App : System.Windows.Application
 {
     private IHost? _host;
 
     /// <summary>
-    /// 起動時にホストを構築し、設定の読み込みとDIコンテナの初期化を行ってからメインウィンドウを表示する。
+    ///     起動時にホストを構築し、設定の読み込みとDIコンテナの初期化を行ってからメインウィンドウを表示する。
     /// </summary>
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
         try
         {
-            var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+            HostApplicationBuilder builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
             {
-                Args = e.Args,
-                ContentRootPath = AppContext.BaseDirectory
+                Args = e.Args, ContentRootPath = AppContext.BaseDirectory
             });
-            await using var settings = typeof(App).Assembly.GetManifestResourceStream("appsettings.json")
-                                       ?? throw new InvalidOperationException("埋め込み設定 appsettings.json を読み込めません。");
+            await using Stream settings = typeof(App).Assembly.GetManifestResourceStream("appsettings.json")
+                                          ?? throw new InvalidOperationException("埋め込み設定 appsettings.json を読み込めません。");
             builder.Configuration
                 .AddJsonStream(settings)
                 .AddEnvironmentVariables("TEAMSSYNC_")
@@ -46,8 +47,7 @@ public partial class App : System.Windows.Application
                 .AddPresentation();
             builder.ConfigureContainer(new DefaultServiceProviderFactory(new ServiceProviderOptions
             {
-                ValidateOnBuild = true,
-                ValidateScopes = true
+                ValidateOnBuild = true, ValidateScopes = true
             }));
 
             _host = builder.Build();
@@ -58,8 +58,8 @@ public partial class App : System.Windows.Application
         }
         catch (Exception ex)
         {
-            var logPath = StartupFailureLog.TryWrite(ex);
-            var diagnosticHint = logPath is null
+            string? logPath = StartupFailureLog.TryWrite(ex);
+            string diagnosticHint = logPath is null
                 ? ""
                 : $"\n\n詳細は次のログへ記録しました。\n{logPath}";
             MessageBox.Show($"アプリケーションを起動できませんでした。設定とネットワークを確認してください。{diagnosticHint}",
@@ -69,13 +69,13 @@ public partial class App : System.Windows.Application
     }
 
     /// <summary>
-    /// 終了時にホストを停止・破棄し、リソースを解放する。
+    ///     終了時にホストを停止・破棄し、リソースを解放する。
     /// </summary>
     protected override async void OnExit(ExitEventArgs e)
     {
         if (_host is not null)
         {
-            var host = _host;
+            IHost host = _host;
             _host = null;
             await AppHostShutdown.StopAndDisposeAsync(host, host.Services.GetService<ILogger<App>>());
         }

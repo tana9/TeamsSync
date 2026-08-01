@@ -5,7 +5,8 @@
              xmlns:vm="clr-namespace:TeamsSync.Presentation.ViewModels">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="{StaticResource SectionLabelColumnWidth}" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="{StaticResource SectionLabelColumnWidth}" /><ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
@@ -57,8 +58,9 @@
                 <Style TargetType="StackPanel">
                     <Setter Property="Visibility" Value="Collapsed" />
                     <Style.Triggers>
-                        <DataTrigger Binding="{Binding DataContext.WorkflowSteps.Step1State, RelativeSource={RelativeSource AncestorType=Window}}"
-                                     Value="{x:Static vm:WorkflowStepState.Current}">
+                        <DataTrigger
+                            Binding="{Binding DataContext.WorkflowSteps.Step1State, RelativeSource={RelativeSource AncestorType=Window}}"
+                            Value="{x:Static vm:WorkflowStepState.Current}">
                             <Setter Property="Visibility" Value="Visible" />
                         </DataTrigger>
                     </Style.Triggers>

@@ -1,6 +1,8 @@
 using System.Windows;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+
 using TeamsSync.Application;
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Infrastructure.Files;
@@ -19,7 +21,7 @@ public partial class App : System.Windows.Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        var builder = Host.CreateApplicationBuilder(e.Args);
+        HostApplicationBuilder builder = Host.CreateApplicationBuilder(e.Args);
         builder.Services
             .AddApplication()
             .AddSingleton<IAuthenticationService, DemoAuthenticationService>()
@@ -36,16 +38,14 @@ public partial class App : System.Windows.Application
 
         _host = builder.Build();
         await _host.StartAsync();
-        var window = _host.Services.GetRequiredService<MainWindow>();
+        MainWindow window = _host.Services.GetRequiredService<MainWindow>();
         window.Show();
 
         // 認証画面を経由せず、起動直後からチーム選択以降のUIを確認できる状態にする。
-        var viewModel = _host.Services.GetRequiredService<MainWindowViewModel>();
+        MainWindowViewModel viewModel = _host.Services.GetRequiredService<MainWindowViewModel>();
         await viewModel.SignIn.SignInCommand.ExecuteAsync(null);
-        var scenarios = new ScenarioWindow(viewModel, _host.Services.GetRequiredService<DemoTeamsGateway>())
-        {
-            Owner = window
-        };
+        ScenarioWindow scenarios =
+            new(viewModel, _host.Services.GetRequiredService<DemoTeamsGateway>()) { Owner = window };
         scenarios.Show();
     }
 
@@ -57,6 +57,7 @@ public partial class App : System.Windows.Application
             _host.StopAsync(TimeSpan.FromSeconds(2)).GetAwaiter().GetResult();
             _host.Dispose();
         }
+
         base.OnExit(e);
     }
 }

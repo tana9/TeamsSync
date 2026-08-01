@@ -3,8 +3,8 @@ using TeamsSync.Presentation.Services;
 namespace TeamsSync.Presentation.ViewModels;
 
 /// <summary>
-/// 実行中フラグの管理と、キャンセル/例外発生時の共通ステータス報告をViewModelへ委譲するヘルパー。
-/// 継承ではなくコンポジションで各ViewModelから利用する。
+///     実行中フラグの管理と、キャンセル/例外発生時の共通ステータス報告をViewModelへ委譲するヘルパー。
+///     継承ではなくコンポジションで各ViewModelから利用する。
 /// </summary>
 public sealed class BusyOperationRunner(
     INotificationService notifications,
@@ -12,9 +12,9 @@ public sealed class BusyOperationRunner(
     Action<bool>? setBusy = null)
 {
     /// <summary>
-    /// 処理を実行し、成功したかどうかを呼び出し元へ返す。
-    /// 例外・キャンセルはここで通知まで完結させるが、後続処理を続けてよいかの判断は
-    /// 呼び出し元の責務(例:サインアウト失敗時は画面状態を変更しない)のため戻り値で伝える。
+    ///     処理を実行し、成功したかどうかを呼び出し元へ返す。
+    ///     例外・キャンセルはここで通知まで完結させるが、後続処理を続けてよいかの判断は
+    ///     呼び出し元の責務(例:サインアウト失敗時は画面状態を変更しない)のため戻り値で伝える。
     /// </summary>
     public async Task<bool> RunAsync(Func<Task> action,
         Func<Exception, (string Status, string DialogTitle)?>? handleSpecificException = null)
@@ -32,7 +32,7 @@ public sealed class BusyOperationRunner(
         }
         catch (Exception ex)
         {
-            var specific = handleSpecificException?.Invoke(ex);
+            (string Status, string DialogTitle)? specific = handleSpecificException?.Invoke(ex);
             if (specific is { } result)
             {
                 reportStatus(result.Status, true);

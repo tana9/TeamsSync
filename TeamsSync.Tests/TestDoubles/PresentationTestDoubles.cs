@@ -1,10 +1,11 @@
-using System.Windows.Threading;
 using System.Runtime.ExceptionServices;
+using System.Windows.Threading;
+
 using TeamsSync.Application.Abstractions;
-using TeamsSync.Application.Services;
 using TeamsSync.Domain.Teams;
 using TeamsSync.Infrastructure.Files;
 using TeamsSync.Presentation.Services;
+
 using Xunit.Sdk;
 
 namespace TeamsSync.Tests.TestDoubles;
@@ -18,12 +19,9 @@ internal static class DispatcherTestHelper
     // (DispatcherSynchronizationContext.Postにより)テストスレッド上で実行されるようにする。
     public static void RunOnDispatcher(Func<Task> action, TimeSpan? timeout = null)
     {
-        var frame = new DispatcherFrame();
+        DispatcherFrame frame = new();
         Exception? error = null;
-        var timer = new DispatcherTimer(DispatcherPriority.Send)
-        {
-            Interval = timeout ?? TimeSpan.FromSeconds(10)
-        };
+        DispatcherTimer timer = new(DispatcherPriority.Send) { Interval = timeout ?? TimeSpan.FromSeconds(10) };
         timer.Tick += (_, _) =>
         {
             timer.Stop();
@@ -35,7 +33,10 @@ internal static class DispatcherTestHelper
         Dispatcher.PushFrame(frame);
         timer.Stop();
         if (error is not null)
+        {
             ExceptionDispatchInfo.Capture(error).Throw();
+        }
+
         return;
 
         async Task RunAsync()
@@ -58,11 +59,10 @@ internal static class DispatcherTestHelper
 
 internal sealed class FakeAuthenticationService : IAuthenticationService
 {
-    public string? UserName => null;
-    public string? TenantId => null;
-
     // サインアウト失敗/キャンセルのテスト用フック。未設定時は成功する。
     public Exception? SignOutException { get; set; }
+    public string? UserName => null;
+    public string? TenantId => null;
 
     public Task<string> GetTokenAsync(bool interactive = false, CancellationToken cancellationToken = default)
     {
@@ -118,12 +118,15 @@ internal sealed class RecordingNotificationService : INotificationService
 
 internal sealed class FakePreferences : IUserPreferences
 {
-    public string? LastFolder { get; set; }
     public Exception? SaveException { get; set; }
+    public string? LastFolder { get; set; }
 
     public void Save()
     {
-        if (SaveException is not null) throw SaveException;
+        if (SaveException is not null)
+        {
+            throw SaveException;
+        }
     }
 }
 
@@ -141,7 +144,11 @@ internal sealed class SwitchingMemberListReader(MemberListDocument document) : I
 
     public MemberListDocument Read(string path, CancellationToken cancellationToken)
     {
-        if (Exception is not null) throw Exception;
+        if (Exception is not null)
+        {
+            throw Exception;
+        }
+
         return document;
     }
 }
@@ -150,6 +157,7 @@ internal sealed class BlockingMemberListReader(MemberListDocument document) : IM
 {
     public TaskCompletionSource Started { get; } =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
+
     public ManualResetEventSlim Release { get; } = new(false);
 
     public MemberListDocument Read(string path, CancellationToken cancellationToken)
@@ -166,6 +174,7 @@ internal sealed class BlockingTextParser : IMemberTextParser
 {
     public TaskCompletionSource Started { get; } =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
+
     public ManualResetEventSlim Release { get; } = new(false);
 
     public MemberListDocument Parse(string text, CancellationToken cancellationToken)
@@ -183,30 +192,46 @@ internal sealed class FakeResultWriter : ISyncResultWriter
 
     public void WriteAutoLog(SyncPlan plan, SyncExecutionResult result)
     {
-        if (Exception is not null) throw Exception;
+        if (Exception is not null)
+        {
+            throw Exception;
+        }
     }
 }
 
 internal sealed class FakeFilePickerService : IFilePickerService
 {
-    public string? PickMemberFile(string? initialDirectory) => null;
+    public string? PickMemberFile(string? initialDirectory)
+    {
+        return null;
+    }
 }
 
 internal sealed class FailingNotificationService : INotificationService
 {
     public string WarningTitle { get; private set; } = "";
     public void ShowSuccess(string title, string message) { }
-    public void ShowWarning(string title, string message) => WarningTitle = title;
-    public Task ShowErrorAsync(string message, string title = "エラー", Action? onClosed = null) =>
-        Task.FromException(new XunitException(message));
+
+    public void ShowWarning(string title, string message)
+    {
+        WarningTitle = title;
+    }
+
+    public Task ShowErrorAsync(string message, string title = "エラー", Action? onClosed = null)
+    {
+        return Task.FromException(new XunitException(message));
+    }
 }
 
 internal sealed class FakeSyncConfirmationService : ISyncConfirmationService
 {
     public Func<SyncConfirmation, bool>? OnConfirm { get; init; }
+
     public Task<bool> ConfirmSyncAsync(SyncConfirmation confirmation,
-        CancellationToken cancellationToken = default) =>
-        Task.FromResult(OnConfirm?.Invoke(confirmation) ?? true);
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(OnConfirm?.Invoke(confirmation) ?? true);
+    }
 }
 
 internal sealed class FakeMemberInputConfirmationService : IMemberInputConfirmationService
@@ -228,32 +253,55 @@ internal sealed class FakeDialogs : IFilePickerService, ISyncConfirmationService
     IMemberInputConfirmationService, INotificationService
 {
     private readonly FakeFilePickerService _filePicker;
+    private readonly FakeMemberInputConfirmationService _inputConfirmation;
     private readonly FailingNotificationService _notifications = new();
     private readonly FakeSyncConfirmationService _syncConfirmation;
-    private readonly FakeMemberInputConfirmationService _inputConfirmation;
 
     public FakeDialogs()
     {
         _filePicker = new FakeFilePickerService();
         _syncConfirmation = new FakeSyncConfirmationService { OnConfirm = value => OnConfirm?.Invoke(value) ?? true };
         _inputConfirmation = new FakeMemberInputConfirmationService
-            { OnConfirmReplaceMemberInput = (team, count) => OnConfirmReplaceMemberInput?.Invoke(team, count) ?? true };
+        {
+            OnConfirmReplaceMemberInput = (team, count) => OnConfirmReplaceMemberInput?.Invoke(team, count) ?? true
+        };
     }
 
     public Func<SyncConfirmation, bool>? OnConfirm { get; init; }
     public Func<string, int, bool>? OnConfirmReplaceMemberInput { get; init; }
     public int ReplaceMemberInputConfirmationCount => _inputConfirmation.ConfirmationCount;
     public string WarningTitle => _notifications.WarningTitle;
-    public string? PickMemberFile(string? initialDirectory) => _filePicker.PickMemberFile(initialDirectory);
-    public void ShowSuccess(string title, string message) => _notifications.ShowSuccess(title, message);
-    public void ShowWarning(string title, string message) => _notifications.ShowWarning(title, message);
-    public Task ShowErrorAsync(string message, string title = "エラー", Action? onClosed = null) =>
-        _notifications.ShowErrorAsync(message, title, onClosed);
-    public Task<bool> ConfirmSyncAsync(SyncConfirmation confirmation, CancellationToken cancellationToken = default) =>
-        _syncConfirmation.ConfirmSyncAsync(confirmation, cancellationToken);
+
+    public string? PickMemberFile(string? initialDirectory)
+    {
+        return _filePicker.PickMemberFile(initialDirectory);
+    }
+
     public Task<bool> ConfirmReplaceMemberInputAsync(string teamName, int memberCount,
-        CancellationToken cancellationToken = default) =>
-        _inputConfirmation.ConfirmReplaceMemberInputAsync(teamName, memberCount, cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        return _inputConfirmation.ConfirmReplaceMemberInputAsync(teamName, memberCount, cancellationToken);
+    }
+
+    public void ShowSuccess(string title, string message)
+    {
+        _notifications.ShowSuccess(title, message);
+    }
+
+    public void ShowWarning(string title, string message)
+    {
+        _notifications.ShowWarning(title, message);
+    }
+
+    public Task ShowErrorAsync(string message, string title = "エラー", Action? onClosed = null)
+    {
+        return _notifications.ShowErrorAsync(message, title, onClosed);
+    }
+
+    public Task<bool> ConfirmSyncAsync(SyncConfirmation confirmation, CancellationToken cancellationToken = default)
+    {
+        return _syncConfirmation.ConfirmSyncAsync(confirmation, cancellationToken);
+    }
 }
 
 internal sealed class FakeTeamsGateway : ITeamsGateway
@@ -289,7 +337,7 @@ internal sealed class FakeTeamsGateway : ITeamsGateway
         CancellationToken cancellationToken = default)
     {
         return Task.FromResult<IReadOnlyList<DirectoryUser>>(
-            Users.TryGetValue(identifier, out var user) ? [user] : []);
+            Users.TryGetValue(identifier, out DirectoryUser? user) ? [user] : []);
     }
 
     public Task AddMemberAsync(string teamId, string userId,

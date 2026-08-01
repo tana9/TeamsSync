@@ -1,4 +1,5 @@
 using System.Windows;
+
 using TeamsSync.Presentation.ViewModels;
 
 namespace TeamsSync.Presentation.Views;
@@ -21,14 +22,22 @@ public partial class MemberListInputView
         Subscribe(e.NewValue as MemberFileViewModel, true);
     }
 
-    /// <summary>ViewModelの<see cref="MemberFileViewModel.InputFocusRequested"/>イベントを購読/解除する。</summary>
+    /// <summary>ViewModelの<see cref="MemberFileViewModel.InputFocusRequested" />イベントを購読/解除する。</summary>
     private void Subscribe(MemberFileViewModel? viewModel, bool subscribe)
     {
-        if (viewModel is null) return;
+        if (viewModel is null)
+        {
+            return;
+        }
+
         if (subscribe)
+        {
             viewModel.InputFocusRequested += FocusInputTarget;
+        }
         else
+        {
             viewModel.InputFocusRequested -= FocusInputTarget;
+        }
     }
 
     // ファイル読込または貼り付け解析が失敗したときに呼ばれる。選択中のタブに応じて、
@@ -37,11 +46,19 @@ public partial class MemberListInputView
     {
         Dispatcher.BeginInvoke(() =>
         {
-            if (DataContext is not MemberFileViewModel viewModel) return;
+            if (DataContext is not MemberFileViewModel viewModel)
+            {
+                return;
+            }
+
             if (viewModel.SelectedInputIndex == 1)
+            {
                 PasteTextBox.Focus();
+            }
             else
+            {
                 BrowseButton.Focus();
+            }
         });
     }
 }

@@ -1,7 +1,7 @@
 namespace TeamsSync.Infrastructure.Authentication;
 
 /// <summary>
-/// appsettings.json・環境変数・起動引数から束縛されるMicrosoft Entra IDのアプリ登録設定。
+///     appsettings.json・環境変数・起動引数から束縛されるMicrosoft Entra IDのアプリ登録設定。
 /// </summary>
 public sealed class EntraOptions
 {

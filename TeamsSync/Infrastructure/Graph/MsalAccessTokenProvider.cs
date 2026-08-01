@@ -1,4 +1,5 @@
 using Microsoft.Kiota.Abstractions.Authentication;
+
 using TeamsSync.Application.Abstractions;
 
 namespace TeamsSync.Infrastructure.Graph;
@@ -12,7 +13,10 @@ internal sealed class MsalAccessTokenProvider(IAuthenticationService authenticat
         CancellationToken cancellationToken = default)
     {
         if (!AllowedHostsValidator.IsUrlHostValid(uri))
+        {
             throw new InvalidOperationException("Microsoft Graph以外のホストへトークンを送信できません。");
+        }
+
         return authentication.GetTokenAsync(cancellationToken: cancellationToken);
     }
 }

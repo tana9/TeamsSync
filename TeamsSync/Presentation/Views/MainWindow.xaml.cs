@@ -1,5 +1,7 @@
 using System.ComponentModel;
+
 using TeamsSync.Presentation.ViewModels;
+
 using Wpf.Ui;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
@@ -35,7 +37,11 @@ public partial class MainWindow
     /// <summary>同期実行中はウィンドウを閉じる前にキャンセル完了を待ってから終了する。</summary>
     private async void OnClosing(object? sender, CancelEventArgs e)
     {
-        if (_closeAfterCancellation || !_viewModel.SyncWorkspace.IsSyncing) return;
+        if (_closeAfterCancellation || !_viewModel.SyncWorkspace.IsSyncing)
+        {
+            return;
+        }
+
         e.Cancel = true;
         await _viewModel.SyncWorkspace.CancelAndWaitAsync();
         _closeAfterCancellation = true;

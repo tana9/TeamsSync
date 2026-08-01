@@ -13,7 +13,8 @@
                                VerticalAlignment="Center" AutomationProperties.Name="" />
                 <TextBlock Text="2  メンバーリスト" FontWeight="SemiBold" VerticalAlignment="Center" />
             </StackPanel>
-            <TextBlock Text="同期する一般メンバーの一覧を指定します" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+            <TextBlock Text="同期する一般メンバーの一覧を指定します" FontSize="12"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                        TextWrapping="Wrap" />
             <!-- チーム選択済みでまだメンバーリスト未指定のときだけ、この場所に表示する。 -->
             <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
@@ -21,8 +22,9 @@
                     <Style TargetType="StackPanel">
                         <Setter Property="Visibility" Value="Collapsed" />
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding DataContext.WorkflowSteps.Step2State, RelativeSource={RelativeSource AncestorType=Window}}"
-                                         Value="{x:Static vm:WorkflowStepState.Current}">
+                            <DataTrigger
+                                Binding="{Binding DataContext.WorkflowSteps.Step2State, RelativeSource={RelativeSource AncestorType=Window}}"
+                                Value="{x:Static vm:WorkflowStepState.Current}">
                                 <Setter Property="Visibility" Value="Visible" />
                             </DataTrigger>
                         </Style.Triggers>
@@ -53,13 +55,15 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Top">
                         <ui:TextBox Text="{Binding FilePath}" IsReadOnly="True"
-                                 ClearButtonEnabled="False"
-                                 IsTabStop="False" AutomationProperties.Name="選択したメンバーリストのパス" />
+                                    ClearButtonEnabled="False"
+                                    IsTabStop="False" AutomationProperties.Name="選択したメンバーリストのパス" />
                         <TextBlock Text="CSV または Excel（.xlsx）ファイルを選択できます" Margin="4,4,0,0" FontSize="12"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                         <TextBlock Text="「メールアドレス」「氏名」等の列名を自動検出します（見つからない場合は1列目を使用）"
-                                   Margin="4,4,0,0" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-                        <TextBlock Margin="4,4,0,0" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap">
+                                   Margin="4,4,0,0" FontSize="12"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                        <TextBlock Margin="4,4,0,0" FontSize="12"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap">
                             <Run Text="例）1行目「メールアドレス」、2行目以降" /><LineBreak />
                             <Run Text="taro.yamada@example.com のように入力します" />
                         </TextBlock>
@@ -91,8 +95,8 @@
                         <RowDefinition Height="*" /><RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <ui:TextBox x:Name="PasteTextBox" Text="{Binding PastedText, UpdateSourceTrigger=PropertyChanged}"
-                             AcceptsReturn="True" MaxHeight="100" ScrollViewer.VerticalScrollBarVisibility="Auto"
-                             AutomationProperties.Name="1行1ユーザーの貼り付け入力" />
+                                AcceptsReturn="True" MaxHeight="100" ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                AutomationProperties.Name="1行1ユーザーの貼り付け入力" />
                     <Grid Grid.Row="1" Margin="4,4,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
@@ -103,7 +107,8 @@
                                     <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsPasteError}" Value="True">
-                                            <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+                                            <Setter Property="Foreground"
+                                                    Value="{DynamicResource SystemFillColorCriticalBrush}" />
                                             <Setter Property="FontWeight" Value="SemiBold" />
                                         </DataTrigger>
                                     </Style.Triggers>

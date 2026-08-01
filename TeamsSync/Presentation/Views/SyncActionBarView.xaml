@@ -80,17 +80,20 @@
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding SyncWorkspace.HasFailedResults}" Value="True">
                                         <Setter Property="Symbol" Value="Warning24" />
-                                        <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+                                        <Setter Property="Foreground"
+                                                Value="{DynamicResource SystemFillColorCriticalBrush}" />
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding SyncWorkspace.ResultCancelled}" Value="True">
                                         <Setter Property="Symbol" Value="Warning24" />
-                                        <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCautionBrush}" />
+                                        <Setter Property="Foreground"
+                                                Value="{DynamicResource SystemFillColorCautionBrush}" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </ui:SymbolIcon.Style>
                     </ui:SymbolIcon>
-                    <TextBlock Text="{Binding SyncWorkspace.ResultSummaryText}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding SyncWorkspace.ResultSummaryText}" FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
                 </StackPanel>
                 <TextBlock Text="{Binding SyncWorkspace.ResultRemainingText}" FontSize="12" Margin="22,2,0,0"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"

@@ -1,4 +1,5 @@
 using System.Windows.Threading;
+
 using TeamsSync.Application.Services;
 using TeamsSync.Domain.Teams;
 using TeamsSync.Infrastructure.Files;
@@ -11,16 +12,17 @@ public sealed class MainWindowViewModelTests
     [Fact]
     public void MainWindow_IsNotSignedIn_初期状態でtrueでありサインイン後にfalseになる()
     {
-        var gateway = new FakeTeamsGateway();
-        var dialogs = new FakeDialogs();
-        var preferences = new FakePreferences();
-        var teamSelection = new TeamSelectionViewModel(gateway, dialogs);
-        var memberFile = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
+        FakeTeamsGateway gateway = new();
+        FakeDialogs dialogs = new();
+        FakePreferences preferences = new();
+        TeamSelectionViewModel teamSelection = new(gateway, dialogs);
+        MemberFileViewModel memberFile = new(new FakeMemberListReader(null!), new MemberTextParser(),
             preferences, dialogs, dialogs, gateway, dialogs);
-        var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel syncWorkspace = new(new TeamSyncService(gateway),
             new FakeResultWriter(), dialogs, dialogs);
-        var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, dialogs,
-            preferences, teamSelection, memberFile, syncWorkspace, new ManualViewModel(new FakeManualService(), dialogs));
+        MainWindowViewModel viewModel = new(new FakeAuthenticationService(), gateway, dialogs,
+            preferences, teamSelection, memberFile, syncWorkspace,
+            new ManualViewModel(new FakeManualService(), dialogs));
 
         Assert.True(viewModel.SignIn.IsNotSignedIn);
 
@@ -32,16 +34,17 @@ public sealed class MainWindowViewModelTests
     [Fact]
     public void MainWindow_OpenManual_成功時はエラーダイアログを表示しない()
     {
-        var gateway = new FakeTeamsGateway();
-        var dialogs = new FakeDialogs();
-        var preferences = new FakePreferences();
-        var teamSelection = new TeamSelectionViewModel(gateway, dialogs);
-        var memberFile = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
+        FakeTeamsGateway gateway = new();
+        FakeDialogs dialogs = new();
+        FakePreferences preferences = new();
+        TeamSelectionViewModel teamSelection = new(gateway, dialogs);
+        MemberFileViewModel memberFile = new(new FakeMemberListReader(null!), new MemberTextParser(),
             preferences, dialogs, dialogs, gateway, dialogs);
-        var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel syncWorkspace = new(new TeamSyncService(gateway),
             new FakeResultWriter(), dialogs, dialogs);
-        var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, dialogs,
-            preferences, teamSelection, memberFile, syncWorkspace, new ManualViewModel(new FakeManualService(), dialogs));
+        MainWindowViewModel viewModel = new(new FakeAuthenticationService(), gateway, dialogs,
+            preferences, teamSelection, memberFile, syncWorkspace,
+            new ManualViewModel(new FakeManualService(), dialogs));
 
         viewModel.Manual.OpenManualCommand.Execute(null);
     }
@@ -49,17 +52,18 @@ public sealed class MainWindowViewModelTests
     [Fact]
     public void MainWindow_OpenManual_失敗時はエラーダイアログを表示する()
     {
-        var gateway = new FakeTeamsGateway();
-        var dialogs = new FakeDialogs();
-        var notifications = new RecordingNotificationService();
-        var preferences = new FakePreferences();
-        var teamSelection = new TeamSelectionViewModel(gateway, dialogs);
-        var memberFile = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
+        FakeTeamsGateway gateway = new();
+        FakeDialogs dialogs = new();
+        RecordingNotificationService notifications = new();
+        FakePreferences preferences = new();
+        TeamSelectionViewModel teamSelection = new(gateway, dialogs);
+        MemberFileViewModel memberFile = new(new FakeMemberListReader(null!), new MemberTextParser(),
             preferences, dialogs, dialogs, gateway, dialogs);
-        var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel syncWorkspace = new(new TeamSyncService(gateway),
             new FakeResultWriter(), dialogs, dialogs);
-        var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, notifications,
-            preferences, teamSelection, memberFile, syncWorkspace, new ManualViewModel(new ThrowingManualService(), notifications));
+        MainWindowViewModel viewModel = new(new FakeAuthenticationService(), gateway, notifications,
+            preferences, teamSelection, memberFile, syncWorkspace,
+            new ManualViewModel(new ThrowingManualService(), notifications));
 
         viewModel.Manual.OpenManualCommand.Execute(null);
 
@@ -70,19 +74,17 @@ public sealed class MainWindowViewModelTests
     [Fact]
     public async Task MainWindow_SignOut_成功時は未サインイン状態になりチーム選択もクリアされる()
     {
-        var gateway = new FakeTeamsGateway
-        {
-            OwnedTeams = [new TeamInfo("team-1", "開発", null)]
-        };
-        var dialogs = new FakeDialogs();
-        var preferences = new FakePreferences();
-        var teamSelection = new TeamSelectionViewModel(gateway, dialogs);
-        var memberFile = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
+        FakeTeamsGateway gateway = new() { OwnedTeams = [new TeamInfo("team-1", "開発", null)] };
+        FakeDialogs dialogs = new();
+        FakePreferences preferences = new();
+        TeamSelectionViewModel teamSelection = new(gateway, dialogs);
+        MemberFileViewModel memberFile = new(new FakeMemberListReader(null!), new MemberTextParser(),
             preferences, dialogs, dialogs, gateway, dialogs);
-        var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel syncWorkspace = new(new TeamSyncService(gateway),
             new FakeResultWriter(), dialogs, dialogs);
-        var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, dialogs,
-            preferences, teamSelection, memberFile, syncWorkspace, new ManualViewModel(new FakeManualService(), dialogs));
+        MainWindowViewModel viewModel = new(new FakeAuthenticationService(), gateway, dialogs,
+            preferences, teamSelection, memberFile, syncWorkspace,
+            new ManualViewModel(new FakeManualService(), dialogs));
         await teamSelection.InitializeAsync("current-user", TestContext.Current.CancellationToken);
         teamSelection.SelectedTeam = teamSelection.Teams[0];
         viewModel.SignIn.IsSignedIn = true;
@@ -101,24 +103,22 @@ public sealed class MainWindowViewModelTests
     [Fact]
     public async Task MainWindow_SignOut_失敗時は未サインイン状態にならずチーム選択も保持される()
     {
-        var gateway = new FakeTeamsGateway
-        {
-            OwnedTeams = [new TeamInfo("team-1", "開発", null)]
-        };
-        var notifications = new RecordingNotificationService();
-        var dialogs = new FakeDialogs();
-        var preferences = new FakePreferences();
-        var teamSelection = new TeamSelectionViewModel(gateway, dialogs);
-        var memberFile = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
+        FakeTeamsGateway gateway = new() { OwnedTeams = [new TeamInfo("team-1", "開発", null)] };
+        RecordingNotificationService notifications = new();
+        FakeDialogs dialogs = new();
+        FakePreferences preferences = new();
+        TeamSelectionViewModel teamSelection = new(gateway, dialogs);
+        MemberFileViewModel memberFile = new(new FakeMemberListReader(null!), new MemberTextParser(),
             preferences, dialogs, dialogs, gateway, dialogs);
-        var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel syncWorkspace = new(new TeamSyncService(gateway),
             new FakeResultWriter(), dialogs, dialogs);
-        var auth = new FakeAuthenticationService
+        FakeAuthenticationService auth = new()
         {
             SignOutException = new InvalidOperationException("MSALのアカウント削除に失敗しました")
         };
-        var viewModel = new MainWindowViewModel(auth, gateway, notifications,
-            preferences, teamSelection, memberFile, syncWorkspace, new ManualViewModel(new FakeManualService(), dialogs));
+        MainWindowViewModel viewModel = new(auth, gateway, notifications,
+            preferences, teamSelection, memberFile, syncWorkspace,
+            new ManualViewModel(new FakeManualService(), dialogs));
         await teamSelection.InitializeAsync("current-user", TestContext.Current.CancellationToken);
         teamSelection.SelectedTeam = teamSelection.Teams[0];
         viewModel.SignIn.IsSignedIn = true;
@@ -138,20 +138,18 @@ public sealed class MainWindowViewModelTests
     [Fact]
     public async Task MainWindow_SignOut_キャンセル時は未サインイン状態にならずチーム選択も保持される()
     {
-        var gateway = new FakeTeamsGateway
-        {
-            OwnedTeams = [new TeamInfo("team-1", "開発", null)]
-        };
-        var dialogs = new FakeDialogs();
-        var preferences = new FakePreferences();
-        var teamSelection = new TeamSelectionViewModel(gateway, dialogs);
-        var memberFile = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
+        FakeTeamsGateway gateway = new() { OwnedTeams = [new TeamInfo("team-1", "開発", null)] };
+        FakeDialogs dialogs = new();
+        FakePreferences preferences = new();
+        TeamSelectionViewModel teamSelection = new(gateway, dialogs);
+        MemberFileViewModel memberFile = new(new FakeMemberListReader(null!), new MemberTextParser(),
             preferences, dialogs, dialogs, gateway, dialogs);
-        var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel syncWorkspace = new(new TeamSyncService(gateway),
             new FakeResultWriter(), dialogs, dialogs);
-        var auth = new FakeAuthenticationService { SignOutException = new OperationCanceledException() };
-        var viewModel = new MainWindowViewModel(auth, gateway, dialogs,
-            preferences, teamSelection, memberFile, syncWorkspace, new ManualViewModel(new FakeManualService(), dialogs));
+        FakeAuthenticationService auth = new() { SignOutException = new OperationCanceledException() };
+        MainWindowViewModel viewModel = new(auth, gateway, dialogs,
+            preferences, teamSelection, memberFile, syncWorkspace,
+            new ManualViewModel(new FakeManualService(), dialogs));
         await teamSelection.InitializeAsync("current-user", TestContext.Current.CancellationToken);
         teamSelection.SelectedTeam = teamSelection.Teams[0];
         viewModel.SignIn.IsSignedIn = true;
@@ -171,30 +169,28 @@ public sealed class MainWindowViewModelTests
     [Fact]
     public async Task MainWindow_手順の状態はサインイン_チーム選択_入力_差分確認の順に進む()
     {
-        var gateway = new FakeTeamsGateway
-        {
-            OwnedTeams = [new TeamInfo("team-1", "開発", null)]
-        };
+        FakeTeamsGateway gateway = new() { OwnedTeams = [new TeamInfo("team-1", "開発", null)] };
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
-        var dialogs = new FakeDialogs();
-        var preferences = new FakePreferences();
-        var teamSelection = new TeamSelectionViewModel(gateway, dialogs);
-        var reader = new FakeMemberListReader(new MemberListDocument(["new@example.com"], "members.csv",
+        FakeDialogs dialogs = new();
+        FakePreferences preferences = new();
+        TeamSelectionViewModel teamSelection = new(gateway, dialogs);
+        FakeMemberListReader reader = new(new MemberListDocument(["new@example.com"], "members.csv",
             "C:\\members.csv", new DateTime(2026, 7, 28), "CSV", "email"));
-        var memberFile = new MemberFileViewModel(reader, new MemberTextParser(), preferences, dialogs, dialogs,
+        MemberFileViewModel memberFile = new(reader, new MemberTextParser(), preferences, dialogs, dialogs,
             gateway, dialogs);
-        var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel syncWorkspace = new(new TeamSyncService(gateway),
             new FakeResultWriter(), dialogs, dialogs);
-        var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, dialogs,
-            preferences, teamSelection, memberFile, syncWorkspace, new ManualViewModel(new FakeManualService(), dialogs));
+        MainWindowViewModel viewModel = new(new FakeAuthenticationService(), gateway, dialogs,
+            preferences, teamSelection, memberFile, syncWorkspace,
+            new ManualViewModel(new FakeManualService(), dialogs));
 
         Assert.Equal(WorkflowStepState.Upcoming, viewModel.WorkflowSteps.Step1State);
 
         // MemberFileViewModel.LoadはTask.Runで非同期化されているため、テスト環境で
         // CollectionViewのクロススレッド例外を避けるにはDispatcherSynchronizationContextと
         // メッセージポンプ(RunOnDispatcher)が必要
-        var originalContext = SynchronizationContext.Current;
+        SynchronizationContext? originalContext = SynchronizationContext.Current;
         SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
         try
         {
@@ -209,7 +205,8 @@ public sealed class MainWindowViewModelTests
             Assert.Equal(WorkflowStepState.Current, viewModel.WorkflowSteps.Step2State);
             Assert.Equal(WorkflowStepState.Upcoming, viewModel.WorkflowSteps.Step3State);
 
-            DispatcherTestHelper.RunOnDispatcher(() => memberFile.LoadDroppedFileCommand.ExecuteAsync("C:\\members.csv"));
+            DispatcherTestHelper.RunOnDispatcher(() =>
+                memberFile.LoadDroppedFileCommand.ExecuteAsync("C:\\members.csv"));
             Assert.Equal(WorkflowStepState.Completed, viewModel.WorkflowSteps.Step2State);
             Assert.Equal(WorkflowStepState.Current, viewModel.WorkflowSteps.Step3State);
 
@@ -225,8 +222,8 @@ public sealed class MainWindowViewModelTests
     [Fact]
     public async Task MainWindow_現在メンバー取り込み中は競合する画面操作を無効化する()
     {
-        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var gateway = new FakeTeamsGateway
+        TaskCompletionSource started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        FakeTeamsGateway gateway = new()
         {
             OnGetMembers = async (_, cancellationToken) =>
             {
@@ -235,21 +232,22 @@ public sealed class MainWindowViewModelTests
                 return [];
             }
         };
-        var dialogs = new FakeDialogs();
-        var preferences = new FakePreferences();
-        var teamSelection = new TeamSelectionViewModel(gateway, dialogs);
-        var memberFile = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
+        FakeDialogs dialogs = new();
+        FakePreferences preferences = new();
+        TeamSelectionViewModel teamSelection = new(gateway, dialogs);
+        MemberFileViewModel memberFile = new(new FakeMemberListReader(null!), new MemberTextParser(),
             preferences, dialogs, dialogs, gateway, dialogs);
-        var syncWorkspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel syncWorkspace = new(new TeamSyncService(gateway),
             new FakeResultWriter(), dialogs, dialogs);
-        var viewModel = new MainWindowViewModel(new FakeAuthenticationService(), gateway, dialogs,
-            preferences, teamSelection, memberFile, syncWorkspace, new ManualViewModel(new FakeManualService(), dialogs));
+        MainWindowViewModel viewModel = new(new FakeAuthenticationService(), gateway, dialogs,
+            preferences, teamSelection, memberFile, syncWorkspace,
+            new ManualViewModel(new FakeManualService(), dialogs));
         viewModel.SignIn.IsSignedIn = true;
         teamSelection.SelectedTeam = new TeamInfo("team-1", "開発", null);
         memberFile.SelectedInputIndex = 1;
         memberFile.PastedText = "old@example.com";
 
-        var importing = memberFile.Import.ImportCurrentMembersCommand.ExecuteAsync(null);
+        Task importing = memberFile.Import.ImportCurrentMembersCommand.ExecuteAsync(null);
         await started.Task;
 
         Assert.False(viewModel.InputsEnabled);

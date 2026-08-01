@@ -10,7 +10,7 @@ public sealed class AppHostShutdownTests
     [InlineData(true)]
     public async Task StopAndDisposeAsync_停止の成否にかかわらずHostを破棄する(bool stopFails)
     {
-        var host = new RecordingHost { StopException = stopFails ? new InvalidOperationException("stop failed") : null };
+        RecordingHost host = new() { StopException = stopFails ? new InvalidOperationException("stop failed") : null };
 
         await AppHostShutdown.StopAndDisposeAsync(host, NullLogger.Instance, TimeSpan.FromSeconds(1));
 
@@ -20,12 +20,15 @@ public sealed class AppHostShutdownTests
 
     private sealed class RecordingHost : IHost
     {
-        public IServiceProvider Services { get; } = new EmptyServiceProvider();
         public Exception? StopException { get; init; }
         public bool StopCalled { get; private set; }
         public bool Disposed { get; private set; }
+        public IServiceProvider Services { get; } = new EmptyServiceProvider();
 
-        public Task StartAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task StartAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
 
         public Task StopAsync(CancellationToken cancellationToken = default)
         {
@@ -33,11 +36,17 @@ public sealed class AppHostShutdownTests
             return StopException is null ? Task.CompletedTask : Task.FromException(StopException);
         }
 
-        public void Dispose() => Disposed = true;
+        public void Dispose()
+        {
+            Disposed = true;
+        }
     }
 
     private sealed class EmptyServiceProvider : IServiceProvider
     {
-        public object? GetService(Type serviceType) => null;
+        public object? GetService(Type serviceType)
+        {
+            return null;
+        }
     }
 }

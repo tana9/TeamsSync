@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows.Data;
+
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Domain.Teams;
 using TeamsSync.Presentation.Services;
@@ -10,7 +12,7 @@ using TeamsSync.Presentation.Services;
 namespace TeamsSync.Presentation.ViewModels;
 
 /// <summary>
-/// サインイン中ユーザーが所有するチームの一覧取得・検索・選択を管理する。
+///     サインイン中ユーザーが所有するチームの一覧取得・検索・選択を管理する。
 /// </summary>
 public partial class TeamSelectionViewModel : ObservableObject
 {
@@ -19,15 +21,6 @@ public partial class TeamSelectionViewModel : ObservableObject
     private readonly ITeamsGateway _teamsGateway;
     private string? _currentUserId;
     private bool _externallyBusy;
-
-    /// <summary>チーム一覧の取得中かどうか。</summary>
-    [ObservableProperty] public partial bool IsBusy { get; set; }
-
-    /// <summary>チーム検索欄の入力テキスト。</summary>
-    [ObservableProperty] public partial string SearchText { get; set; } = "";
-
-    /// <summary>選択中のチーム。</summary>
-    [ObservableProperty] public partial TeamInfo? SelectedTeam { get; set; }
 
     /// <summary>コンストラクター。検索用のコレクションビューを初期化する。</summary>
     public TeamSelectionViewModel(ITeamsGateway teamsGateway, INotificationService dialogs)
@@ -39,10 +32,22 @@ public partial class TeamSelectionViewModel : ObservableObject
         TeamsView.Filter = item => item is TeamInfo team && MatchesSearch(team);
     }
 
+    /// <summary>チーム一覧の取得中かどうか。</summary>
+    [ObservableProperty]
+    public partial bool IsBusy { get; set; }
+
+    /// <summary>チーム検索欄の入力テキスト。</summary>
+    [ObservableProperty]
+    public partial string SearchText { get; set; } = "";
+
+    /// <summary>選択中のチーム。</summary>
+    [ObservableProperty]
+    public partial TeamInfo? SelectedTeam { get; set; }
+
     /// <summary>所有チームの一覧。</summary>
     public ObservableCollection<TeamInfo> Teams { get; } = [];
 
-    /// <summary>検索テキストによるフィルターを適用した<see cref="Teams"/>のビュー。</summary>
+    /// <summary>検索テキストによるフィルターを適用した<see cref="Teams" />のビュー。</summary>
     public ICollectionView TeamsView { get; }
 
     /// <summary>検索テキストが入力されているかどうか。</summary>
@@ -81,7 +86,11 @@ public partial class TeamSelectionViewModel : ObservableObject
     /// <summary>他画面の処理中状態を反映し、更新コマンドの実行可否を再評価する。</summary>
     public void SetExternalBusy(bool value)
     {
-        if (_externallyBusy == value) return;
+        if (_externallyBusy == value)
+        {
+            return;
+        }
+
         _externallyBusy = value;
         OnPropertyChanged(nameof(IsSelectionEnabled));
         RefreshCommand.NotifyCanExecuteChanged();
@@ -148,21 +157,29 @@ public partial class TeamSelectionViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 所有チーム一覧をGraph APIから取得し、<see cref="Teams"/>へ反映する。選択中のチームが
-    /// 再取得後も引き続き所有チームに含まれていれば、選択状態を維持する。
+    ///     所有チーム一覧をGraph APIから取得し、<see cref="Teams" />へ反映する。選択中のチームが
+    ///     再取得後も引き続き所有チームに含まれていれば、選択状態を維持する。
     /// </summary>
     private async Task LoadAsync(CancellationToken cancellationToken = default)
     {
-        if (_currentUserId is null) return;
-        var previouslySelectedTeamId = SelectedTeam?.Id;
+        if (_currentUserId is null)
+        {
+            return;
+        }
+
+        string? previouslySelectedTeamId = SelectedTeam?.Id;
         IsBusy = true;
         RefreshCommand.NotifyCanExecuteChanged();
         try
         {
             StatusChanged?.Invoke("所有しているチームを検索しています…", false);
-            var owned = await _teamsGateway.GetOwnedTeamsAsync(_currentUserId, cancellationToken);
+            IReadOnlyList<TeamInfo> owned = await _teamsGateway.GetOwnedTeamsAsync(_currentUserId, cancellationToken);
             Teams.Clear();
-            foreach (var team in owned) Teams.Add(team);
+            foreach (TeamInfo team in owned)
+            {
+                Teams.Add(team);
+            }
+
             SelectedTeam = previouslySelectedTeamId is not null
                 ? Teams.FirstOrDefault(team => team.Id == previouslySelectedTeamId)
                 : null;

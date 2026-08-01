@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Domain.Teams;
 using TeamsSync.Presentation.Services;
@@ -9,14 +10,31 @@ namespace TeamsSync.Presentation.ViewModels;
 /// <summary>選択中チームの現在の一般メンバーをGraph APIから取得し、入力欄へ反映する取り込み操作を管理する。</summary>
 public partial class TeamMemberImportViewModel : ObservableObject
 {
-    private readonly ITeamsGateway _teamsGateway;
-    private readonly IMemberTextParser _textParser;
-    private readonly INotificationService _notifications;
-    private readonly IMemberInputConfirmationService _inputConfirmation;
     private readonly Func<bool> _canImport;
     private readonly Func<bool> _hasExistingInput;
+    private readonly IMemberInputConfirmationService _inputConfirmation;
+    private readonly INotificationService _notifications;
+    private readonly ITeamsGateway _teamsGateway;
+    private readonly IMemberTextParser _textParser;
     private CancellationTokenSource? _importCancellation;
     private TeamInfo? _selectedTeam;
+
+    /// <summary>
+    ///     コンストラクター。<paramref name="canImport" />には入力欄側(ファイル読込中・解析中・
+    ///     テキスト貼り付けタブが選択されているかなど)の実行可否を、<paramref name="hasExistingInput" />には
+    ///     置き換え確認が必要な既存入力の有無を、それぞれ呼び出し元(<see cref="MemberFileViewModel" />)から渡す。
+    /// </summary>
+    public TeamMemberImportViewModel(ITeamsGateway teamsGateway, IMemberTextParser textParser,
+        INotificationService notifications, IMemberInputConfirmationService inputConfirmation,
+        Func<bool> canImport, Func<bool> hasExistingInput)
+    {
+        _teamsGateway = teamsGateway;
+        _textParser = textParser;
+        _notifications = notifications;
+        _inputConfirmation = inputConfirmation;
+        _canImport = canImport;
+        _hasExistingInput = hasExistingInput;
+    }
 
     /// <summary>現在のチームメンバーを取得中かどうか。</summary>
     [ObservableProperty]
@@ -35,23 +53,6 @@ public partial class TeamMemberImportViewModel : ObservableObject
     /// <summary>取得中の進捗表示を出すべきかどうか(確認ダイアログの応答待ち中は除く)。</summary>
     public bool IsFetchingMembers => IsImportingMembers && !IsAwaitingConfirmation;
 
-    /// <summary>
-    /// コンストラクター。<paramref name="canImport"/>には入力欄側(ファイル読込中・解析中・
-    /// テキスト貼り付けタブが選択されているかなど)の実行可否を、<paramref name="hasExistingInput"/>には
-    /// 置き換え確認が必要な既存入力の有無を、それぞれ呼び出し元(<see cref="MemberFileViewModel"/>)から渡す。
-    /// </summary>
-    public TeamMemberImportViewModel(ITeamsGateway teamsGateway, IMemberTextParser textParser,
-        INotificationService notifications, IMemberInputConfirmationService inputConfirmation,
-        Func<bool> canImport, Func<bool> hasExistingInput)
-    {
-        _teamsGateway = teamsGateway;
-        _textParser = textParser;
-        _notifications = notifications;
-        _inputConfirmation = inputConfirmation;
-        _canImport = canImport;
-        _hasExistingInput = hasExistingInput;
-    }
-
     /// <summary>ステータスメッセージを通知するために発行される。</summary>
     public event Action<string, bool>? StatusChanged;
 
@@ -61,7 +62,11 @@ public partial class TeamMemberImportViewModel : ObservableObject
     /// <summary>現在選択されているチームを設定する。チームが変わった場合は進行中の取り込みをキャンセルする。</summary>
     public void SetSelectedTeam(TeamInfo? team)
     {
-        if (_selectedTeam?.Id != team?.Id) _importCancellation?.Cancel();
+        if (_selectedTeam?.Id != team?.Id)
+        {
+            _importCancellation?.Cancel();
+        }
+
         _selectedTeam = team;
         NotifyCanExecuteChanged();
     }
@@ -77,19 +82,23 @@ public partial class TeamMemberImportViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanImportCurrentMembers))]
     private async Task ImportCurrentMembersAsync()
     {
-        if (_selectedTeam is null) return;
-        var team = _selectedTeam;
+        if (_selectedTeam is null)
+        {
+            return;
+        }
+
+        TeamInfo team = _selectedTeam;
         _importCancellation?.Cancel();
         _importCancellation?.Dispose();
-        var cts = new CancellationTokenSource();
+        CancellationTokenSource cts = new();
         _importCancellation = cts;
         IsImportingMembers = true;
         NotifyCanExecuteChanged();
         try
         {
             StatusChanged?.Invoke($"{team.DisplayName}の現在の一般メンバーを取得しています…", false);
-            var members = await _teamsGateway.GetTeamMembersAsync(team.Id, cts.Token);
-            var importedMembers = members
+            IReadOnlyList<TeamMember> members = await _teamsGateway.GetTeamMembersAsync(team.Id, cts.Token);
+            List<TeamMember> importedMembers = members
                 .Where(member => !member.IsOwner && !string.IsNullOrWhiteSpace(member.Email))
                 .GroupBy(member => member.Email.Trim(), StringComparer.OrdinalIgnoreCase)
                 .Select(group => group.First())
@@ -116,7 +125,11 @@ public partial class TeamMemberImportViewModel : ObservableObject
                 {
                     IsAwaitingConfirmation = false;
                 }
-                if (!confirmed) return;
+
+                if (!confirmed)
+                {
+                    return;
+                }
             }
 
             if (_selectedTeam?.Id != team.Id)
@@ -125,11 +138,10 @@ public partial class TeamMemberImportViewModel : ObservableObject
                 return;
             }
 
-            var text = string.Join(Environment.NewLine, importedMembers.Select(FormatImportedMember));
-            var document = _textParser.Parse(text, cts.Token) with
+            string text = string.Join(Environment.NewLine, importedMembers.Select(FormatImportedMember));
+            MemberListDocument document = _textParser.Parse(text, cts.Token) with
             {
-                FileName = $"Teamsから取り込み - {team.DisplayName}",
-                SourceName = $"Teamsから取り込み: {team.DisplayName}"
+                FileName = $"Teamsから取り込み - {team.DisplayName}", SourceName = $"Teamsから取り込み: {team.DisplayName}"
             };
             Imported?.Invoke(team, text, document);
         }
@@ -145,7 +157,11 @@ public partial class TeamMemberImportViewModel : ObservableObject
         finally
         {
             IsImportingMembers = false;
-            if (ReferenceEquals(_importCancellation, cts)) _importCancellation = null;
+            if (ReferenceEquals(_importCancellation, cts))
+            {
+                _importCancellation = null;
+            }
+
             cts.Dispose();
             NotifyCanExecuteChanged();
         }
@@ -163,13 +179,15 @@ public partial class TeamMemberImportViewModel : ObservableObject
         _importCancellation?.Cancel();
     }
 
-    private bool CanCancelImportCurrentMembers() =>
-        IsImportingMembers && _importCancellation is not null;
+    private bool CanCancelImportCurrentMembers()
+    {
+        return IsImportingMembers && _importCancellation is not null;
+    }
 
     /// <summary>取り込んだメンバーを、編集時に人物を識別できる`表示名 &lt;メールアドレス&gt;`形式へ整形する。</summary>
     private static string FormatImportedMember(TeamMember member)
     {
-        var displayName = new string(member.DisplayName
+        string displayName = new string(member.DisplayName
             .Select(character => char.IsControl(character) || character is '<' or '>' ? ' ' : character)
             .ToArray()).Trim();
         return string.IsNullOrWhiteSpace(displayName)

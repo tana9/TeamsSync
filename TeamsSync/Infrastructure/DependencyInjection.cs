@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
+
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Infrastructure.Authentication;
 using TeamsSync.Infrastructure.Files;
@@ -10,14 +11,14 @@ using TeamsSync.Infrastructure.Settings;
 namespace TeamsSync.Infrastructure;
 
 /// <summary>
-/// インフラストラクチャ層(認証・Graph API・ファイルI/O・設定)のサービスをDIコンテナへ
-/// 登録するための拡張メソッドを提供する。
+///     インフラストラクチャ層(認証・Graph API・ファイルI/O・設定)のサービスをDIコンテナへ
+///     登録するための拡張メソッドを提供する。
 /// </summary>
 public static class DependencyInjection
 {
     /// <summary>
-    /// 認証・Teamsゲートウェイ・ファイル読み書き・ユーザー設定など、インフラストラクチャ層の
-    /// サービス実装をサービスコレクションへ登録する。
+    ///     認証・Teamsゲートウェイ・ファイル読み書き・ユーザー設定など、インフラストラクチャ層の
+    ///     サービス実装をサービスコレクションへ登録する。
     /// </summary>
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
@@ -35,8 +36,8 @@ public static class DependencyInjection
     }
 
     /// <summary>
-    /// Microsoft Graph呼び出し用の読み取り/書き込み<see cref="HttpClient"/>を、
-    /// 標準レジリエンスハンドラー(429/503のリトライを含む)付きで登録する。
+    ///     Microsoft Graph呼び出し用の読み取り/書き込み<see cref="HttpClient" />を、
+    ///     標準レジリエンスハンドラー(429/503のリトライを含む)付きで登録する。
     /// </summary>
     public static IServiceCollection AddGraphHttpClients(this IServiceCollection services)
     {
@@ -59,10 +60,13 @@ public static class DependencyInjection
             });
         return services;
 
-        static HttpMessageHandler CreatePrimaryHandler() => new SocketsHttpHandler
+        static HttpMessageHandler CreatePrimaryHandler()
         {
-            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
-            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(1)
-        };
+            return new SocketsHttpHandler
+            {
+                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+                PooledConnectionIdleTimeout = TimeSpan.FromMinutes(1)
+            };
+        }
     }
 }

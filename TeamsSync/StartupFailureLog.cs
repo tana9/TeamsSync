@@ -8,11 +8,11 @@ internal static class StartupFailureLog
     {
         try
         {
-            var directory = baseDirectory ?? Path.Combine(
+            string directory = baseDirectory ?? Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "TeamsSync", "Logs");
             Directory.CreateDirectory(directory);
-            var path = Path.Combine(directory, "startup-failure.log");
+            string path = Path.Combine(directory, "startup-failure.log");
             File.AppendAllText(path,
                 $"[{DateTimeOffset.Now:O}]{Environment.NewLine}{exception}{Environment.NewLine}{Environment.NewLine}",
                 Encoding.UTF8);

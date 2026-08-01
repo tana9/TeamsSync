@@ -11,20 +11,20 @@ namespace TeamsSync.Presentation.Converters;
 // そこからConverterParameter(下段カードの最低保証分など、変動しない固定の予約分)を差し引いた
 // 残りを上段ScrollViewerの上限として使う。
 /// <summary>
-/// コンテナの高さからアクションバーの実高さと固定予約分を差し引き、上段スクロール領域の
-/// MaxHeightを動的に算出するマルチバインディング用コンバータ。
+///     コンテナの高さからアクションバーの実高さと固定予約分を差し引き、上段スクロール領域の
+///     MaxHeightを動的に算出するマルチバインディング用コンバータ。
 /// </summary>
 public sealed class HeightMinusOffsetConverter : IMultiValueConverter
 {
     /// <summary>
-    /// values[0]=コンテナのActualHeight、values[1]=アクションバーのActualHeightから、
-    /// ConverterParameterで指定した固定予約分を差し引いた残り高さ(0以上)を返す。
+    ///     values[0]=コンテナのActualHeight、values[1]=アクションバーのActualHeightから、
+    ///     ConverterParameterで指定した固定予約分を差し引いた残り高さ(0以上)を返す。
     /// </summary>
     public object Convert(object?[] values, Type targetType, object? parameter, CultureInfo culture)
     {
-        var containerHeight = values.Length > 0 && values[0] is double d0 ? d0 : 0;
-        var actionBarHeight = values.Length > 1 && values[1] is double d1 ? d1 : 0;
-        var reservedHeight = parameter is string s && double.TryParse(s, out var p) ? p : 0;
+        double containerHeight = values.Length > 0 && values[0] is double d0 ? d0 : 0;
+        double actionBarHeight = values.Length > 1 && values[1] is double d1 ? d1 : 0;
+        double reservedHeight = parameter is string s && double.TryParse(s, out double p) ? p : 0;
         return Math.Max(0, containerHeight - actionBarHeight - reservedHeight);
     }
 

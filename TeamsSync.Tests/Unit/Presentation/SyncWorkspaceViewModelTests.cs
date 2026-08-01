@@ -9,15 +9,12 @@ public sealed class SyncWorkspaceViewModelTests
     [Fact]
     public async Task SyncWorkspace_確認ダイアログ失敗を通知して例外をUIへ伝播しない()
     {
-        var gateway = new FakeTeamsGateway();
+        FakeTeamsGateway gateway = new();
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New", "new@example.com", "new@example.com");
-        var notifications = new RecordingNotificationService();
-        var confirmation = new FakeDialogs
-        {
-            OnConfirm = _ => throw new InvalidOperationException("dialog failed")
-        };
-        var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        RecordingNotificationService notifications = new();
+        FakeDialogs confirmation = new() { OnConfirm = _ => throw new InvalidOperationException("dialog failed") };
+        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
             new FakeResultWriter(), confirmation, notifications);
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
@@ -33,12 +30,12 @@ public sealed class SyncWorkspaceViewModelTests
     [Fact]
     public async Task SyncWorkspace_実行ログの自動保存に失敗しても警告のみで同期結果は維持する()
     {
-        var gateway = new FakeTeamsGateway();
+        FakeTeamsGateway gateway = new();
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New", "new@example.com", "new@example.com");
-        var writer = new FakeResultWriter { Exception = new IOException("disk full") };
-        var notifications = new RecordingNotificationService();
-        var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway), writer,
+        FakeResultWriter writer = new() { Exception = new IOException("disk full") };
+        RecordingNotificationService notifications = new();
+        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway), writer,
             new FakeDialogs(), notifications);
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
@@ -55,10 +52,10 @@ public sealed class SyncWorkspaceViewModelTests
     [Fact]
     public async Task SyncWorkspace_状態に応じて同期できない理由とフィルター件数を更新する()
     {
-        var gateway = new FakeTeamsGateway();
+        FakeTeamsGateway gateway = new();
         gateway.Users["missing@example.com"] = new DirectoryUser(
             "user-1", "User", "missing@example.com", "missing@example.com");
-        var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         Assert.Contains("サインイン", viewModel.SyncUnavailableReason);
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
@@ -87,17 +84,17 @@ public sealed class SyncWorkspaceViewModelTests
         // 見て更新される。CollectionViewSource.Refresh()だけではドロップダウン内のリストは
         // 更新されても選択中アイテムの表示テキストが更新されないWPFの既知の癖があるため、
         // 選択中インスタンスへ直接PropertyChangedが飛ぶことを確認する。
-        var gateway = new FakeTeamsGateway();
+        FakeTeamsGateway gateway = new();
         gateway.Users["missing@example.com"] = new DirectoryUser(
             "user-1", "User", "missing@example.com", "missing@example.com");
-        var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["missing@example.com"], "members.csv", "C:\\members.csv",
                 DateTime.Now, "CSV", "email"), true);
 
-        var selectedFilter = viewModel.SelectedFilter;
-        var raisedProperties = new List<string?>();
+        ChangeFilter selectedFilter = viewModel.SelectedFilter;
+        List<string?> raisedProperties = new();
         selectedFilter.PropertyChanged += (_, e) => raisedProperties.Add(e.PropertyName);
 
         await viewModel.PreviewCommand.ExecuteAsync(null);
@@ -110,13 +107,13 @@ public sealed class SyncWorkspaceViewModelTests
     [Fact]
     public async Task SyncWorkspace_PreviewBuildsChangesAndUpdatesCommandState()
     {
-        var gateway = new FakeTeamsGateway();
+        FakeTeamsGateway gateway = new();
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
-        var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
-        var team = new TeamInfo("team-1", "開発", null);
-        var document = new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
+        TeamInfo team = new("team-1", "開発", null);
+        MemberListDocument document = new(["new@example.com"], "members.csv", "C:\\members.csv",
             new DateTime(2026, 7, 28), "CSV", "email");
 
         viewModel.SetContext(team, document, true);
@@ -132,7 +129,7 @@ public sealed class SyncWorkspaceViewModelTests
     [Fact]
     public async Task SyncWorkspace_指定メンバー削除では入力した一般メンバーだけを削除する()
     {
-        var gateway = new FakeTeamsGateway
+        FakeTeamsGateway gateway = new()
         {
             Members =
             [
@@ -147,7 +144,7 @@ public sealed class SyncWorkspaceViewModelTests
                 .Where(member => member.MembershipId != membershipId).ToList();
             return Task.CompletedTask;
         };
-        var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         viewModel.IsRemoveSpecifiedSelected = true;
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
@@ -173,18 +170,18 @@ public sealed class SyncWorkspaceViewModelTests
     [Fact]
     public async Task SyncWorkspace_確認済みの差分がある状態で同期モードを切り替えるとクリアを通知する()
     {
-        var gateway = new FakeTeamsGateway();
+        FakeTeamsGateway gateway = new();
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
-        var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
-        var team = new TeamInfo("team-1", "開発", null);
-        var document = new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
+        TeamInfo team = new("team-1", "開発", null);
+        MemberListDocument document = new(["new@example.com"], "members.csv", "C:\\members.csv",
             new DateTime(2026, 7, 28), "CSV", "email");
         viewModel.SetContext(team, document, true);
         await viewModel.PreviewCommand.ExecuteAsync(null);
         Assert.Single(viewModel.Changes);
-        var notifications = new List<string>();
+        List<string> notifications = new();
         viewModel.StatusChanged += (message, _) => notifications.Add(message);
 
         viewModel.IsFullSyncSelected = true;
@@ -196,9 +193,9 @@ public sealed class SyncWorkspaceViewModelTests
     [Fact]
     public void SyncWorkspace_差分未確認の状態で同期モードを切り替えても通知しない()
     {
-        var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(new FakeTeamsGateway()),
+        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(new FakeTeamsGateway()),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
-        var notifications = new List<string>();
+        List<string> notifications = new();
         viewModel.StatusChanged += (message, _) => notifications.Add(message);
 
         viewModel.IsFullSyncSelected = true;
@@ -209,12 +206,12 @@ public sealed class SyncWorkspaceViewModelTests
     [Fact]
     public async Task SyncWorkspace_WhenMembershipIsUnchanged_ExecutesRevalidatedPlan()
     {
-        var gateway = new FakeTeamsGateway();
+        FakeTeamsGateway gateway = new();
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
-        var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
-        var document = new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
+        MemberListDocument document = new(["new@example.com"], "members.csv", "C:\\members.csv",
             new DateTime(2026, 7, 28), "CSV", "email");
         viewModel.SetContext(new TeamInfo("team-1", "開発", null), document, true);
         await viewModel.PreviewCommand.ExecuteAsync(null);
@@ -227,13 +224,13 @@ public sealed class SyncWorkspaceViewModelTests
     [Fact]
     public async Task SyncWorkspace_WhenMembershipChangesAfterConfirmation_ShowsLatestPlanWithoutWriting()
     {
-        var gateway = new FakeTeamsGateway
+        FakeTeamsGateway gateway = new()
         {
             Members = [new TeamMember("old-membership", "old-user", "Old", "old@example.com", false)]
         };
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
-        var dialogs = new FakeDialogs
+        FakeDialogs dialogs = new()
         {
             OnConfirm = _ =>
             {
@@ -242,11 +239,11 @@ public sealed class SyncWorkspaceViewModelTests
                 return true;
             }
         };
-        var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
             new FakeResultWriter(), dialogs, dialogs);
         viewModel.SelectedMode = viewModel.Modes.Single(mode => mode.Mode == SyncMode.FullSync);
-        var team = new TeamInfo("team-1", "開発", null);
-        var document = new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
+        TeamInfo team = new("team-1", "開発", null);
+        MemberListDocument document = new(["new@example.com"], "members.csv", "C:\\members.csv",
             new DateTime(2026, 7, 28), "CSV", "email");
         viewModel.SetContext(team, document, true);
         await viewModel.PreviewCommand.ExecuteAsync(null);
@@ -264,7 +261,7 @@ public sealed class SyncWorkspaceViewModelTests
     [Fact]
     public async Task SyncWorkspace_失敗後に実状態の残差だけを再実行する()
     {
-        var gateway = new FakeTeamsGateway
+        FakeTeamsGateway gateway = new()
         {
             Members =
             [
@@ -273,7 +270,7 @@ public sealed class SyncWorkspaceViewModelTests
             ]
         };
         gateway.OnRemove = (_, _, _) => Task.FromException(new InvalidOperationException("remove failed"));
-        var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         viewModel.SelectedMode = viewModel.Modes.Single(mode => mode.Mode == SyncMode.FullSync);
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
@@ -303,7 +300,7 @@ public sealed class SyncWorkspaceViewModelTests
     [Fact]
     public async Task SyncWorkspace_表示フィルターを変更すると差分一覧が絞り込まれる()
     {
-        var gateway = new FakeTeamsGateway
+        FakeTeamsGateway gateway = new()
         {
             Members =
             [
@@ -313,10 +310,10 @@ public sealed class SyncWorkspaceViewModelTests
         };
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
-        var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         viewModel.SelectedMode = viewModel.Modes.Single(mode => mode.Mode == SyncMode.FullSync);
-        var document = new MemberListDocument(["new@example.com", "keep@example.com"], "members.csv",
+        MemberListDocument document = new(["new@example.com", "keep@example.com"], "members.csv",
             "C:\\members.csv", new DateTime(2026, 7, 28), "CSV", "email");
         viewModel.SetContext(new TeamInfo("team-1", "開発", null), document, true);
         await viewModel.PreviewCommand.ExecuteAsync(null);
@@ -326,7 +323,7 @@ public sealed class SyncWorkspaceViewModelTests
 
         viewModel.SelectedFilter = viewModel.Filters.Single(filter => filter.Kind == ChangeKind.Add);
 
-        var filtered = viewModel.ChangesView.Cast<SyncChangeRowViewModel>().ToList();
+        List<SyncChangeRowViewModel> filtered = viewModel.ChangesView.Cast<SyncChangeRowViewModel>().ToList();
         Assert.Single(filtered);
         Assert.Equal(ChangeKind.Add, filtered[0].Kind);
     }
@@ -334,7 +331,7 @@ public sealed class SyncWorkspaceViewModelTests
     [Fact]
     public async Task SyncWorkspace_同期完了後はHasSyncResultと成功件数を公開する()
     {
-        var gateway = new FakeTeamsGateway();
+        FakeTeamsGateway gateway = new();
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
         // FakeTeamsGateway.AddMemberAsync既定ではMembersを更新しないため、再検証(ReconcileAsync)後も
@@ -346,7 +343,7 @@ public sealed class SyncWorkspaceViewModelTests
                 .Append(new TeamMember("new-membership", userId, "New User", "new@example.com", false)).ToList();
             return Task.CompletedTask;
         };
-        var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
@@ -369,7 +366,7 @@ public sealed class SyncWorkspaceViewModelTests
     [Fact]
     public async Task SyncWorkspace_一部失敗時は失敗した操作の一覧を原因つきで公開する()
     {
-        var gateway = new FakeTeamsGateway
+        FakeTeamsGateway gateway = new()
         {
             Members =
             [
@@ -378,7 +375,7 @@ public sealed class SyncWorkspaceViewModelTests
             ]
         };
         gateway.OnRemove = (_, _, _) => Task.FromException(new InvalidOperationException("remove failed"));
-        var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         viewModel.SelectedMode = viewModel.Modes.Single(mode => mode.Mode == SyncMode.FullSync);
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
@@ -390,7 +387,7 @@ public sealed class SyncWorkspaceViewModelTests
 
         Assert.Equal(1, viewModel.ResultFailureCount);
         Assert.True(viewModel.HasFailedResults);
-        var failed = Assert.Single(viewModel.FailedResults);
+        SyncResultRowViewModel failed = Assert.Single(viewModel.FailedResults);
         Assert.Equal("削除", failed.KindLabel);
         Assert.Equal("old@example.com", failed.Email);
         Assert.Equal("remove failed", failed.Error);
@@ -399,12 +396,12 @@ public sealed class SyncWorkspaceViewModelTests
     [Fact]
     public async Task SyncWorkspace_新しい入力に切り替えると実行結果もクリアする()
     {
-        var gateway = new FakeTeamsGateway();
+        FakeTeamsGateway gateway = new();
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
-        var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
-        var document = new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
+        MemberListDocument document = new(["new@example.com"], "members.csv", "C:\\members.csv",
             new DateTime(2026, 7, 28), "CSV", "email");
         viewModel.SetContext(new TeamInfo("team-1", "開発", null), document, true);
         await viewModel.PreviewCommand.ExecuteAsync(null);
@@ -421,15 +418,15 @@ public sealed class SyncWorkspaceViewModelTests
     [Fact]
     public async Task SyncWorkspace_差分確認のたびにDiffFocusRequestedを1回通知する()
     {
-        var gateway = new FakeTeamsGateway();
+        FakeTeamsGateway gateway = new();
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
-        var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
                 new DateTime(2026, 7, 28), "CSV", "email"), true);
-        var focusRequests = 0;
+        int focusRequests = 0;
         viewModel.DiffFocusRequested += () => focusRequests++;
 
         await viewModel.PreviewCommand.ExecuteAsync(null);
@@ -440,8 +437,8 @@ public sealed class SyncWorkspaceViewModelTests
     [Fact]
     public async Task SyncWorkspace_終了要求で実行中の操作をキャンセルして完了を待つ()
     {
-        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var gateway = new FakeTeamsGateway();
+        TaskCompletionSource started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        FakeTeamsGateway gateway = new();
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New", "new@example.com", "new@example.com");
         gateway.OnAdd = async (_, _, cancellationToken) =>
@@ -449,14 +446,14 @@ public sealed class SyncWorkspaceViewModelTests
             started.SetResult();
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
         };
-        var dialogs = new FakeDialogs();
-        var viewModel = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        FakeDialogs dialogs = new();
+        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
             new FakeResultWriter(), dialogs, dialogs);
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
                 new DateTime(2026, 7, 28), "CSV", "email"), true);
         await viewModel.PreviewCommand.ExecuteAsync(null);
-        var execution = viewModel.ExecuteSyncCommand.ExecuteAsync(null);
+        Task execution = viewModel.ExecuteSyncCommand.ExecuteAsync(null);
         await started.Task.WaitAsync(TestContext.Current.CancellationToken);
 
         await viewModel.CancelAndWaitAsync();

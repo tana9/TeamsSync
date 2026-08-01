@@ -1,8 +1,11 @@
 using System.Windows;
 using System.Windows.Controls;
+
 using TeamsSync.Domain.Teams;
+
 using Wpf.Ui;
 using Wpf.Ui.Controls;
+
 using TextBlock = System.Windows.Controls.TextBlock;
 
 namespace TeamsSync.Presentation.Services;
@@ -12,25 +15,35 @@ public sealed class WpfSyncConfirmationService(
     IContentDialogService contentDialogs) : ISyncConfirmationService
 {
     /// <summary>
-    /// 対象チーム・件数内訳・入力元を表示する確認ダイアログを表示する。
+    ///     対象チーム・件数内訳・入力元を表示する確認ダイアログを表示する。
     /// </summary>
     public async Task<bool> ConfirmSyncAsync(SyncConfirmation confirmation,
         CancellationToken cancellationToken = default)
     {
-        var plan = confirmation.Plan;
+        SyncPlan plan = confirmation.Plan;
 
         // 固定幅(旧: Width=440)だと高DPIや長いチーム名・長い入力概要で内容が欠けるため、
         // MinWidthのみを指定して折り返しに任せ、縦方向はScrollViewerへ収めて200%表示でも
         // 「同期を実行」ボタンが画面外に押し出されないようにする。
-        var content = new StackPanel { MinWidth = 340 };
+        StackPanel content = new() { MinWidth = 340 };
         content.Children.Add(BuildHeaderBlock(plan));
-        if (plan.RemoveCount > 0) content.Children.Add(BuildRemovalWarningBox(plan));
-        if (plan.Mode == SyncMode.RemoveSpecified && plan.RemoveCount > 0)
-            content.Children.Add(BuildRemovalTargets(plan));
-        content.Children.Add(BuildCountsSection(plan));
-        foreach (var child in BuildInputSourceBlocks(confirmation)) content.Children.Add(child);
+        if (plan.RemoveCount > 0)
+        {
+            content.Children.Add(BuildRemovalWarningBox(plan));
+        }
 
-        var scrollViewer = new ScrollViewer
+        if (plan.Mode == SyncMode.RemoveSpecified && plan.RemoveCount > 0)
+        {
+            content.Children.Add(BuildRemovalTargets(plan));
+        }
+
+        content.Children.Add(BuildCountsSection(plan));
+        foreach (UIElement child in BuildInputSourceBlocks(confirmation))
+        {
+            content.Children.Add(child);
+        }
+
+        ScrollViewer scrollViewer = new()
         {
             Content = content,
             MaxHeight = 420,
@@ -38,7 +51,7 @@ public sealed class WpfSyncConfirmationService(
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
         };
 
-        var dialog = new ContentDialog
+        ContentDialog dialog = new()
         {
             Title = ConfirmationDialogHelper.BuildTitle("同期の最終確認"),
             Content = scrollViewer,
@@ -56,11 +69,13 @@ public sealed class WpfSyncConfirmationService(
     /// <summary>対象チーム名と同期モードを表示するヘッダー部分を組み立てる。</summary>
     private static UIElement BuildHeaderBlock(SyncPlan plan)
     {
-        var panel = new StackPanel();
+        StackPanel panel = new();
         panel.Children.Add(new TextBlock
         {
             Text = $"対象チーム: {plan.Team.DisplayName}",
-            FontWeight = FontWeights.SemiBold, FontSize = 14, TextWrapping = TextWrapping.Wrap
+            FontWeight = FontWeights.SemiBold,
+            FontSize = 14,
+            TextWrapping = TextWrapping.Wrap
         });
         panel.Children.Add(new TextBlock
         {
@@ -70,7 +85,8 @@ public sealed class WpfSyncConfirmationService(
                 SyncMode.RemoveSpecified => "指定メンバーを削除",
                 _ => "完全同期（リスト外を削除）"
             }}",
-            Margin = new Thickness(0, 4, 0, 0), TextWrapping = TextWrapping.Wrap
+            Margin = new Thickness(0, 4, 0, 0),
+            TextWrapping = TextWrapping.Wrap
         });
         return panel;
     }
@@ -79,7 +95,7 @@ public sealed class WpfSyncConfirmationService(
     /// <summary>削除件数を強調表示する警告ボックスを組み立てる。</summary>
     private static Border BuildRemovalWarningBox(SyncPlan plan)
     {
-        var removalBox = new Border
+        Border removalBox = new()
         {
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(4),
@@ -88,15 +104,22 @@ public sealed class WpfSyncConfirmationService(
         };
         removalBox.SetResourceReference(Border.BorderBrushProperty, "SystemFillColorCriticalBrush");
         removalBox.SetResourceReference(Border.BackgroundProperty, "ControlFillColorSecondaryBrush");
-        var removalPanel = new StackPanel { Orientation = Orientation.Horizontal };
-        var removalIcon = new SymbolIcon { Symbol = SymbolRegular.Warning24, FontSize = 16, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 8, 0) };
+        StackPanel removalPanel = new() { Orientation = Orientation.Horizontal };
+        SymbolIcon removalIcon = new()
+        {
+            Symbol = SymbolRegular.Warning24,
+            FontSize = 16,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 2, 8, 0)
+        };
         removalIcon.SetResourceReference(SymbolIcon.ForegroundProperty, "SystemFillColorCriticalBrush");
-        var removalText = new TextBlock
+        TextBlock removalText = new()
         {
             Text = plan.Mode == SyncMode.RemoveSpecified
                 ? $"削除 {plan.RemoveCount}名 — 入力リストで指定した一般メンバーだけを削除します（所有者は削除されません）"
                 : $"削除 {plan.RemoveCount}名 — リストにない一般メンバーを削除します（所有者は削除されません）",
-            FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap
+            FontWeight = FontWeights.SemiBold,
+            TextWrapping = TextWrapping.Wrap
         };
         removalText.SetResourceReference(TextBlock.ForegroundProperty, "SystemFillColorCriticalBrush");
         removalPanel.Children.Add(removalIcon);
@@ -108,13 +131,14 @@ public sealed class WpfSyncConfirmationService(
     /// <summary>指定削除で実際に削除する対象者を、最終確認ダイアログへ一覧表示する。</summary>
     private static UIElement BuildRemovalTargets(SyncPlan plan)
     {
-        var targets = plan.Changes.Where(change => change.Kind == ChangeKind.Remove)
+        IEnumerable<string> targets = plan.Changes.Where(change => change.Kind == ChangeKind.Remove)
             .Select(change => string.IsNullOrWhiteSpace(change.DisplayName)
                 ? change.Email
                 : $"{change.DisplayName}（{change.Email}）");
         return new TextBlock
         {
-            Text = $"削除対象:{Environment.NewLine}{string.Join(Environment.NewLine, targets.Select(target => $"・{target}"))}",
+            Text =
+                $"削除対象:{Environment.NewLine}{string.Join(Environment.NewLine, targets.Select(target => $"・{target}"))}",
             Margin = new Thickness(0, 10, 0, 0),
             TextWrapping = TextWrapping.Wrap
         };
@@ -123,16 +147,19 @@ public sealed class WpfSyncConfirmationService(
     /// <summary>追加・変更なし・所有者保護の件数を表示する部分を組み立てる。</summary>
     private static UIElement BuildCountsSection(SyncPlan plan)
     {
-        var panel = new StackPanel();
+        StackPanel panel = new();
         panel.Children.Add(new TextBlock
         {
             Text = $"追加 {plan.AddCount}名",
-            FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 0), TextWrapping = TextWrapping.Wrap
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 12, 0, 0),
+            TextWrapping = TextWrapping.Wrap
         });
-        var secondaryCounts = new TextBlock
+        TextBlock secondaryCounts = new()
         {
             Text = $"変更なし {plan.KeepCount}名 ／ 所有者保護 {plan.ProtectedCount}名",
-            Margin = new Thickness(0, 2, 0, 0), TextWrapping = TextWrapping.Wrap
+            Margin = new Thickness(0, 2, 0, 0),
+            TextWrapping = TextWrapping.Wrap
         };
         secondaryCounts.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
         panel.Children.Add(secondaryCounts);
@@ -142,15 +169,17 @@ public sealed class WpfSyncConfirmationService(
     /// <summary>入力元ファイル名と入力概要を表示するテキスト要素を列挙する。</summary>
     private static IEnumerable<UIElement> BuildInputSourceBlocks(SyncConfirmation confirmation)
     {
-        var inputFileText = new TextBlock
+        TextBlock inputFileText = new()
         {
             Text = $"入力元: {confirmation.FileName}",
-            FontSize = 12, Margin = new Thickness(0, 12, 0, 0), TextWrapping = TextWrapping.Wrap
+            FontSize = 12,
+            Margin = new Thickness(0, 12, 0, 0),
+            TextWrapping = TextWrapping.Wrap
         };
         inputFileText.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
         yield return inputFileText;
 
-        var inputSummaryText = new TextBlock
+        TextBlock inputSummaryText = new()
         {
             Text = confirmation.InputSummary, FontSize = 12, TextWrapping = TextWrapping.Wrap
         };

@@ -1,6 +1,8 @@
 using System.Windows;
+
 using Wpf.Ui;
 using Wpf.Ui.Controls;
+
 using TextBlock = System.Windows.Controls.TextBlock;
 
 namespace TeamsSync.Presentation.Services;
@@ -13,7 +15,7 @@ public sealed class WpfMemberInputConfirmationService(
     public async Task<bool> ConfirmReplaceMemberInputAsync(string teamName, int memberCount,
         CancellationToken cancellationToken = default)
     {
-        var dialog = new ContentDialog
+        ContentDialog dialog = new()
         {
             Title = ConfirmationDialogHelper.BuildTitle("現在の入力を置き換えますか？"),
             Content = new TextBlock

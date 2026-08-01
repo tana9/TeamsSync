@@ -1,19 +1,21 @@
 using Microsoft.Extensions.DependencyInjection;
+
 using TeamsSync.Presentation.Services;
 using TeamsSync.Presentation.ViewModels;
 using TeamsSync.Presentation.Views;
+
 using Wpf.Ui;
 
 namespace TeamsSync.Presentation;
 
 /// <summary>
-/// プレゼンテーション層(ダイアログ・ViewModel・ウィンドウ)のサービスをDIコンテナへ
-/// 登録するための拡張メソッドを提供する。
+///     プレゼンテーション層(ダイアログ・ViewModel・ウィンドウ)のサービスをDIコンテナへ
+///     登録するための拡張メソッドを提供する。
 /// </summary>
 public static class DependencyInjection
 {
     /// <summary>
-    /// WPFダイアログ・通知サービスおよび各ViewModel/ウィンドウをサービスコレクションへ登録する。
+    ///     WPFダイアログ・通知サービスおよび各ViewModel/ウィンドウをサービスコレクションへ登録する。
     /// </summary>
     public static IServiceCollection AddPresentation(this IServiceCollection services)
     {

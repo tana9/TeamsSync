@@ -53,12 +53,12 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <ScrollContentPresenter Grid.Column="0"
-                            CanContentScroll="{TemplateBinding CanContentScroll}" />
+                                                CanContentScroll="{TemplateBinding CanContentScroll}" />
                         <ScrollBar Name="PART_VerticalScrollBar" Grid.Column="1"
-                            Value="{TemplateBinding VerticalOffset}"
-                            Maximum="{TemplateBinding ScrollableHeight}"
-                            ViewportSize="{TemplateBinding ViewportHeight}"
-                            Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}" />
+                                   Value="{TemplateBinding VerticalOffset}"
+                                   Maximum="{TemplateBinding ScrollableHeight}"
+                                   ViewportSize="{TemplateBinding ViewportHeight}"
+                                   Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}" />
                     </Grid>
                 </ControlTemplate>
             </Setter.Value>

@@ -3,15 +3,15 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace TeamsSync.Presentation.ViewModels;
 
 /// <summary>
-/// 画面手順(1 チーム選択 → 2 メンバーリスト → 3 同期モード → 4 同期差分)の進捗状態を、
-/// 各画面領域のViewModelの状態から算出する。
+///     画面手順(1 チーム選択 → 2 メンバーリスト → 3 同期モード → 4 同期差分)の進捗状態を、
+///     各画面領域のViewModelの状態から算出する。
 /// </summary>
 public sealed class WorkflowStepsViewModel : ObservableObject
 {
-    private readonly SignInViewModel _signIn;
-    private readonly TeamSelectionViewModel _teamSelection;
     private readonly MemberFileViewModel _memberFile;
+    private readonly SignInViewModel _signIn;
     private readonly SyncWorkspaceViewModel _syncWorkspace;
+    private readonly TeamSelectionViewModel _teamSelection;
 
     /// <summary>コンストラクター。各画面領域のViewModelの変化を購読し、手順の進捗状態を追従させる。</summary>
     public WorkflowStepsViewModel(SignInViewModel signIn, TeamSelectionViewModel teamSelection,
@@ -24,17 +24,26 @@ public sealed class WorkflowStepsViewModel : ObservableObject
 
         signIn.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(SignInViewModel.IsSignedIn)) NotifySteps();
+            if (e.PropertyName == nameof(SignInViewModel.IsSignedIn))
+            {
+                NotifySteps();
+            }
         };
         teamSelection.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(TeamSelectionViewModel.SelectedTeam)) NotifySteps();
+            if (e.PropertyName == nameof(TeamSelectionViewModel.SelectedTeam))
+            {
+                NotifySteps();
+            }
         };
         memberFile.DocumentChanged += NotifySteps;
         syncWorkspace.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName is nameof(SyncWorkspaceViewModel.HasPlan) or nameof(SyncWorkspaceViewModel.HasSyncResult))
+            if (e.PropertyName is nameof(SyncWorkspaceViewModel.HasPlan)
+                or nameof(SyncWorkspaceViewModel.HasSyncResult))
+            {
                 NotifySteps();
+            }
         };
     }
 
@@ -43,17 +52,23 @@ public sealed class WorkflowStepsViewModel : ObservableObject
     /// <summary>手順1(チーム選択)の進捗状態。</summary>
     public WorkflowStepState Step1State => _teamSelection.SelectedTeam is not null
         ? WorkflowStepState.Completed
-        : _signIn.IsSignedIn ? WorkflowStepState.Current : WorkflowStepState.Upcoming;
+        : _signIn.IsSignedIn
+            ? WorkflowStepState.Current
+            : WorkflowStepState.Upcoming;
 
     /// <summary>手順2(メンバーリスト)の進捗状態。</summary>
     public WorkflowStepState Step2State => Step1State != WorkflowStepState.Completed
         ? WorkflowStepState.Upcoming
-        : _memberFile.Document is not null ? WorkflowStepState.Completed : WorkflowStepState.Current;
+        : _memberFile.Document is not null
+            ? WorkflowStepState.Completed
+            : WorkflowStepState.Current;
 
     /// <summary>手順3(同期モード)の進捗状態。</summary>
     public WorkflowStepState Step3State => Step2State != WorkflowStepState.Completed
         ? WorkflowStepState.Upcoming
-        : _syncWorkspace.HasPlan ? WorkflowStepState.Completed : WorkflowStepState.Current;
+        : _syncWorkspace.HasPlan
+            ? WorkflowStepState.Completed
+            : WorkflowStepState.Current;
 
     private void NotifySteps()
     {

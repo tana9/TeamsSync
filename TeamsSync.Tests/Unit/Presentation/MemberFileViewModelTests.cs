@@ -1,4 +1,5 @@
 using System.Windows.Threading;
+
 using TeamsSync.Application.Services;
 using TeamsSync.Domain.Teams;
 using TeamsSync.Infrastructure.Files;
@@ -11,11 +12,11 @@ public sealed class MemberFileViewModelTests
     [Fact]
     public async Task MemberFile_設定保存失敗でも読込済み文書を維持する()
     {
-        var document = new MemberListDocument(["user@example.com"], "members.csv", "C:\\members.csv",
+        MemberListDocument document = new(["user@example.com"], "members.csv", "C:\\members.csv",
             new DateTime(2026, 7, 28), "CSV", "email");
-        var preferences = new FakePreferences { SaveException = new IOException("disk full") };
-        var notifications = new RecordingNotificationService();
-        var viewModel = new MemberFileViewModel(new FakeMemberListReader(document), new MemberTextParser(),
+        FakePreferences preferences = new() { SaveException = new IOException("disk full") };
+        RecordingNotificationService notifications = new();
+        MemberFileViewModel viewModel = new(new FakeMemberListReader(document), new MemberTextParser(),
             preferences, new FakeDialogs(), notifications, new FakeTeamsGateway(), new FakeDialogs());
 
         await viewModel.LoadDroppedFileCommand.ExecuteAsync(document.FullPath);
@@ -28,12 +29,12 @@ public sealed class MemberFileViewModelTests
     [Fact]
     public async Task MemberFile_LoadsDroppedFileAndDisablesCommandsWhileUnavailable()
     {
-        var document = new MemberListDocument(["user@example.com"], "members.csv", "C:\\members.csv",
+        MemberListDocument document = new(["user@example.com"], "members.csv", "C:\\members.csv",
             new DateTime(2026, 7, 28), "CSV", "email");
-        var reader = new FakeMemberListReader(document);
-        var viewModel = new MemberFileViewModel(reader, new MemberTextParser(), new FakePreferences(),
+        FakeMemberListReader reader = new(document);
+        MemberFileViewModel viewModel = new(reader, new MemberTextParser(), new FakePreferences(),
             new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs());
-        var changed = false;
+        bool changed = false;
         viewModel.DocumentChanged += () => changed = true;
 
         await viewModel.LoadDroppedFileCommand.ExecuteAsync(document.FullPath);
@@ -49,13 +50,13 @@ public sealed class MemberFileViewModelTests
     [Fact]
     public async Task MemberFile_新しいファイルの読込失敗時は以前の文書を無効化する()
     {
-        var first = new MemberListDocument(["old@example.com"], "old.csv", "C:\\old.csv",
+        MemberListDocument first = new(["old@example.com"], "old.csv", "C:\\old.csv",
             new DateTime(2026, 7, 28), "CSV", "email");
-        var reader = new SwitchingMemberListReader(first);
-        var notifications = new RecordingNotificationService();
-        var viewModel = new MemberFileViewModel(reader, new MemberTextParser(), new FakePreferences(),
+        SwitchingMemberListReader reader = new(first);
+        RecordingNotificationService notifications = new();
+        MemberFileViewModel viewModel = new(reader, new MemberTextParser(), new FakePreferences(),
             new FakeDialogs(), notifications, new FakeTeamsGateway(), new FakeDialogs());
-        var changedCount = 0;
+        int changedCount = 0;
         viewModel.DocumentChanged += () => changedCount++;
 
         await viewModel.LoadDroppedFileCommand.ExecuteAsync(first.FullPath);
@@ -74,24 +75,25 @@ public sealed class MemberFileViewModelTests
     [Fact]
     public async Task MemberFile_読込失敗後は以前の同期差分を実行できない()
     {
-        var document = new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
+        MemberListDocument document = new(["new@example.com"], "members.csv", "C:\\members.csv",
             new DateTime(2026, 7, 28), "CSV", "email");
-        var reader = new SwitchingMemberListReader(document);
-        var gateway = new FakeTeamsGateway();
+        SwitchingMemberListReader reader = new(document);
+        FakeTeamsGateway gateway = new();
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
-        var notifications = new RecordingNotificationService();
-        var preferences = new FakePreferences();
-        var teamSelection = new TeamSelectionViewModel(gateway, notifications)
+        RecordingNotificationService notifications = new();
+        FakePreferences preferences = new();
+        TeamSelectionViewModel teamSelection = new(gateway, notifications)
         {
             SelectedTeam = new TeamInfo("team-1", "開発", null)
         };
-        var memberFile = new MemberFileViewModel(reader, new MemberTextParser(), preferences,
+        MemberFileViewModel memberFile = new(reader, new MemberTextParser(), preferences,
             new FakeDialogs(), notifications, gateway, new FakeDialogs());
-        var workspace = new SyncWorkspaceViewModel(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel workspace = new(new TeamSyncService(gateway),
             new FakeResultWriter(), new FakeDialogs(), notifications);
-        var main = new MainWindowViewModel(new FakeAuthenticationService(), gateway, notifications,
-            preferences, teamSelection, memberFile, workspace, new ManualViewModel(new FakeManualService(), notifications));
+        MainWindowViewModel main = new(new FakeAuthenticationService(), gateway, notifications,
+            preferences, teamSelection, memberFile, workspace,
+            new ManualViewModel(new FakeManualService(), notifications));
         main.SignIn.IsSignedIn = true;
 
         // MemberFileViewModel.LoadはTask.Runでファイルを読み込むため、後続のDocumentChanged通知
@@ -99,16 +101,18 @@ public sealed class MemberFileViewModelTests
         // WPF実行時はDispatcherSynchronizationContextにより自動的にUIスレッドへ戻るが、
         // テストにはDispatcherのメッセージポンプが存在しないため、DispatcherSynchronizationContextを
         // 設定した上でPushFrameによりメッセージポンプを模擬し、継続がテストスレッド上で実行されるようにする。
-        var originalContext = SynchronizationContext.Current;
+        SynchronizationContext? originalContext = SynchronizationContext.Current;
         SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
         try
         {
-            DispatcherTestHelper.RunOnDispatcher(() => memberFile.LoadDroppedFileCommand.ExecuteAsync(document.FullPath));
+            DispatcherTestHelper.RunOnDispatcher(() =>
+                memberFile.LoadDroppedFileCommand.ExecuteAsync(document.FullPath));
             DispatcherTestHelper.RunOnDispatcher(() => workspace.PreviewCommand.ExecuteAsync(null));
             Assert.True(workspace.ExecuteSyncCommand.CanExecute(null));
 
             reader.Exception = new InvalidDataException("壊れたファイルです");
-            DispatcherTestHelper.RunOnDispatcher(() => memberFile.LoadDroppedFileCommand.ExecuteAsync("C:\\broken.csv"));
+            DispatcherTestHelper.RunOnDispatcher(() =>
+                memberFile.LoadDroppedFileCommand.ExecuteAsync("C:\\broken.csv"));
         }
         finally
         {
@@ -122,15 +126,14 @@ public sealed class MemberFileViewModelTests
     [Fact]
     public async Task MemberFile_貼り付け解析中を表示して完了後に解除する()
     {
-        var parser = new BlockingTextParser();
-        var viewModel = new MemberFileViewModel(new FakeMemberListReader(null!), parser,
+        BlockingTextParser parser = new();
+        MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), parser,
             new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs())
         {
-            SelectedInputIndex = 1,
-            PastedText = "user@example.com"
+            SelectedInputIndex = 1, PastedText = "user@example.com"
         };
 
-        var execution = viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
+        Task execution = viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
         await parser.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
 
         Assert.True(viewModel.IsParsing);
@@ -146,15 +149,14 @@ public sealed class MemberFileViewModelTests
     [Fact]
     public async Task MemberFile_貼り付け解析をキャンセルできる()
     {
-        var parser = new BlockingTextParser();
-        var viewModel = new MemberFileViewModel(new FakeMemberListReader(null!), parser,
+        BlockingTextParser parser = new();
+        MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), parser,
             new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs())
         {
-            SelectedInputIndex = 1,
-            PastedText = "user@example.com"
+            SelectedInputIndex = 1, PastedText = "user@example.com"
         };
 
-        var execution = viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
+        Task execution = viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
         await parser.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
         viewModel.CancelParsingCommand.Execute(null);
         await execution;
@@ -167,13 +169,13 @@ public sealed class MemberFileViewModelTests
     [Fact]
     public async Task MemberFile_ファイル読込中を表示して完了後に解除する()
     {
-        var document = new MemberListDocument(["user@example.com"], "members.csv", "C:\\members.csv",
+        MemberListDocument document = new(["user@example.com"], "members.csv", "C:\\members.csv",
             new DateTime(2026, 7, 28), "CSV", "email");
-        var reader = new BlockingMemberListReader(document);
-        var viewModel = new MemberFileViewModel(reader, new MemberTextParser(),
+        BlockingMemberListReader reader = new(document);
+        MemberFileViewModel viewModel = new(reader, new MemberTextParser(),
             new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs());
 
-        var execution = viewModel.LoadDroppedFileCommand.ExecuteAsync(document.FullPath);
+        Task execution = viewModel.LoadDroppedFileCommand.ExecuteAsync(document.FullPath);
         await reader.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
 
         Assert.True(viewModel.IsLoadingFile);
@@ -189,14 +191,14 @@ public sealed class MemberFileViewModelTests
     [Fact]
     public async Task MemberFile_ファイル読込をキャンセルすると以前の文書を維持する()
     {
-        var next = new MemberListDocument(["new@example.com"], "new.csv", "C:\\new.csv",
+        MemberListDocument next = new(["new@example.com"], "new.csv", "C:\\new.csv",
             new DateTime(2026, 7, 28), "CSV", "email");
-        var reader = new BlockingMemberListReader(next);
-        var viewModel = new MemberFileViewModel(reader, new MemberTextParser(),
+        BlockingMemberListReader reader = new(next);
+        MemberFileViewModel viewModel = new(reader, new MemberTextParser(),
             new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs());
 
         // キャンセルされた読込ではDocumentを変更しないため、読込前の状態(未選択)が維持されることを確認する
-        var execution = viewModel.LoadDroppedFileCommand.ExecuteAsync(next.FullPath);
+        Task execution = viewModel.LoadDroppedFileCommand.ExecuteAsync(next.FullPath);
         await reader.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
 
         Assert.True(viewModel.CancelLoadCommand.CanExecute(null));
@@ -213,11 +215,10 @@ public sealed class MemberFileViewModelTests
     [Fact]
     public async Task MemberFile_貼り付けエラーの行番号を表示してステータスへ通知する()
     {
-        var viewModel = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
+        MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
             new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs())
         {
-            SelectedInputIndex = 1,
-            PastedText = "user@example.com\ninvalid\tvalue"
+            SelectedInputIndex = 1, PastedText = "user@example.com\ninvalid\tvalue"
         };
         string? status = null;
         viewModel.StatusChanged += (message, isError) => status = isError ? message : null;
@@ -233,10 +234,10 @@ public sealed class MemberFileViewModelTests
     [Fact]
     public async Task MemberFile_貼り付け入力を解析し変更時に選択中の文書を無効化する()
     {
-        var viewModel = new MemberFileViewModel(
+        MemberFileViewModel viewModel = new(
             new FakeMemberListReader(null!), new MemberTextParser(),
             new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs());
-        var changedCount = 0;
+        int changedCount = 0;
         viewModel.DocumentChanged += () => changedCount++;
         viewModel.SelectedInputIndex = 1;
 
@@ -258,15 +259,12 @@ public sealed class MemberFileViewModelTests
     [Fact]
     public async Task MemberFile_ファイル読込失敗時にInputFocusRequestedを通知する()
     {
-        var reader = new SwitchingMemberListReader(
+        SwitchingMemberListReader reader = new(
             new MemberListDocument(["a@example.com"], "a.csv", "C:\\a.csv",
-                new DateTime(2026, 7, 28), "CSV", "email"))
-        {
-            Exception = new InvalidDataException("壊れたファイルです")
-        };
-        var viewModel = new MemberFileViewModel(reader, new MemberTextParser(), new FakePreferences(),
+                new DateTime(2026, 7, 28), "CSV", "email")) { Exception = new InvalidDataException("壊れたファイルです") };
+        MemberFileViewModel viewModel = new(reader, new MemberTextParser(), new FakePreferences(),
             new FakeDialogs(), new RecordingNotificationService(), new FakeTeamsGateway(), new FakeDialogs());
-        var focusRequested = false;
+        bool focusRequested = false;
         viewModel.InputFocusRequested += () => focusRequested = true;
 
         // Loadは内部でTask.Runを使うため、Execute(fire-and-forget)ではなくExecuteAsyncで完了を待つ
@@ -278,13 +276,12 @@ public sealed class MemberFileViewModelTests
     [Fact]
     public async Task MemberFile_貼り付け解析失敗時にInputFocusRequestedを通知する()
     {
-        var viewModel = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
+        MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
             new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs())
         {
-            SelectedInputIndex = 1,
-            PastedText = "user@example.com\ninvalid\tvalue"
+            SelectedInputIndex = 1, PastedText = "user@example.com\ninvalid\tvalue"
         };
-        var focusRequested = false;
+        bool focusRequested = false;
         viewModel.InputFocusRequested += () => focusRequested = true;
 
         await viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
@@ -295,7 +292,7 @@ public sealed class MemberFileViewModelTests
     [Fact]
     public async Task MemberFile_現在の一般メンバーだけをアドレス順で取り込む()
     {
-        var gateway = new FakeTeamsGateway
+        FakeTeamsGateway gateway = new()
         {
             Members =
             [
@@ -305,8 +302,8 @@ public sealed class MemberFileViewModelTests
                 new TeamMember("a2", "a-id", "A", "A@example.com", false)
             ]
         };
-        var dialogs = new FakeDialogs();
-        var viewModel = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
+        FakeDialogs dialogs = new();
+        MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
             new FakePreferences(), dialogs, dialogs, gateway, dialogs);
         viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発", null));
         viewModel.SelectedInputIndex = 1;
@@ -324,19 +321,18 @@ public sealed class MemberFileViewModelTests
     [Fact]
     public async Task MemberFile_既存入力の置き換えを拒否すると内容を維持する()
     {
-        var gateway = new FakeTeamsGateway
+        FakeTeamsGateway gateway = new()
         {
             Members = [new TeamMember("new", "new-id", "New", "new@example.com", false)]
         };
-        var dialogs = new FakeDialogs { OnConfirmReplaceMemberInput = (_, _) => false };
-        var viewModel = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
+        FakeDialogs dialogs = new() { OnConfirmReplaceMemberInput = (_, _) => false };
+        MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
             new FakePreferences(), dialogs, dialogs, gateway, dialogs)
         {
-            SelectedInputIndex = 1,
-            PastedText = "old@example.com"
+            SelectedInputIndex = 1, PastedText = "old@example.com"
         };
         await viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
-        var originalDocument = viewModel.Document;
+        MemberListDocument? originalDocument = viewModel.Document;
         viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発", null));
 
         await viewModel.Import.ImportCurrentMembersCommand.ExecuteAsync(null);
@@ -349,19 +345,18 @@ public sealed class MemberFileViewModelTests
     [Fact]
     public async Task MemberFile_一般メンバーが0人なら既存入力を維持する()
     {
-        var gateway = new FakeTeamsGateway
+        FakeTeamsGateway gateway = new()
         {
             Members = [new TeamMember("owner", "owner-id", "Owner", "owner@example.com", true)]
         };
-        var dialogs = new FakeDialogs();
-        var viewModel = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
+        FakeDialogs dialogs = new();
+        MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
             new FakePreferences(), dialogs, dialogs, gateway, dialogs)
         {
-            SelectedInputIndex = 1,
-            PastedText = "old@example.com"
+            SelectedInputIndex = 1, PastedText = "old@example.com"
         };
         await viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
-        var originalDocument = viewModel.Document;
+        MemberListDocument? originalDocument = viewModel.Document;
         viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発", null));
 
         await viewModel.Import.ImportCurrentMembersCommand.ExecuteAsync(null);
@@ -374,8 +369,8 @@ public sealed class MemberFileViewModelTests
     [Fact]
     public async Task MemberFile_現在メンバー取得のキャンセル時は既存入力を維持する()
     {
-        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var gateway = new FakeTeamsGateway
+        TaskCompletionSource started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        FakeTeamsGateway gateway = new()
         {
             OnGetMembers = async (_, cancellationToken) =>
             {
@@ -384,18 +379,17 @@ public sealed class MemberFileViewModelTests
                 return [];
             }
         };
-        var dialogs = new FakeDialogs();
-        var viewModel = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
+        FakeDialogs dialogs = new();
+        MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
             new FakePreferences(), dialogs, dialogs, gateway, dialogs)
         {
-            SelectedInputIndex = 1,
-            PastedText = "old@example.com"
+            SelectedInputIndex = 1, PastedText = "old@example.com"
         };
         await viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
-        var originalDocument = viewModel.Document;
+        MemberListDocument? originalDocument = viewModel.Document;
         viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発", null));
 
-        var importing = viewModel.Import.ImportCurrentMembersCommand.ExecuteAsync(null);
+        Task importing = viewModel.Import.ImportCurrentMembersCommand.ExecuteAsync(null);
         await started.Task;
         viewModel.Import.CancelImportCurrentMembersCommand.Execute(null);
         await importing;
@@ -408,21 +402,20 @@ public sealed class MemberFileViewModelTests
     [Fact]
     public async Task MemberFile_現在メンバー取得失敗時は既存入力を維持する()
     {
-        var gateway = new FakeTeamsGateway
+        FakeTeamsGateway gateway = new()
         {
             OnGetMembers = (_, _) => Task.FromException<IReadOnlyList<TeamMember>>(
                 new InvalidOperationException("Graph failed"))
         };
-        var dialogs = new FakeDialogs();
-        var notifications = new RecordingNotificationService();
-        var viewModel = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
+        FakeDialogs dialogs = new();
+        RecordingNotificationService notifications = new();
+        MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
             new FakePreferences(), dialogs, notifications, gateway, dialogs)
         {
-            SelectedInputIndex = 1,
-            PastedText = "old@example.com"
+            SelectedInputIndex = 1, PastedText = "old@example.com"
         };
         await viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
-        var originalDocument = viewModel.Document;
+        MemberListDocument? originalDocument = viewModel.Document;
         viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発", null));
 
         await viewModel.Import.ImportCurrentMembersCommand.ExecuteAsync(null);
@@ -435,9 +428,9 @@ public sealed class MemberFileViewModelTests
     [Fact]
     public void MemberFile_チーム未選択または入力無効時は現在メンバーを取り込めない()
     {
-        var gateway = new FakeTeamsGateway();
-        var dialogs = new FakeDialogs();
-        var viewModel = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
+        FakeTeamsGateway gateway = new();
+        FakeDialogs dialogs = new();
+        MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
             new FakePreferences(), dialogs, dialogs, gateway, dialogs);
 
         Assert.False(viewModel.Import.ImportCurrentMembersCommand.CanExecute(null));
@@ -452,8 +445,8 @@ public sealed class MemberFileViewModelTests
     [Fact]
     public async Task MemberFile_取り込み中にチームが変わると取得をキャンセルして既存入力を維持する()
     {
-        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var gateway = new FakeTeamsGateway
+        TaskCompletionSource started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        FakeTeamsGateway gateway = new()
         {
             OnGetMembers = async (_, cancellationToken) =>
             {
@@ -462,18 +455,17 @@ public sealed class MemberFileViewModelTests
                 return [];
             }
         };
-        var dialogs = new FakeDialogs();
-        var viewModel = new MemberFileViewModel(new FakeMemberListReader(null!), new MemberTextParser(),
+        FakeDialogs dialogs = new();
+        MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
             new FakePreferences(), dialogs, dialogs, gateway, dialogs)
         {
-            SelectedInputIndex = 1,
-            PastedText = "old@example.com"
+            SelectedInputIndex = 1, PastedText = "old@example.com"
         };
         await viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
-        var originalDocument = viewModel.Document;
+        MemberListDocument? originalDocument = viewModel.Document;
         viewModel.SetSelectedTeam(new TeamInfo("team-a", "チームA", null));
 
-        var importing = viewModel.Import.ImportCurrentMembersCommand.ExecuteAsync(null);
+        Task importing = viewModel.Import.ImportCurrentMembersCommand.ExecuteAsync(null);
         await started.Task;
         viewModel.SetSelectedTeam(new TeamInfo("team-b", "チームB", null));
         await importing;

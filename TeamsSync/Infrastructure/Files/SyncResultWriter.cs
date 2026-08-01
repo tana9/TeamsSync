@@ -1,16 +1,17 @@
 using System.Text;
+
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Domain.Teams;
 
 namespace TeamsSync.Infrastructure.Files;
 
 /// <summary>
-/// 同期プランと実行結果を、日時と対象チーム名をファイル名としたCSVログとして自動的に記録する。
-/// CSVインジェクション対策として外部由来の値は数式として解釈されないよう無害化する。
+///     同期プランと実行結果を、日時と対象チーム名をファイル名としたCSVログとして自動的に記録する。
+///     CSVインジェクション対策として外部由来の値は数式として解釈されないよう無害化する。
 /// </summary>
 /// <param name="logDirectory">
-/// ログの出力先フォルダー。省略時はEXEと同じフォルダー内の"logs"フォルダーを使う。
-/// テストから一時フォルダーを指定できるようにコンストラクター引数にしている。
+///     ログの出力先フォルダー。省略時はEXEと同じフォルダー内の"logs"フォルダーを使う。
+///     テストから一時フォルダーを指定できるようにコンストラクター引数にしている。
 /// </param>
 public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultWriter
 {
@@ -19,27 +20,29 @@ public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultW
     private readonly string _logDirectory = logDirectory ?? Path.Combine(AppContext.BaseDirectory, "logs");
 
     /// <summary>
-    /// 同期実行結果を、チーム名・モード・操作種別・アドレス・成否・エラーの列を持つCSVとして
-    /// "{実行日時}_{対象チーム名}.csv"のファイル名でログフォルダーへ書き出す。
+    ///     同期実行結果を、チーム名・モード・操作種別・アドレス・成否・エラーの列を持つCSVとして
+    ///     "{実行日時}_{対象チーム名}.csv"のファイル名でログフォルダーへ書き出す。
     /// </summary>
     public void WriteAutoLog(SyncPlan plan, SyncExecutionResult result)
     {
         Directory.CreateDirectory(_logDirectory);
-        var fileName = $"{DateTime.Now:yyyyMMdd_HHmmss}_{SanitizeFileName(plan.Team.DisplayName)}.csv";
-        var path = Path.Combine(_logDirectory, fileName);
-        using var writer = new StreamWriter(path, false, new UTF8Encoding(true));
+        string fileName = $"{DateTime.Now:yyyyMMdd_HHmmss}_{SanitizeFileName(plan.Team.DisplayName)}.csv";
+        string path = Path.Combine(_logDirectory, fileName);
+        using StreamWriter writer = new(path, false, new UTF8Encoding(true));
         writer.WriteLine("team,mode,operation,email,result,error");
-        foreach (var item in result.Operations)
+        foreach (SyncOperationResult item in result.Operations)
+        {
             writer.WriteLine(string.Join(",", CsvExternal(plan.Team.DisplayName), Csv(plan.Mode.ToString()),
                 Csv(item.Kind.ToString()),
                 CsvExternal(item.Email), item.Succeeded ? "成功" : "失敗", CsvExternal(item.Error ?? "")));
+        }
     }
 
     /// <summary>ファイル名として使えない文字を"_"へ置き換える。</summary>
     private static string SanitizeFileName(string value)
     {
-        var invalidChars = Path.GetInvalidFileNameChars();
-        var sanitized = string.Concat(value.Select(c => invalidChars.Contains(c) ? '_' : c)).Trim();
+        char[] invalidChars = Path.GetInvalidFileNameChars();
+        string sanitized = string.Concat(value.Select(c => invalidChars.Contains(c) ? '_' : c)).Trim();
         return sanitized.Length == 0 ? "team" : sanitized;
     }
 
@@ -58,14 +61,14 @@ public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultW
     }
 
     /// <summary>
-    /// 値の先頭が数式トリガー文字の場合、表計算ソフトに数式評価されないようシングルクォートを付与する。
+    ///     値の先頭が数式トリガー文字の場合、表計算ソフトに数式評価されないようシングルクォートを付与する。
     /// </summary>
     private static string SanitizeFormulaInjection(string value)
     {
         // 先頭の空白・タブ・改行を除いた最初の文字が=, +, -, @の場合、
         // 表計算ソフトが数式として評価してしまう。先頭にシングルクォートを付与し、
         // 文字列として扱わせる(OWASP CSV Injection Prevention Cheat Sheet準拠)。
-        var trimmed = value.TrimStart();
+        string trimmed = value.TrimStart();
         return trimmed.Length > 0 && Array.IndexOf(FormulaTriggerChars, trimmed[0]) >= 0 ? "'" + value : value;
     }
 }
