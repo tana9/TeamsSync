@@ -382,9 +382,15 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanPreview))]
     private async Task PreviewAsync()
     {
+        await TryPreviewAsync();
+    }
+
+    /// <summary>プレビューを更新し、画面へ反映できた場合にtrueを返す。</summary>
+    private async Task<bool> TryPreviewAsync()
+    {
         if (_team is null || _document is null)
         {
-            return;
+            return false;
         }
 
         SyncPlan? plan = await _busyRunner.RunAsync(async () =>
@@ -400,7 +406,10 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         if (plan is not null)
         {
             ApplyPlan(plan);
+            return true;
         }
+
+        return false;
     }
 
     private bool CanPreview()
@@ -432,7 +441,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
                 await RunSyncAndReconcileAsync();
             }, ex => new BusyOperationRunner.SpecificExceptionResult(
-                "同期を実行できませんでした。詳細はダイアログを確認してください",
+                "同期を実行できませんでした。通知の「詳細をコピー」から内容を確認できます",
                 "同期を実行できませんでした"));
         }
         finally
@@ -466,7 +475,8 @@ public partial class SyncWorkspaceViewModel : ObservableObject
                 "チームのメンバー構成がプレビュー後に変更されました。最新の差分を確認して、もう一度同期を実行してください。");
             StatusChanged?.Invoke("最新の同期差分を表示しました。内容を再確認してください", true);
             return false;
-        }, ex => new BusyOperationRunner.SpecificExceptionResult("再検証に失敗しました。詳細はダイアログを確認してください"),
+        }, ex => new BusyOperationRunner.SpecificExceptionResult(
+            "再検証に失敗しました。通知の「詳細をコピー」から内容を確認できます"),
             manageBusyState: false);
     }
 
@@ -599,8 +609,10 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanRetryRemaining))]
     private async Task RetryRemainingAsync()
     {
-        await PreviewAsync();
-        StatusChanged?.Invoke("最新状態から未反映分を再プレビューしました", false);
+        if (await TryPreviewAsync())
+        {
+            StatusChanged?.Invoke("最新状態から未反映分を再プレビューしました", false);
+        }
     }
 
     private bool CanRetryRemaining() => CanRetryResult && CanPreview();

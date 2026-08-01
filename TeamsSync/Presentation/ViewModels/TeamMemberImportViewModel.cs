@@ -98,38 +98,16 @@ public partial class TeamMemberImportViewModel : ObservableObject
         {
             StatusChanged?.Invoke($"{team.DisplayName}の現在の一般メンバーを取得しています…", false);
             IReadOnlyList<TeamMember> members = await _teamsGateway.GetTeamMembersAsync(team.Id, cts.Token);
-            List<TeamMember> importedMembers = members
-                .Where(member => !member.IsOwner && !string.IsNullOrWhiteSpace(member.Email))
-                .GroupBy(member => member.Email.Trim(), StringComparer.OrdinalIgnoreCase)
-                .Select(group => group.First())
-                .OrderBy(member => member.Email, StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            List<TeamMember> importedMembers = SelectImportableMembers(members);
             if (importedMembers.Count == 0)
             {
-                _notifications.ShowWarning("取り込める一般メンバーがいません",
-                    $"{team.DisplayName}には、メールアドレスを取得できる一般メンバーがいません。現在の入力は維持します。");
-                StatusChanged?.Invoke("現在の入力を維持しました", false);
+                NotifyNoImportableMembers(team);
                 return;
             }
 
-            if (_hasExistingInput())
+            if (!await ConfirmReplacementAsync(team, importedMembers.Count, cts.Token))
             {
-                IsAwaitingConfirmation = true;
-                bool confirmed;
-                try
-                {
-                    confirmed = await _inputConfirmation.ConfirmReplaceMemberInputAsync(
-                        team.DisplayName, importedMembers.Count, cts.Token);
-                }
-                finally
-                {
-                    IsAwaitingConfirmation = false;
-                }
-
-                if (!confirmed)
-                {
-                    return;
-                }
+                return;
             }
 
             if (_selectedTeam?.Id != team.Id)
@@ -138,12 +116,7 @@ public partial class TeamMemberImportViewModel : ObservableObject
                 return;
             }
 
-            string text = string.Join(Environment.NewLine, importedMembers.Select(FormatImportedMember));
-            MemberListDocument document = _textParser.Parse(text, cts.Token) with
-            {
-                FileName = $"Teamsから取り込み - {team.DisplayName}", SourceName = $"Teamsから取り込み: {team.DisplayName}"
-            };
-            Imported?.Invoke(team, text, document);
+            ApplyImportedMembers(team, importedMembers, cts.Token);
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
@@ -165,6 +138,55 @@ public partial class TeamMemberImportViewModel : ObservableObject
             cts.Dispose();
             NotifyCanExecuteChanged();
         }
+    }
+
+    private static List<TeamMember> SelectImportableMembers(IEnumerable<TeamMember> members)
+    {
+        return members
+            .Where(member => !member.IsOwner && !string.IsNullOrWhiteSpace(member.Email))
+            .GroupBy(member => member.Email.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .OrderBy(member => member.Email, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private void NotifyNoImportableMembers(TeamInfo team)
+    {
+        _notifications.ShowWarning("取り込める一般メンバーがいません",
+            $"{team.DisplayName}には、メールアドレスを取得できる一般メンバーがいません。現在の入力は維持します。");
+        StatusChanged?.Invoke("現在の入力を維持しました", false);
+    }
+
+    private async Task<bool> ConfirmReplacementAsync(TeamInfo team, int memberCount,
+        CancellationToken cancellationToken)
+    {
+        if (!_hasExistingInput())
+        {
+            return true;
+        }
+
+        IsAwaitingConfirmation = true;
+        try
+        {
+            return await _inputConfirmation.ConfirmReplaceMemberInputAsync(
+                team.DisplayName, memberCount, cancellationToken);
+        }
+        finally
+        {
+            IsAwaitingConfirmation = false;
+        }
+    }
+
+    private void ApplyImportedMembers(TeamInfo team, IReadOnlyList<TeamMember> members,
+        CancellationToken cancellationToken)
+    {
+        string text = string.Join(Environment.NewLine, members.Select(FormatImportedMember));
+        MemberListDocument document = _textParser.Parse(text, cancellationToken) with
+        {
+            FileName = $"Teamsから取り込み - {team.DisplayName}",
+            SourceName = $"Teamsから取り込み: {team.DisplayName}"
+        };
+        Imported?.Invoke(team, text, document);
     }
 
     private bool CanImportCurrentMembers()

@@ -26,6 +26,27 @@ public sealed class GraphHttpResilienceTests
         Assert.Contains("許可されていないURL", exception.Message);
     }
 
+    [Theory]
+    [InlineData("https://graph.microsoft.com:444/v1.0/me")]
+    [InlineData("https://user@graph.microsoft.com/v1.0/me")]
+    [InlineData("http://graph.microsoft.com/v1.0/me")]
+    public async Task GraphHttpClient_安全でないGraph絶対URLをトークン取得前に拒否する(string url)
+    {
+        GraphHttpClient client = new(new StubHttpClientFactory(), new StubAuthenticationService(),
+            NullLogger<GraphHttpClient>.Instance);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            client.GetAsync(url, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public void GraphClient_自動リダイレクトを無効化する()
+    {
+        using SocketsHttpHandler handler = DependencyInjection.CreateGraphPrimaryHandler();
+
+        Assert.False(handler.AllowAutoRedirect);
+    }
+
     [Fact]
     public async Task ReadClient_RetryAfterに従って429を再試行する()
     {

@@ -344,7 +344,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
     ///     実行までの間にメンバーシップが変化していた場合は最新のプランを返す。
     /// </summary>
     public async Task<SyncPlanRevalidation> RevalidatePlanAsync(SyncPlan preview,
-        CancellationToken cancellationToken = default, SyncMode mode = SyncMode.FullSync)
+        CancellationToken cancellationToken = default)
     {
         SyncPlan latest = await BuildPlanAsync(
             preview.Team, preview.InputAddresses, cancellationToken, preview.Mode);
@@ -370,6 +370,13 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         IProgress<SyncProgress>? progress = null, CancellationToken cancellationToken = default,
         SyncAuditContext? auditContext = null)
     {
+        ValidateExecutablePlan(plan);
+        using IDisposable? auditScope = BeginAuditScope(plan, auditContext);
+        return await ExecuteOperationsAsync(plan, progress, cancellationToken);
+    }
+
+    private static void ValidateExecutablePlan(SyncPlan plan)
+    {
         if (plan.HasErrors)
         {
             throw new InvalidOperationException("未解決ユーザーがあります。同期は実行できません。");
@@ -384,9 +391,12 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         {
             throw new InvalidOperationException("指定メンバー削除モードではメンバーを追加できません。");
         }
+    }
 
+    private IDisposable? BeginAuditScope(SyncPlan plan, SyncAuditContext? auditContext)
+    {
         SyncAuditContext context = auditContext ?? new SyncAuditContext(Guid.NewGuid(), "", "");
-        using IDisposable? auditScope = _logger.BeginScope(new Dictionary<string, object?>
+        return _logger.BeginScope(new Dictionary<string, object?>
         {
             ["ExecutionId"] = context.ExecutionId,
             ["TeamId"] = plan.Team.Id,
@@ -396,6 +406,11 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
             ["ActorObjectId"] = context.ActorObjectId,
             ["SyncMode"] = plan.Mode
         });
+    }
+
+    private async Task<SyncExecutionResult> ExecuteOperationsAsync(SyncPlan plan,
+        IProgress<SyncProgress>? progress, CancellationToken cancellationToken)
+    {
         List<SyncOperationResult> results = [];
         List<SyncChange> operations = plan.Changes.Where(x => x.Kind is ChangeKind.Add or ChangeKind.Remove).ToList();
         _logger.LogInformation(

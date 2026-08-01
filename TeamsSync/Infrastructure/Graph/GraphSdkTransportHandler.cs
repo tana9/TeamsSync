@@ -11,6 +11,7 @@ internal sealed class GraphSdkTransportHandler(HttpClient transport, ILogger<Gra
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
+        GraphEndpointValidator.Validate(request.RequestUri);
         string clientRequestId = Guid.NewGuid().ToString();
         bool expectedNotFound = request.Headers.Remove("x-teams-sync-expected-not-found");
         request.Headers.TryAddWithoutValidation("client-request-id", clientRequestId);
@@ -40,7 +41,7 @@ internal sealed class GraphSdkTransportHandler(HttpClient transport, ILogger<Gra
         }
 
         response.Dispose();
-        throw new GraphException(status, $"Graph API エラー ({(int)status}): {body}",
+        throw new GraphException(status, GraphErrorFormatter.Format(status, body, requestId, returnedClientRequestId),
             requestId, returnedClientRequestId);
     }
 

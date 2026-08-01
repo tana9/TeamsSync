@@ -53,6 +53,13 @@ public sealed class WpfNotificationService(
             return;
         }
         snackbar.IsCloseButtonEnabled = enableCloseButton;
+        snackbar.Content = BuildActionContent(message, actionText, actionIcon,
+            () => ExecuteAction(action, title));
+    }
+
+    private static Grid BuildActionContent(string message, string actionText, SymbolRegular actionIcon,
+        Action executeAction)
+    {
         Grid content = new();
         content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -63,6 +70,14 @@ public sealed class WpfNotificationService(
             VerticalAlignment = VerticalAlignment.Center
         };
         content.Children.Add(messageText);
+        TextBlock actionTextBlock = BuildActionLink(actionText, actionIcon, executeAction);
+        Grid.SetColumn(actionTextBlock, 1);
+        content.Children.Add(actionTextBlock);
+        return content;
+    }
+
+    private static TextBlock BuildActionLink(string actionText, SymbolRegular actionIcon, Action executeAction)
+    {
         TextBlock actionTextBlock = new()
         {
             Margin = new Thickness(12, 0, 0, 0),
@@ -77,22 +92,22 @@ public sealed class WpfNotificationService(
             Margin = new Thickness(0, 0, 4, 0)
         }));
         actionLink.Inlines.Add(new Run(actionText));
-        actionLink.Click += (_, _) =>
-        {
-            try
-            {
-                action();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Snackbarのアクション実行に失敗しました。Title={Title}", title);
-                ShowWarning("ファイルを開けませんでした", ex.Message);
-            }
-        };
+        actionLink.Click += (_, _) => executeAction();
         actionTextBlock.Inlines.Add(actionLink);
-        Grid.SetColumn(actionTextBlock, 1);
-        content.Children.Add(actionTextBlock);
-        snackbar.Content = content;
+        return actionTextBlock;
+    }
+
+    private void ExecuteAction(Action action, string title)
+    {
+        try
+        {
+            action();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Snackbarのアクション実行に失敗しました。Title={Title}", title);
+            ShowWarning("操作を完了できませんでした", ex.Message);
+        }
     }
 
     public Task ShowErrorAsync(string message, string title = "エラー", Action? onClosed = null)

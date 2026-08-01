@@ -100,11 +100,7 @@ public sealed class GraphHttpClient(
         Uri uri = Uri.TryCreate(relative, UriKind.Absolute, out Uri? absolute)
             ? absolute
             : new Uri(GraphBase, relative);
-        if (uri.Scheme != Uri.UriSchemeHttps ||
-            !string.Equals(uri.Host, GraphBase.Host, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidDataException("Graph APIの応答に許可されていないURLが含まれています。");
-        }
+        GraphEndpointValidator.Validate(uri);
 
         HttpRequestMessage request = new(method, uri);
         if (Uri.UnescapeDataString(uri.Query).Contains("$search=", StringComparison.OrdinalIgnoreCase))
@@ -157,7 +153,7 @@ public sealed class GraphHttpClient(
         }
 
         response.Dispose();
-        throw new GraphException(status, $"Graph API エラー ({(int)status}): {text}",
+        throw new GraphException(status, GraphErrorFormatter.Format(status, text, requestId, returnedClientRequestId),
             requestId, returnedClientRequestId);
     }
 

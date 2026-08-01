@@ -425,7 +425,7 @@ public sealed class SyncWorkspaceViewModelTests
         };
         gateway.OnRemove = (_, _, _) => Task.FromException(new InvalidOperationException("remove failed"));
         SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
-            new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
+            new FakeResultWriter(), new FakeDialogs(), new RecordingNotificationService());
         viewModel.SelectedMode = viewModel.Modes.Single(mode => mode.Mode == SyncMode.FullSync);
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
@@ -450,6 +450,15 @@ public sealed class SyncWorkspaceViewModelTests
         Assert.Equal("最新状態から未反映分を再プレビューしました", status);
         Assert.Contains(viewModel.Changes,
             change => change.Kind == ChangeKind.Remove && change.Email == "old@example.com");
+
+        gateway.OnGetMembers = (_, _) =>
+            Task.FromException<IReadOnlyList<TeamMember>>(new InvalidOperationException("preview failed"));
+        status = null;
+
+        await viewModel.RetryRemainingCommand.ExecuteAsync(null);
+
+        Assert.NotNull(status);
+        Assert.DoesNotContain("再プレビューしました", status);
     }
 
     [Fact]

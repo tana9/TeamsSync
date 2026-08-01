@@ -515,7 +515,7 @@ public sealed class GraphTeamsGatewayTests
     }
 
     [Fact]
-    public async Task GetMe_IncludesErrorBodyAndCorrelationIdsInGraphException()
+    public async Task GetMe_IncludesSafeErrorSummaryAndCorrelationIdsInGraphException()
     {
         string? sentClientRequestId = null;
         DelegateHandler handler = new((request, _) =>
@@ -523,7 +523,8 @@ public sealed class GraphTeamsGatewayTests
             sentClientRequestId = request.Headers.GetValues("client-request-id").Single();
             HttpResponseMessage response = new(HttpStatusCode.Forbidden)
             {
-                Content = new StringContent("{\"error\":{\"code\":\"Authorization_RequestDenied\"}}")
+                Content = new StringContent(
+                    "{\"error\":{\"code\":\"Authorization_RequestDenied\",\"message\":\"Access denied\",\"innerError\":{\"secret\":\"do-not-show\"}}}")
             };
             response.Headers.TryAddWithoutValidation("request-id", "graph-request-id");
             response.Headers.TryAddWithoutValidation("client-request-id", sentClientRequestId);
@@ -535,6 +536,10 @@ public sealed class GraphTeamsGatewayTests
             gateway.GetMeAsync(TestContext.Current.CancellationToken));
 
         Assert.Contains("Authorization_RequestDenied", exception.Message);
+        Assert.Contains("Access denied", exception.Message);
+        Assert.DoesNotContain("do-not-show", exception.Message);
+        Assert.Contains("graph-request-id", exception.Message);
+        Assert.Contains(sentClientRequestId!, exception.Message);
         Assert.Equal("graph-request-id", exception.RequestId);
         Assert.Equal(sentClientRequestId, exception.ClientRequestId);
     }
@@ -581,7 +586,8 @@ public sealed class GraphTeamsGatewayTests
                 "team-1", "existing-user", TestContext.Current.CancellationToken));
 
         Assert.Equal(statusCode, exception.StatusCode);
-        Assert.Contains("member write failed", exception.Message);
+        Assert.DoesNotContain("member write failed", exception.Message);
+        Assert.Contains(((int)statusCode).ToString(), exception.Message);
     }
 
     [Fact]

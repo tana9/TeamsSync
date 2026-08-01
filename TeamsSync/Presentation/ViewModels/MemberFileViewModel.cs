@@ -225,8 +225,7 @@ public partial class MemberFileViewModel : ObservableObject
             FileInfoText = $"読込に失敗しました: {Path.GetFileName(path)}";
             DocumentChanged?.Invoke();
             StatusChanged?.Invoke("ファイルを読み込めなかったため、以前の同期差分を無効化しました", true);
-            // ダイアログが閉じる前にフォーカスを移動すると裏でフォーカスが奪われてしまうため、
-            // ダイアログを閉じた後(onClosed)にInputFocusRequestedを発火する。
+            // Snackbarはフォーカスを奪わないため、通知表示後のコールバックで修正対象へ戻す。
             await _notifications.ShowErrorAsync(ex.Message, "ファイル読込エラー",
                 () => InputFocusRequested?.Invoke());
         }

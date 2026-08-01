@@ -42,11 +42,11 @@ public static class DependencyInjection
     public static IServiceCollection AddGraphHttpClients(this IServiceCollection services)
     {
         services.AddHttpClient(GraphHttpClient.ReadHttpClientName, Configure)
-            .ConfigurePrimaryHttpMessageHandler(CreatePrimaryHandler)
+            .ConfigurePrimaryHttpMessageHandler(CreateGraphPrimaryHandler)
             .AddStandardResilienceHandler(options =>
                 options.Retry.ShouldRetryAfterHeader = true);
         services.AddHttpClient(GraphHttpClient.WriteHttpClientName, Configure)
-            .ConfigurePrimaryHttpMessageHandler(CreatePrimaryHandler)
+            .ConfigurePrimaryHttpMessageHandler(CreateGraphPrimaryHandler)
             .AddStandardResilienceHandler(options =>
             {
                 options.Retry.ShouldRetryAfterHeader = true;
@@ -60,13 +60,16 @@ public static class DependencyInjection
             client.Timeout = Timeout.InfiniteTimeSpan;
         }
 
-        static HttpMessageHandler CreatePrimaryHandler()
+    }
+
+    /// <summary>認証ヘッダーを検証していない転送先へ引き継がないGraph用ハンドラーを作成する。</summary>
+    internal static SocketsHttpHandler CreateGraphPrimaryHandler()
+    {
+        return new SocketsHttpHandler
         {
-            return new SocketsHttpHandler
-            {
-                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
-                PooledConnectionIdleTimeout = TimeSpan.FromMinutes(1)
-            };
-        }
+            AllowAutoRedirect = false,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(1)
+        };
     }
 }
