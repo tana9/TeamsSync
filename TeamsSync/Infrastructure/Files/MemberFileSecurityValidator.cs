@@ -75,26 +75,39 @@ internal static class MemberFileSecurityValidator
     public static void ValidateExcelArchive(Stream stream, CancellationToken cancellationToken)
     {
         using ZipArchive archive = new(stream, ZipArchiveMode.Read);
-        if (archive.Entries.Count > MaximumArchiveEntries)
-            throw new InvalidDataException($"ExcelのZIPエントリー数は{MaximumArchiveEntries:N0}件までです。");
-        long expandedBytes = 0;
+        List<ArchiveEntryMetadata> entries = new(archive.Entries.Count);
         foreach (ZipArchiveEntry entry in archive.Entries)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (entry.Length > MaximumArchiveEntryBytes)
+            entries.Add(new ArchiveEntryMetadata(entry.Length, entry.CompressedLength));
+        }
+
+        ValidateArchiveMetadata(entries);
+    }
+
+    internal static void ValidateArchiveMetadata(IReadOnlyList<ArchiveEntryMetadata> entries)
+    {
+        if (entries.Count > MaximumArchiveEntries)
+            throw new InvalidDataException($"ExcelのZIPエントリー数は{MaximumArchiveEntries:N0}件までです。");
+        long expandedBytes = 0;
+        foreach (ArchiveEntryMetadata entry in entries)
+        {
+            if (entry.ExpandedLength > MaximumArchiveEntryBytes)
                 throw new InvalidDataException($"Excel内の単一ファイルは{MaximumArchiveEntryBytes / 1024 / 1024:N0}MBまでです。");
-            if (entry.Length > 0 && entry.CompressedLength == 0 ||
-                entry.CompressedLength > 0 && entry.Length / entry.CompressedLength > MaximumCompressionRatio)
+            if (entry.ExpandedLength > 0 && (entry.CompressedLength == 0 ||
+                entry.ExpandedLength / (double)entry.CompressedLength > MaximumCompressionRatio))
                 throw new InvalidDataException("Excel内に圧縮率が異常に高いファイルが含まれています。");
-            if (entry.Length > MaximumExpandedArchiveBytes - expandedBytes)
+            if (entry.ExpandedLength > MaximumExpandedArchiveBytes - expandedBytes)
             {
                 throw new InvalidDataException(
                     $"Excelの展開後サイズは{MaximumExpandedArchiveBytes / 1024 / 1024:N0}MBまでです。");
             }
 
-            expandedBytes += entry.Length;
+            expandedBytes += entry.ExpandedLength;
         }
     }
+
+    internal readonly record struct ArchiveEntryMetadata(long ExpandedLength, long CompressedLength);
 
     /// <summary>ファイル内容のSHA-256ハッシュを16進文字列で計算する。</summary>
     public static string ComputeSha256(Stream stream)
