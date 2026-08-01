@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Windows.Data;
 
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -25,7 +24,8 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     private readonly BusyOperationRunner _busyRunner;
     private readonly ISyncConfirmationService _confirmation;
     private readonly INotificationService _notifications;
-    private readonly ISyncResultWriter _resultWriter;
+    private readonly SyncExecutionCoordinator _executionCoordinator;
+    private readonly ISavedFileLauncher _savedFileLauncher;
     private readonly TeamSyncService _syncService;
     private readonly BulkObservableCollection<SyncChangeRowViewModel> _changes = [];
     private string? _actorObjectId;
@@ -42,12 +42,14 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
     /// <summary>コンストラクター。差分一覧の絞り込みビューと既定の選択状態を初期化する。</summary>
     public SyncWorkspaceViewModel(TeamSyncService syncService, ISyncResultWriter resultWriter,
-        ISyncConfirmationService confirmation, INotificationService notifications)
+        ISyncConfirmationService confirmation, INotificationService notifications,
+        ISavedFileLauncher? savedFileLauncher = null, SyncExecutionCoordinator? executionCoordinator = null)
     {
         _syncService = syncService;
-        _resultWriter = resultWriter;
+        _executionCoordinator = executionCoordinator ?? new SyncExecutionCoordinator(syncService, resultWriter);
         _confirmation = confirmation;
         _notifications = notifications;
+        _savedFileLauncher = savedFileLauncher ?? UnavailableSavedFileLauncher.Instance;
         _busyRunner = new BusyOperationRunner(_notifications,
             (message, isError) => StatusChanged?.Invoke(message, isError), value => IsBusy = value);
         ChangesView = CollectionViewSource.GetDefaultView(Changes);
@@ -132,6 +134,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     /// <summary>直近の同期実行結果を保存したCSVファイルのフルパス。保存失敗時は空文字。</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasResultLog))]
+    [NotifyCanExecuteChangedFor(nameof(OpenResultLogCommand))]
     public partial string ResultLogPath { get; set; } = "";
 
     /// <summary>直近の同期結果CSVが正常に保存されたかどうか。</summary>
@@ -462,7 +465,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         return await _busyRunner.RunAsync(async () =>
         {
             StatusChanged?.Invoke("実行直前のメンバー構成を確認しています…", false);
-            SyncPlanRevalidation revalidation = await _syncService.RevalidatePlanAsync(_plan!);
+            SyncPlanRevalidation revalidation = await _executionCoordinator.RevalidateAsync(_plan!);
             // ApplyPlan既定の案内文はこの後の分岐でより具体的なメッセージに置き換えるため、
             // 同じ内容をスクリーンリーダーへ二重に読み上げさせないようannounceStatus: falseで抑制する。
             ApplyPlan(revalidation.LatestPlan, false);
@@ -497,11 +500,19 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             _lastExecutedPlan = _plan;
             SyncAuditContext auditContext = new(Guid.NewGuid(),
                 _document!.FileName, _document.ContentSha256, _tenantId, _actorObjectId);
-            _lastResult = await _syncService.ExecuteAsync(
-                _plan, progress, _syncCancellation.Token, auditContext);
+            SyncExecutionOutcome outcome = await _executionCoordinator.ExecuteAsync(
+                _plan, auditContext, progress,
+                () => StatusChanged?.Invoke("Teams側の最新状態を確認しています…", false),
+                _syncCancellation.Token);
+            _lastResult = outcome.Execution;
+            ResultLogPath = outcome.ResultLogPath;
             HasSyncResult = true;
             UpdateResultCounts();
-            WriteAutoLog(auditContext.ExecutionId);
+            if (outcome.LogSaveError is not null)
+            {
+                _notifications.ShowWarning("実行ログを保存できませんでした",
+                    $"同期処理自体は完了しています。{Environment.NewLine}{outcome.LogSaveError.Message}");
+            }
 
             if (_lastResult.Cancelled)
             {
@@ -509,7 +520,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             }
             else
             {
-                await ReconcileAfterSyncAsync();
+                HandleReconciliation(outcome);
             }
 
             ExecuteSyncCommand.NotifyCanExecuteChanged();
@@ -519,24 +530,6 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             IsSyncing = false;
             _syncCancellation.Dispose();
             _syncCancellation = null;
-        }
-    }
-
-    // 保存操作を利用者に意識させず、実行のたびに監査証跡を残すため、
-    // 実行結果を確定した直後に自動でログフォルダーへ書き出す。書き出しに失敗しても
-    // 同期自体は完了しているため、警告に留めて後続の後処理は継続する。
-    /// <summary>直近の同期実行結果をユーザー別のログフォルダーへ自動的に記録する。</summary>
-    private void WriteAutoLog(Guid executionId)
-    {
-        try
-        {
-            ResultLogPath = _resultWriter.WriteAutoLog(_lastExecutedPlan!, _lastResult!, executionId);
-        }
-        catch (Exception ex)
-        {
-            ResultLogPath = "";
-            _notifications.ShowWarning("実行ログを保存できませんでした",
-                $"同期処理自体は完了しています。{Environment.NewLine}{ex.Message}");
         }
     }
 
@@ -569,12 +562,11 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     ///     同期完了後にTeams側の最終状態を再取得し、未反映分を新しい差分として表示する。
     ///     再取得に失敗しても既に完了した実行結果は保持したまま、差分だけを無効化する。
     /// </summary>
-    private async Task ReconcileAfterSyncAsync()
+    private void HandleReconciliation(SyncExecutionOutcome outcome)
     {
-        try
+        if (outcome.ReconciliationError is null && outcome.RemainingPlan is not null)
         {
-            StatusChanged?.Invoke("Teams側の最新状態を確認しています…", false);
-            SyncPlan remaining = await _syncService.ReconcileAsync(_lastExecutedPlan!);
+            SyncPlan remaining = outcome.RemainingPlan;
             // ApplyPlan既定の案内文はこの直後により具体的な完了メッセージへ置き換えるため、
             // 同じ内容をスクリーンリーダーへ二重に読み上げさせないようannounceStatus: falseで抑制する。
             ApplyPlan(remaining, false);
@@ -594,15 +586,14 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             StatusChanged?.Invoke(remainingCount > 0
                 ? $"最終状態を確認しました。未反映 {remainingCount}件を再実行できます"
                 : "同期完了: Teams側の状態を確認済みです", remainingCount > 0);
+            return;
         }
-        catch (Exception ex)
-        {
-            InvalidatePlan(false);
-            ResultRemainingCount = -1;
-            ShowResultNotification(true, "最終状態を確認できませんでした",
-                $"操作結果は保存済みです。差分を再確認してください。{Environment.NewLine}{ex.Message}");
-            StatusChanged?.Invoke("最終状態を確認できませんでした。差分を再確認してください", true);
-        }
+
+        InvalidatePlan(false);
+        ResultRemainingCount = -1;
+        ShowResultNotification(true, "最終状態を確認できませんでした",
+            $"操作結果は保存済みです。差分を再確認してください。{Environment.NewLine}{outcome.ReconciliationError?.Message}");
+        StatusChanged?.Invoke("最終状態を確認できませんでした。差分を再確認してください", true);
     }
 
     /// <summary>部分失敗やキャンセル後に、Graphの最新状態から未反映分を再計画する。</summary>
@@ -628,7 +619,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         }
 
         string messageWithLog = $"{message} 実行ログを保存しました。";
-        Action openLog = () => Process.Start(new ProcessStartInfo(ResultLogPath) { UseShellExecute = true });
+        Action openLog = () => OpenResultLogCommand.Execute(null);
         if (warning)
         {
             _notifications.ShowWarningWithAction(title, messageWithLog, "同期結果CSVを開く", openLog);
@@ -636,6 +627,20 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         else
         {
             _notifications.ShowSuccessWithAction(title, messageWithLog, "同期結果CSVを開く", openLog);
+        }
+    }
+
+    /// <summary>保存済みの同期結果CSVを既定のアプリケーションで開く。</summary>
+    [RelayCommand(CanExecute = nameof(HasResultLog))]
+    private void OpenResultLog()
+    {
+        try
+        {
+            _savedFileLauncher.Open(ResultLogPath);
+        }
+        catch (Exception ex)
+        {
+            _notifications.ShowWarning("同期結果CSVを開けませんでした", ex.Message);
         }
     }
 
@@ -811,5 +816,16 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         ExecuteSyncCommand.NotifyCanExecuteChanged();
         CancelCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(SyncUnavailableReason));
+    }
+}
+
+/// <summary>テストなどでファイル起動を使用しない場合の安全な既定実装。</summary>
+file sealed class UnavailableSavedFileLauncher : ISavedFileLauncher
+{
+    public static UnavailableSavedFileLauncher Instance { get; } = new();
+
+    public void Open(string path)
+    {
+        throw new InvalidOperationException("保存済みファイルを開くサービスが構成されていません。");
     }
 }

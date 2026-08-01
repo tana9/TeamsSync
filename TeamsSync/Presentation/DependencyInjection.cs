@@ -26,6 +26,7 @@ public static class DependencyInjection
         services.AddSingleton<IMemberInputConfirmationService, WpfMemberInputConfirmationService>();
         services.AddSingleton<INotificationService, WpfNotificationService>();
         services.AddSingleton<IManualService, WpfManualService>();
+        services.AddSingleton<ISavedFileLauncher, WpfSavedFileLauncher>();
         services.AddSingleton<TeamSelectionViewModel>();
         services.AddSingleton<MemberFileViewModel>();
         services.AddSingleton<SyncWorkspaceViewModel>();

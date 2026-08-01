@@ -68,3 +68,10 @@ public interface IManualService
     /// <summary>埋め込みマニュアルを既定のブラウザーで開く。</summary>
     void OpenManual();
 }
+
+/// <summary>保存済みファイルをOSで関連付けられたアプリケーションから開く。</summary>
+public interface ISavedFileLauncher
+{
+    /// <summary>指定したファイルを既定のアプリケーションで開く。</summary>
+    void Open(string path);
+}

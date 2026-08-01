@@ -101,8 +101,7 @@
                 <TextBlock Margin="22,4,0,0" FontSize="12"
                            Visibility="{Binding SyncWorkspace.HasResultLog, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Run Text="実行ログを保存しました: " />
-                    <Hyperlink NavigateUri="{Binding SyncWorkspace.ResultLogPath}"
-                               RequestNavigate="OpenResultLog"
+                    <Hyperlink Command="{Binding SyncWorkspace.OpenResultLogCommand}"
                                ToolTip="同期結果CSVを既定のアプリで開く">
                         <Run Text="同期結果CSVを開く" />
                     </Hyperlink>

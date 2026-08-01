@@ -14,8 +14,9 @@ public sealed class SyncWorkspaceViewModelTests
             new DirectoryUser("new-user", "New", "new@example.com", "new@example.com");
         FakeResultWriter writer = new() { ResultPath = @"C:\Logs\20260801_result.csv" };
         RecordingNotificationService notifications = new();
+        RecordingSavedFileLauncher launcher = new();
         SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway), writer,
-            new FakeDialogs(), notifications);
+            new FakeDialogs(), notifications, launcher);
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new@example.com"], "members.csv", @"C:\members.csv",
                 new DateTime(2026, 8, 1), "CSV", "email"), true);
@@ -27,6 +28,31 @@ public sealed class SyncWorkspaceViewModelTests
         Assert.Equal(writer.ResultPath, viewModel.ResultLogPath);
         Assert.Equal("同期完了", notifications.SuccessTitle);
         Assert.Contains("実行ログを保存しました", notifications.SuccessMessage);
+        Assert.NotNull(notifications.Action);
+
+        notifications.Action();
+
+        Assert.Equal(writer.ResultPath, launcher.OpenedPath);
+    }
+
+    [Fact]
+    public void SyncWorkspace_同期結果CSVを開けない場合は警告して例外を伝播しない()
+    {
+        RecordingNotificationService notifications = new();
+        RecordingSavedFileLauncher launcher = new()
+        {
+            Exception = new InvalidOperationException("関連付けがありません")
+        };
+        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(new FakeTeamsGateway()),
+            new FakeResultWriter(), new FakeDialogs(), notifications, launcher)
+        {
+            ResultLogPath = @"C:\Logs\result.csv"
+        };
+
+        viewModel.OpenResultLogCommand.Execute(null);
+
+        Assert.Equal("同期結果CSVを開けませんでした", notifications.WarningTitle);
+        Assert.Equal("関連付けがありません", notifications.WarningMessage);
     }
 
     [Fact]

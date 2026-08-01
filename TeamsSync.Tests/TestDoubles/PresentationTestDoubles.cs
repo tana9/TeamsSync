@@ -92,6 +92,7 @@ internal sealed class ThrowingManualService : IManualService
 
 internal sealed class RecordingNotificationService : INotificationService
 {
+    public Action? Action { get; private set; }
     public string? ErrorMessage { get; private set; }
     public string? ErrorTitle { get; private set; }
     public string? SuccessMessage { get; private set; }
@@ -109,6 +110,18 @@ internal sealed class RecordingNotificationService : INotificationService
     {
         WarningTitle = title;
         WarningMessage = message;
+    }
+
+    public void ShowSuccessWithAction(string title, string message, string actionText, Action action)
+    {
+        ShowSuccess(title, message);
+        Action = action;
+    }
+
+    public void ShowWarningWithAction(string title, string message, string actionText, Action action)
+    {
+        ShowWarning(title, message);
+        Action = action;
     }
 
     public Task ShowErrorAsync(string message, string title = "エラー", Action? onClosed = null)
@@ -203,6 +216,19 @@ internal sealed class FakeResultWriter : ISyncResultWriter
         }
 
         return ResultPath;
+    }
+
+}
+
+internal sealed class RecordingSavedFileLauncher : ISavedFileLauncher
+{
+    public string? OpenedPath { get; private set; }
+    public Exception? Exception { get; set; }
+
+    public void Open(string path)
+    {
+        if (Exception is not null) throw Exception;
+        OpenedPath = path;
     }
 }
 
