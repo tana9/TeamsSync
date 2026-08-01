@@ -22,6 +22,7 @@ namespace TeamsSync.Presentation.ViewModels;
 /// </summary>
 public partial class SyncWorkspaceViewModel : ObservableObject
 {
+    private const int MaxVisibleFailedResults = 100;
     private readonly BusyOperationRunner _busyRunner;
     private readonly ISyncConfirmationService _confirmation;
     private readonly INotificationService _notifications;
@@ -198,6 +199,16 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
     /// <summary>失敗した操作が1件以上あるかどうか。</summary>
     public bool HasFailedResults => FailedResults.Count > 0;
+
+    /// <summary>画面では省略し、保存済みCSVで確認できる失敗件数。</summary>
+    public int HiddenFailedResultCount => Math.Max(0, ResultFailureCount - FailedResults.Count);
+
+    /// <summary>画面で省略した失敗結果があるかどうか。</summary>
+    public bool HasHiddenFailedResults => HiddenFailedResultCount > 0;
+
+    /// <summary>失敗結果を省略表示していることを案内するテキスト。</summary>
+    public string HiddenFailedResultsText =>
+        $"ほか {HiddenFailedResultCount}件。すべての結果は同期結果CSVで確認できます。";
 
     /// <summary>失敗・キャンセル・未反映があり、最新状態から再プレビューできるかどうか。</summary>
     public bool CanRetryResult => HasSyncResult &&
@@ -712,6 +723,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             ResultRemainingCount = -1;
             FailedResults.Clear();
             OnPropertyChanged(nameof(HasFailedResults));
+            NotifyFailedResultVisibility();
         }
 
         ExecuteSyncCommand.NotifyCanExecuteChanged();
@@ -725,12 +737,21 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         ResultFailureCount = _lastResult?.FailureCount ?? 0;
         ResultCancelled = _lastResult?.Cancelled ?? false;
         FailedResults.Clear();
-        foreach (SyncResultRowViewModel row in SyncWorkspaceTextFormatter.BuildFailedRows(_lastResult))
+        foreach (SyncResultRowViewModel row in SyncWorkspaceTextFormatter.BuildFailedRows(
+                     _lastResult, MaxVisibleFailedResults))
         {
             FailedResults.Add(row);
         }
 
         OnPropertyChanged(nameof(HasFailedResults));
+        NotifyFailedResultVisibility();
+    }
+
+    private void NotifyFailedResultVisibility()
+    {
+        OnPropertyChanged(nameof(HiddenFailedResultCount));
+        OnPropertyChanged(nameof(HasHiddenFailedResults));
+        OnPropertyChanged(nameof(HiddenFailedResultsText));
     }
 
     // announceStatus: falseの呼び出し元は、この直後に自分でより具体的な状況(再検証結果・完了結果など)を

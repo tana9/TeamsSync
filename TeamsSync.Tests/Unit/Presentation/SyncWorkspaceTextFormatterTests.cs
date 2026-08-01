@@ -365,4 +365,20 @@ public sealed class SyncWorkspaceTextFormatterTests
         Assert.Equal("削除", rows[1].KindLabel);
         Assert.Equal("削除に失敗しました", rows[1].Error);
     }
+
+    [Fact]
+    public void BuildFailedRows_表示上限を超える失敗行を生成しない()
+    {
+        SyncExecutionResult result = new(Enumerable.Range(1, 150)
+            .Select(index => new SyncOperationResult(
+                ChangeKind.Add, $"user{index}@example.com", false, "追加に失敗しました"))
+            .ToList(), false);
+
+        IReadOnlyList<SyncResultRowViewModel> rows =
+            SyncWorkspaceTextFormatter.BuildFailedRows(result, 100);
+
+        Assert.Equal(100, rows.Count);
+        Assert.Equal("user1@example.com", rows[0].Email);
+        Assert.Equal("user100@example.com", rows[^1].Email);
+    }
 }

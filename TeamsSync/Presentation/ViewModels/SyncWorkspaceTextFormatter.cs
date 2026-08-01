@@ -159,10 +159,13 @@ public static class SyncWorkspaceTextFormatter
     }
 
     /// <summary>実行結果から失敗した操作だけを行モデルへ変換する。</summary>
-    public static IReadOnlyList<SyncResultRowViewModel> BuildFailedRows(SyncExecutionResult? result)
+    public static IReadOnlyList<SyncResultRowViewModel> BuildFailedRows(SyncExecutionResult? result,
+        int maxCount = int.MaxValue)
     {
+        ArgumentOutOfRangeException.ThrowIfNegative(maxCount);
         return (result?.Operations ?? [])
             .Where(operation => !operation.Succeeded)
+            .Take(maxCount)
             .Select(operation => new SyncResultRowViewModel(operation))
             .ToList();
     }
