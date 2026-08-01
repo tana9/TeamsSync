@@ -36,8 +36,8 @@ internal sealed class GraphSdkTransportHandler(HttpClient transport, ILogger<Gra
         else
         {
             logger.LogError(
-                "Graph API呼び出しに失敗しました。StatusCode={StatusCode}, RequestId={RequestId}, ClientRequestId={ClientRequestId}",
-                status, requestId, returnedClientRequestId);
+                "Graph API呼び出しに失敗しました。StatusCode={StatusCode}, RequestId={RequestId}, ClientRequestId={ClientRequestId}, Diagnostic={Diagnostic}",
+                status, requestId, returnedClientRequestId, GraphErrorFormatter.DiagnosticSummary(body));
         }
 
         response.Dispose();

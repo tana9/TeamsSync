@@ -6,6 +6,7 @@ namespace TeamsSync.Infrastructure.Graph;
 /// <summary>Graphのエラー応答から、ユーザーへ安全に提示できる診断情報だけを抽出する。</summary>
 internal static class GraphErrorFormatter
 {
+    private const int MaximumDiagnosticMessageLength = 512;
     public static string Format(HttpStatusCode status, string responseBody,
         string? requestId, string clientRequestId)
     {
@@ -16,6 +17,15 @@ internal static class GraphErrorFormatter
         if (!string.IsNullOrWhiteSpace(requestId)) details.Add($"request-id: {requestId}");
         details.Add($"client-request-id: {clientRequestId}");
         return string.Join(Environment.NewLine, details);
+    }
+
+    public static string DiagnosticSummary(string responseBody)
+    {
+        (string? code, string? message) = Parse(responseBody);
+        string safeMessage = string.IsNullOrWhiteSpace(message)
+            ? "構造化されたGraphエラー詳細なし"
+            : message[..Math.Min(message.Length, MaximumDiagnosticMessageLength)];
+        return $"Code={code ?? "unknown"}, Message={safeMessage}, BodyLength={responseBody.Length}";
     }
 
     private static (string? Code, string? Message) Parse(string responseBody)
