@@ -65,6 +65,7 @@ public sealed class DemoTeamsGateway : ITeamsGateway
     public string? FailingUserId { get; set; }
     public TimeSpan OperationDelay { get; set; }
     public string? ThrottledIdentifier { get; set; }
+    public string? FailingSearchIdentifier { get; set; }
     private bool _throttleHandled;
 
     public Task<(string Id, string DisplayName, string UserPrincipalName)> GetMeAsync(
@@ -94,6 +95,12 @@ public sealed class DemoTeamsGateway : ITeamsGateway
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (string.Equals(FailingSearchIdentifier, identifier, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "Harnessで再現したGraph検索エラーです。詳細コピーと閉じるボタンを確認してください。");
+        }
+
         if (!_throttleHandled && string.Equals(ThrottledIdentifier, identifier, StringComparison.OrdinalIgnoreCase))
         {
             _throttleHandled = true;
@@ -171,6 +178,7 @@ public sealed class DemoTeamsGateway : ITeamsGateway
             FailingUserId = null;
             OperationDelay = TimeSpan.Zero;
             ThrottledIdentifier = null;
+            FailingSearchIdentifier = null;
             _throttleHandled = false;
         }
     }

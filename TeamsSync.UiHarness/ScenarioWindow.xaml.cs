@@ -34,6 +34,9 @@ public partial class ScenarioWindow
                 "同姓 同名", SyncMode.AddOnly),
             new DemoScenario("429再試行", "Graphのスロットリング待機後に検索が成功するケースを疑似再現します。", "demo-team",
                 "new.member@example.com", SyncMode.AddOnly, false, null, false, "new.member@example.com"),
+            new DemoScenario("エラー通知", "閉じるまで残るSnackbar、詳細コピー、閉じるボタンを確認します。", "demo-team",
+                "error.notice@example.com", SyncMode.AddOnly, false, null, false, null,
+                "error.notice@example.com"),
             new DemoScenario("長い表示内容", "長いチーム名・表示名を使って折り返しとDPI拡大を確認します。", "long-team",
                 "とても長い表示名を持つレイアウト確認用ユーザー <long.user@example.com>\nsecond.new@example.com", SyncMode.AddOnly),
             new DemoScenario("同期成功結果", "追加処理を実行し、成功サマリーと保存ボタンを表示します。", "demo-team",
@@ -67,6 +70,7 @@ public partial class ScenarioWindow
             _gateway.FailingUserId = scenario.FailingUserId;
             _gateway.OperationDelay = scenario.CancelDuringExecution ? TimeSpan.FromSeconds(2) : TimeSpan.Zero;
             _gateway.ThrottledIdentifier = scenario.ThrottledIdentifier;
+            _gateway.FailingSearchIdentifier = scenario.FailingSearchIdentifier;
             _viewModel.TeamSelection.SelectedTeam = _viewModel.TeamSelection.Teams
                 .Single(team => team.Id == scenario.TeamId);
             _viewModel.SyncWorkspace.SelectedMode = _viewModel.SyncWorkspace.Modes
@@ -125,4 +129,5 @@ public sealed record DemoScenario(
     bool Execute = false,
     string? FailingUserId = null,
     bool CancelDuringExecution = false,
-    string? ThrottledIdentifier = null);
+    string? ThrottledIdentifier = null,
+    string? FailingSearchIdentifier = null);

@@ -51,7 +51,7 @@ TeamsSync の今後の改善項目。メンバー削除を伴うアプリケー�
 - [x] 差分確認後は差分の集計または最初のエラーへ、入力失敗後は修正対象へフォーカスを移す（`SyncWorkspaceViewModel.DiffFocusRequested`と`MemberFileViewModel.InputFocusRequested`イベントを追加し、`SyncDiffCardContent.xaml.cs`/`MemberListInputView.xaml.cs`で購読してフォーカス移動）
 - [x] 同期モード変更による差分クリア、再検証による差分更新、同期完了・部分失敗をスクリーンリーダーへ一度だけ明確に通知する（既存の`StatusText`(`AutomationProperties.LiveSetting="Polite"`)を維持しつつ、`ApplyPlan`に`announceStatus`引数を追加し、再検証・再取得後に既定の案内文と具体的な結果メッセージが二重に読み上げられないよう修正）
 - [x] 読込中オーバーレイ表示時に背後のDataGridへキーボードフォーカスが入らないようにする（`SyncDiffCardContent.xaml`のDataGridに`IsBusy`時`IsEnabled=False`とするスタイルトリガーを追加）
-- [x] ダイアログを閉じた後、操作元のボタンへフォーカスが戻ることを確認する（`WpfUserInteractionService`に`ShowRestoringFocusAsync`を追加し、表示前のフォーカス要素を記録して閉じた後に復元。最終確認・エラーダイアログの両方に適用。実機Narrator操作での見た目確認は未実施）
+- [x] ダイアログを閉じた後、操作元のボタンへフォーカスが戻ることを確認する（`ConfirmationDialogHelper.ShowRestoringFocusAsync`で最終確認と続行不能な重大エラーダイアログに適用。通常エラーはフォーカスを奪わない持続型Snackbarへ移行。実機Narrator操作での見た目確認は未実施）
 - [ ] キーボードのみ、Narrator、200%表示を組み合わせた一連の操作テストをリリース確認へ追加する（手動確認項目のため未実施。ACCESSIBILITY.mdの既存チェックリストで代替）
 
 完了条件: マウスを使わない利用者が、動的更新で現在位置を失わず、処理結果と修正箇所へ移動できる。

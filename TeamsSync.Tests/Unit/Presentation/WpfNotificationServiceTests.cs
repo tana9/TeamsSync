@@ -7,6 +7,18 @@ namespace TeamsSync.Tests.Unit.Presentation;
 public sealed class WpfNotificationServiceTests
 {
     [Fact]
+    public void InvokeCallbackSafely_終了処理の例外を記録して呼び出し元へ伝播しない()
+    {
+        RecordingLogger logger = new();
+
+        WpfNotificationService.InvokeCallbackSafely(
+            () => throw new InvalidOperationException("callback failed"), "エラー", logger);
+
+        Exception exception = Assert.Single(logger.Exceptions);
+        Assert.Equal("callback failed", exception.Message);
+    }
+
+    [Fact]
     public async Task ShowErrorSafelyAsync_表示と終了処理の例外を記録して呼び出し元へ伝播しない()
     {
         RecordingLogger logger = new();

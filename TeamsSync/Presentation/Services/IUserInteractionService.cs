@@ -52,11 +52,14 @@ public interface INotificationService
         ShowWarning(title, message);
     }
 
-    // onClosed: エラーダイアログを閉じた後に実行するコールバック(省略可)。
-    // ShowErrorはダイアログの表示完了を待たずに呼び出し元へ戻るため、ダイアログが閉じてから
-    // フォーカスを移動させたい場合などはここで受け取る。
-    /// <summary>エラーダイアログを表示する。</summary>
+    /// <summary>復旧可能なエラーを、詳細コピー操作付きの持続表示通知として表示する。</summary>
     Task ShowErrorAsync(string message, string title = "エラー", Action? onClosed = null);
+
+    /// <summary>操作を続行できない重大なエラーを、閉じるまで残るダイアログとして表示する。</summary>
+    Task ShowCriticalErrorAsync(string message, string title = "エラー", Action? onClosed = null)
+    {
+        return ShowErrorAsync(message, title, onClosed);
+    }
 }
 
 /// <summary>利用者向けマニュアルを表示する。</summary>

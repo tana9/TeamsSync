@@ -20,6 +20,7 @@ public sealed class WpfNotificationService(
     IContentDialogService contentDialogs,
     ILogger<WpfNotificationService> logger) : INotificationService
 {
+    private static readonly TimeSpan PersistentErrorTimeout = TimeSpan.FromDays(1);
     public void ShowSuccess(string title, string message)
     {
         snackbars.Show(title, message, ControlAppearance.Success, TimeSpan.FromSeconds(5));
@@ -32,16 +33,18 @@ public sealed class WpfNotificationService(
 
     public void ShowSuccessWithAction(string title, string message, string actionText, Action action)
     {
-        ShowWithAction(title, message, actionText, action, ControlAppearance.Success, TimeSpan.FromSeconds(8));
+        ShowWithAction(title, message, actionText, action, ControlAppearance.Success, TimeSpan.FromSeconds(8),
+            SymbolRegular.DocumentCsv24);
     }
 
     public void ShowWarningWithAction(string title, string message, string actionText, Action action)
     {
-        ShowWithAction(title, message, actionText, action, ControlAppearance.Caution, TimeSpan.FromSeconds(10));
+        ShowWithAction(title, message, actionText, action, ControlAppearance.Caution, TimeSpan.FromSeconds(10),
+            SymbolRegular.DocumentCsv24);
     }
 
     private void ShowWithAction(string title, string message, string actionText, Action action,
-        ControlAppearance appearance, TimeSpan timeout)
+        ControlAppearance appearance, TimeSpan timeout, SymbolRegular actionIcon, bool enableCloseButton = false)
     {
         snackbars.Show(title, message, appearance, timeout);
         Snackbar? snackbar = snackbars.GetSnackbarPresenter()?.Content;
@@ -49,6 +52,7 @@ public sealed class WpfNotificationService(
         {
             return;
         }
+        snackbar.IsCloseButtonEnabled = enableCloseButton;
         Grid content = new();
         content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -68,7 +72,7 @@ public sealed class WpfNotificationService(
         AutomationProperties.SetName(actionLink, actionText);
         actionLink.Inlines.Add(new InlineUIContainer(new SymbolIcon
         {
-            Symbol = SymbolRegular.DocumentCsv24,
+            Symbol = actionIcon,
             FontSize = 16,
             Margin = new Thickness(0, 0, 4, 0)
         }));
@@ -92,6 +96,14 @@ public sealed class WpfNotificationService(
     }
 
     public Task ShowErrorAsync(string message, string title = "エラー", Action? onClosed = null)
+    {
+        ShowWithAction(title, message, "詳細をコピー", () => Clipboard.SetText(message),
+            ControlAppearance.Danger, PersistentErrorTimeout, SymbolRegular.Copy24, true);
+        InvokeCallbackSafely(onClosed, title, logger);
+        return Task.CompletedTask;
+    }
+
+    public Task ShowCriticalErrorAsync(string message, string title = "エラー", Action? onClosed = null)
     {
         return ShowErrorSafelyAsync(async () =>
         {
@@ -128,6 +140,12 @@ public sealed class WpfNotificationService(
                 new ContentDialog { Title = titlePanel, Content = textBox, CloseButtonText = "閉じる" },
                 CancellationToken.None);
         }, title, onClosed, logger);
+    }
+
+    internal static void InvokeCallbackSafely(Action? callback, string title, ILogger logger)
+    {
+        try { callback?.Invoke(); }
+        catch (Exception ex) { logger.LogError(ex, "エラー通知後の処理に失敗しました。Title={Title}", title); }
     }
 
     internal static async Task ShowErrorSafelyAsync(Func<Task> showDialog, string title,

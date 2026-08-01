@@ -156,7 +156,7 @@ public partial class SignInViewModel : ObservableObject
         return ex is AuthenticationConfigurationException
             ? new BusyOperationRunner.SpecificExceptionResult(
                 "サインインできませんでした。Entra IDのアプリ登録設定を管理者に確認してください",
-                "Entra IDのアプリ登録設定を確認してください")
+                "Entra IDのアプリ登録設定を確認してください", true)
             : null;
     }
 }

@@ -11,11 +11,11 @@ public sealed class BusyOperationRunner(
     Action<string, bool> reportStatus,
     Action<bool>? setBusy = null)
 {
-    private const string DefaultErrorMessage = "エラーが発生しました。詳細はダイアログを確認してください";
+    private const string DefaultErrorMessage = "エラーが発生しました。通知の「詳細をコピー」から内容を確認できます";
     private const string CancellationMessage = "処理を中止しました";
 
     /// <summary>特定の例外を処理した際、ViewModelへ報告するステータスとダイアログのタイトルを保持する。</summary>
-    public record SpecificExceptionResult(string Status, string? DialogTitle = null);
+    public record SpecificExceptionResult(string Status, string? DialogTitle = null, bool IsCritical = false);
 
     /// <summary>
     ///     戻り値のない処理を実行し、成功したかどうかを返す。
@@ -106,7 +106,14 @@ public sealed class BusyOperationRunner(
         if (specific is not null)
         {
             reportStatus(specific.Status, true);
-            await notifications.ShowErrorAsync(ex.Message, specific.DialogTitle ?? "エラー");
+            if (specific.IsCritical)
+            {
+                await notifications.ShowCriticalErrorAsync(ex.Message, specific.DialogTitle ?? "エラー");
+            }
+            else
+            {
+                await notifications.ShowErrorAsync(ex.Message, specific.DialogTitle ?? "エラー");
+            }
         }
         else
         {
