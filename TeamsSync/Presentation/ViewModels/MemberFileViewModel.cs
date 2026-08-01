@@ -42,10 +42,14 @@ public partial class MemberFileViewModel : ObservableObject
     [ObservableProperty] public partial bool IsPasteError { get; set; }
 
     /// <summary>テキスト貼り付け入力欄の内容。</summary>
-    [ObservableProperty] public partial string PastedText { get; set; } = "";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUnappliedPastedText))]
+    public partial string PastedText { get; set; } = "";
 
     /// <summary>選択中の入力方法(0=ファイル、1=テキスト貼り付け)。</summary>
-    [ObservableProperty] public partial int SelectedInputIndex { get; set; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUnappliedPastedText))]
+    public partial int SelectedInputIndex { get; set; }
 
     /// <summary>コンストラクター。</summary>
     public MemberFileViewModel(IMemberListReader reader, IMemberTextParser textParser,
@@ -62,6 +66,7 @@ public partial class MemberFileViewModel : ObservableObject
             () => Document is not null || _fileDocument is not null || !string.IsNullOrWhiteSpace(PastedText));
         Import.Imported += OnMembersImported;
         Import.StatusChanged += (message, isError) => StatusChanged?.Invoke(message, isError);
+        DocumentChanged += () => OnPropertyChanged(nameof(HasUnappliedPastedText));
     }
 
     /// <summary>Teamsからの現在メンバー取り込みを管理するViewModel。</summary>
@@ -69,6 +74,10 @@ public partial class MemberFileViewModel : ObservableObject
 
     /// <summary>現在有効なメンバーリスト文書(未確定の場合はnull)。</summary>
     public MemberListDocument? Document { get; private set; }
+
+    /// <summary>テキスト貼り付け入力に、まだ「入力を反映」していない変更があるかどうか。</summary>
+    public bool HasUnappliedPastedText =>
+        SelectedInputIndex == 1 && Document is null && !string.IsNullOrWhiteSpace(PastedText);
 
     /// <summary><see cref="Document"/>が変化したときに発行される。</summary>
     public event Action? DocumentChanged;
