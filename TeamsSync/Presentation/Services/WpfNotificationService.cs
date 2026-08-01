@@ -47,7 +47,7 @@ public sealed class WpfNotificationService(
                 Text = title, FontWeight = FontWeights.SemiBold, FontSize = 20,
                 VerticalAlignment = VerticalAlignment.Center
             });
-            await WpfSyncConfirmationService.ShowRestoringFocusAsync(contentDialogs, new ContentDialog
+            await ConfirmationDialogHelper.ShowRestoringFocusAsync(contentDialogs, new ContentDialog
             {
                 Title = titlePanel, Content = textBox, CloseButtonText = "閉じる"
             }, CancellationToken.None);

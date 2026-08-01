@@ -30,7 +30,7 @@ public partial class App : System.Windows.Application
             .AddSingleton<ISyncResultWriter, SyncResultWriter>()
             .AddSingleton<IUserPreferences, DemoUserPreferences>()
             .AddPresentation();
-        // IMemberInputConfirmationServiceはAddPresentation()が登録する本番のContentDialog実装(WpfSyncConfirmationService)を
+        // IMemberInputConfirmationServiceはAddPresentation()が登録する本番のContentDialog実装(WpfMemberInputConfirmationService)を
         // そのまま使う。シナリオ自動実行(ScenarioWindow)がダイアログ待ちで止まらないよう、
         // ISyncConfirmationServiceのみデモ用の自動承認スタブへ差し替える。
         builder.Services
