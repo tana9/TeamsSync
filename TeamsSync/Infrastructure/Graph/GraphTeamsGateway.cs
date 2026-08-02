@@ -19,6 +19,13 @@ namespace TeamsSync.Infrastructure.Graph;
 /// </summary>
 public sealed class GraphTeamsGateway : ITeamsGateway
 {
+    // GET /teams/{team-id}/members の公式スロットリング上限は「60 rps per app per tenant」
+    // (リソース単位の追加上限は記載なし)。$batch内の各サブリクエストは個別に上限判定されるため
+    // (https://learn.microsoft.com/en-us/graph/throttling)、並列3 × バッチ20件 = 最大60件の
+    // メンバー取得サブリクエストが短時間に発行され得るこの構成は、既にテナント上限のすぐ下を
+    // 突いている。安易に増やすと429が増える可能性が高いため、上げる場合は実テナントでの
+    // 429発生率の計測が必須(TODO.md「所有チーム検索を高速化する」参照)。
+    // https://github.com/microsoftgraph/microsoft-graph-docs-contrib/blob/main/includes/throttling-teams.md
     private const int OwnedTeamLookupConcurrency = 3;
     private const int OwnedTeamBatchSize = 20;
     private readonly TeamMembersBatchFetcher _batchFetcher;
@@ -161,25 +168,41 @@ public sealed class GraphTeamsGateway : ITeamsGateway
         foreach (int index in batch)
         {
             TeamInfo team = candidates[index];
-            List<TeamMember> members = membersByIndex.TryGetValue(index, out List<TeamMember>? resolved)
+            List<TeamMember>? members = membersByIndex.TryGetValue(index, out List<TeamMember>? resolved)
                 ? resolved
-                : await FetchMembersIndividuallyAsync(team, cancellationToken);
+                : await TryFetchMembersIndividuallyAsync(team, cancellationToken);
 
-            bool isOwner = members.Any(member =>
+            // 個別取得も失敗した場合(members=null)は、そのチームだけ所有者判定を諦めて
+            // false扱いにする(一覧から除外)。動的Microsoft 365グループなどメンバーを
+            // 直接取得できないチームが1件あっても、他の正常なチームの判定を継続できるようにする。
+            bool isOwner = members?.Any(member =>
                 member.IsOwner && string.Equals(member.UserId, currentUserId,
-                    StringComparison.OrdinalIgnoreCase));
+                    StringComparison.OrdinalIgnoreCase)) ?? false;
             _ownershipCache.Set(currentUserId, team.Id, isOwner);
             ownership[index] = isOwner;
         }
     }
 
-    /// <summary>バッチ取得できなかったチームのメンバー一覧を個別APIで再取得する。</summary>
-    private async Task<List<TeamMember>> FetchMembersIndividuallyAsync(TeamInfo team,
+    /// <summary>
+    ///     バッチ取得できなかったチームのメンバー一覧を個別APIで再取得する。個別取得も失敗した場合は
+    ///     警告ログを残したうえでnullを返し、呼び出し元がそのチームだけ判定を諦められるようにする。
+    /// </summary>
+    private async Task<List<TeamMember>?> TryFetchMembersIndividuallyAsync(TeamInfo team,
         CancellationToken cancellationToken)
     {
         _logger.LogWarning(
             "バッチ内のメンバー取得に失敗したため個別に再取得します。TeamId={TeamId}", team.Id);
-        return (await GetTeamMembersAsync(team.Id, cancellationToken)).ToList();
+        try
+        {
+            return (await GetTeamMembersAsync(team.Id, cancellationToken)).ToList();
+        }
+        catch (GraphException ex)
+        {
+            _logger.LogWarning(ex,
+                "個別のメンバー取得にも失敗したため、このチームの所有者判定をスキップします。TeamId={TeamId}, StatusCode={StatusCode}",
+                team.Id, ex.StatusCode);
+            return null;
+        }
     }
 
     private static string Required(string? value, string name)

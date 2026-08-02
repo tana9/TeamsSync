@@ -236,6 +236,65 @@ public sealed class GraphTeamsGatewayTests
     }
 
     [Fact]
+    public async Task GetOwnedTeams_バッチと個別取得の両方が失敗したチームは除外し他のチームの判定を継続する()
+    {
+        DelegateHandler handler = new(async (request, cancellationToken) =>
+        {
+            string path = request.RequestUri!.AbsolutePath;
+            if (path.EndsWith("/me/joinedTeams", StringComparison.OrdinalIgnoreCase))
+            {
+                return JsonResponse("""
+                                    {"value":[
+                                      {"id":"team-1","displayName":"Alpha"},
+                                      {"id":"team-2","displayName":"Bravo"}
+                                    ]}
+                                    """);
+            }
+
+            if (path.EndsWith("/$batch", StringComparison.OrdinalIgnoreCase))
+            {
+                string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
+                using JsonDocument doc = JsonDocument.Parse(requestBody);
+                // team-1はバッチ内で403(権限不足)となり、個別フォールバックへ回る。
+                var responses = doc.RootElement.GetProperty("requests").EnumerateArray().Select(req =>
+                {
+                    string? id = req.GetProperty("id").GetString();
+                    string url = req.GetProperty("url").GetString()!;
+                    string teamId = url.Split('/')[2];
+                    return teamId == "team-1"
+                        ? new { id, status = 403, body = JsonDocument.Parse("{}").RootElement }
+                        : new
+                        {
+                            id,
+                            status = 200,
+                            body = JsonDocument.Parse(
+                                    """{"value":[{"id":"membership","userId":"current-user","displayName":"Me","email":"me@example.com","roles":["owner"]}]}""")
+                                .RootElement
+                        };
+                }).ToList();
+                return JsonResponse(JsonSerializer.Serialize(new { responses }));
+            }
+
+            // team-1の個別フォールバック取得(GET /teams/team-1/members)も403で失敗させる。
+            // 動的Microsoft 365グループなど、Graphからメンバーを直接取得できないチームを想定している。
+            return new HttpResponseMessage(HttpStatusCode.Forbidden)
+            {
+                Content = new StringContent("{\"error\":{\"message\":\"forbidden\"}}")
+            };
+        });
+        RecordingLogger<GraphTeamsGateway> gatewayLogger = new();
+        GraphTeamsGateway gateway = CreateGateway(handler, out _, gatewayLogger: gatewayLogger);
+
+        IReadOnlyList<TeamInfo> owned =
+            await gateway.GetOwnedTeamsAsync("current-user", TestContext.Current.CancellationToken);
+
+        // team-1は所有者判定を諦めて一覧から除外されるが、例外は伝播せずteam-2の判定は継続される。
+        Assert.Equal(["Bravo"], owned.Select(team => team.DisplayName));
+        Assert.Contains(gatewayLogger.Entries, entry => entry.Level == LogLevel.Warning &&
+                                                         entry.Message.Contains("個別のメンバー取得にも失敗"));
+    }
+
+    [Fact]
     public async Task GetOwnedTeams_バッチ内の429はRetryAfter待機後に同じ項目だけ再試行し個別取得へ回さない()
     {
         int batchCallCount = 0;
@@ -695,7 +754,7 @@ public sealed class GraphTeamsGatewayTests
     }
 
     private static GraphTeamsGateway CreateGateway(HttpMessageHandler handler, out FakeAuthentication authentication,
-        ILogger<GraphHttpClient>? httpLogger = null)
+        ILogger<GraphHttpClient>? httpLogger = null, ILogger<GraphTeamsGateway>? gatewayLogger = null)
     {
         authentication = new FakeAuthentication();
         HttpClient client = new(handler);
@@ -703,7 +762,7 @@ public sealed class GraphTeamsGatewayTests
             httpLogger ?? NullLogger<GraphHttpClient>.Instance);
         GraphSdkClient sdk = new(new FakeHttpClientFactory(client), authentication,
             httpLogger ?? NullLogger<GraphHttpClient>.Instance);
-        return new GraphTeamsGateway(http, sdk, NullLogger<GraphTeamsGateway>.Instance);
+        return new GraphTeamsGateway(http, sdk, gatewayLogger ?? NullLogger<GraphTeamsGateway>.Instance);
     }
 
     private sealed class FakeHttpClientFactory(HttpClient client) : IHttpClientFactory
