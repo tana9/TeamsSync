@@ -1,5 +1,15 @@
 <Solution>
-  <Project Path="TeamsSync/TeamsSync.csproj"/>
-  <Project Path="TeamsSync.Tests/TeamsSync.Tests.csproj"/>
-  <Project Path="TeamsSync.UiHarness/TeamsSync.UiHarness.csproj"/>
+  <Project Path="TeamsSync/TeamsSync.csproj" />
+  <Folder Name="/SolutionFolder/">
+    <File Path=".editorconfig" />
+    <File Path=".gitignore" />
+    <File Path="ACCESSIBILITY.md" />
+    <File Path="global.json" />
+    <File Path="README.md" />
+    <File Path="Taskfile.yml" />
+    <File Path="TODO.md" />
+    <File Path="TODO_DONE.md" />
+  </Folder>
+  <Project Path="TeamsSync.Tests/TeamsSync.Tests.csproj" />
+  <Project Path="TeamsSync.UiHarness/TeamsSync.UiHarness.csproj" />
 </Solution>
