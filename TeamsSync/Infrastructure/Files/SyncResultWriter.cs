@@ -8,15 +8,15 @@ namespace TeamsSync.Infrastructure.Files;
 
 /// <summary>
 ///     同期プランと実行結果を、日時と対象チーム名をファイル名としたCSVログとして自動的に記録する。
-///     CSVインジェクション対策として外部由来の値は数式として解釈されないよう無害化する。
+///     CSVインジェクション対策として外部由来の値は数式として解釈されないよう無害化する
 /// </summary>
 /// <param name="logDirectory">
 ///     ログの出力先フォルダー。省略時はユーザー別のLocalApplicationData配下を使う。
-///     テストから一時フォルダーを指定できるようにコンストラクター引数にしている。
+///     テストから一時フォルダーを指定できるようにコンストラクター引数にしている
 /// </param>
 public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultWriter
 {
-    // OWASPが推奨するCSVインジェクション対策として、数式の開始として解釈され得る文字。
+    // OWASPが推奨するCSVインジェクション対策として、数式の開始として解釈され得る文字
     private static readonly char[] FormulaTriggerChars = ['=', '+', '-', '@'];
 
     private readonly string _logDirectory = logDirectory ?? Path.Combine(
@@ -33,7 +33,7 @@ public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultW
 
     /// <summary>
     ///     同期実行結果を、チーム名・モード・操作種別・アドレス・成否・エラーの列を持つCSVとして
-    ///     実行日時・実行ID・対象チーム名を含む一意なファイル名でログフォルダーへ書き出す。
+    ///     実行日時・実行ID・対象チーム名を含む一意なファイル名でログフォルダーへ書き出す
     /// </summary>
     public string WriteAutoLog(SyncPlan plan, SyncExecutionResult result, Guid executionId)
     {
@@ -51,7 +51,7 @@ public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultW
         IReadOnlyList<SyncChange> plannedOperations = plan.Operations;
         if (plannedOperations.Count == 0 && result.Operations.Count > 0)
         {
-            // 古い呼び出し元や単体利用との互換性を保つ。通常の同期では必ずプラン側に操作が存在する。
+            // 古い呼び出し元や単体利用との互換性を保つ。通常の同期では必ずプラン側に操作が存在する
             foreach (SyncOperationResult item in result.Operations)
             {
                 WriteRow(writer, plan, item.Kind, item.DisplayName, item.Email,
@@ -75,7 +75,7 @@ public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultW
         writer.Flush();
     }
 
-    /// <summary>同期操作1件をCSVへ出力する。</summary>
+    /// <summary>同期操作1件をCSVへ出力する</summary>
     private static void WriteRow(TextWriter writer, SyncPlan plan, ChangeKind kind, string displayName,
         string email, string status, string error)
     {
@@ -83,7 +83,7 @@ public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultW
             Csv(OperationLabel(kind)), CsvExternal(displayName), CsvExternal(email), Csv(status), CsvExternal(error)));
     }
 
-    /// <summary>同期モードを利用者向けの日本語へ変換する。</summary>
+    /// <summary>同期モードを利用者向けの日本語へ変換する</summary>
     private static string SyncModeLabel(SyncMode mode)
     {
         return mode switch
@@ -95,7 +95,7 @@ public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultW
         };
     }
 
-    /// <summary>実行した操作を利用者向けの日本語へ変換する。</summary>
+    /// <summary>実行した操作を利用者向けの日本語へ変換する</summary>
     private static string OperationLabel(ChangeKind kind)
     {
         return kind switch
@@ -106,7 +106,7 @@ public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultW
         };
     }
 
-    /// <summary>既存ファイルを上書きせず、衝突時は連番を付けた別名で新規作成する。</summary>
+    /// <summary>既存ファイルを上書きせず、衝突時は連番を付けた別名で新規作成する</summary>
     private string CreateUniquePath(string stem)
     {
         for (int suffix = 1;; suffix++)
@@ -120,7 +120,7 @@ public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultW
         }
     }
 
-    /// <summary>ファイル名として使えない文字を"_"へ置き換える。</summary>
+    /// <summary>ファイル名として使えない文字を"_"へ置き換える</summary>
     private static string SanitizeFileName(string value)
     {
         char[] invalidChars = Path.GetInvalidFileNameChars();
@@ -128,28 +128,28 @@ public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultW
         return sanitized.Length == 0 ? "team" : sanitized;
     }
 
-    /// <summary>値をダブルクォートで囲み、内部のダブルクォートをエスケープしてCSVフィールド化する。</summary>
+    /// <summary>値をダブルクォートで囲み、内部のダブルクォートをエスケープしてCSVフィールド化する</summary>
     private static string Csv(string value)
     {
         return $"\"{value.Replace("\"", "\"\"")}\"";
     }
 
     // テナントやGraph API由来の外部値をCSV出力する際に使う。
-    // 数式注入(CSVインジェクション)を防ぐため、無害化してからCSVエスケープする。
-    /// <summary>CSVインジェクション対策の無害化を行ったうえでCSVフィールド化する。</summary>
+    // 数式注入(CSVインジェクション)を防ぐため、無害化してからCSVエスケープする
+    /// <summary>CSVインジェクション対策の無害化を行ったうえでCSVフィールド化する</summary>
     private static string CsvExternal(string value)
     {
         return Csv(SanitizeFormulaInjection(value));
     }
 
     /// <summary>
-    ///     値の先頭が数式トリガー文字の場合、表計算ソフトに数式評価されないようシングルクォートを付与する。
+    ///     値の先頭が数式トリガー文字の場合、表計算ソフトに数式評価されないようシングルクォートを付与する
     /// </summary>
     private static string SanitizeFormulaInjection(string value)
     {
         // 先頭の空白・タブ・改行を除いた最初の文字が=, +, -, @の場合、
         // 表計算ソフトが数式として評価してしまう。先頭にシングルクォートを付与し、
-        // 文字列として扱わせる(OWASP CSV Injection Prevention Cheat Sheet準拠)。
+        // 文字列として扱わせる(OWASP CSV Injection Prevention Cheat Sheet準拠)
         string trimmed = value.TrimStart();
         return trimmed.Length > 0 && Array.IndexOf(FormulaTriggerChars, trimmed[0]) >= 0 ? "'" + value : value;
     }

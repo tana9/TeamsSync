@@ -10,11 +10,11 @@ namespace TeamsSync.Infrastructure.Graph;
 
 /// <summary>
 ///     Microsoft Graph応答(生JSONおよび公式SDKモデルの両方)を、ドメインモデルの
-///     <see cref="TeamMember" />・<see cref="DirectoryUser" />へ変換する。
+///     <see cref="TeamMember" />・<see cref="DirectoryUser" />へ変換する
 /// </summary>
 internal static class GraphResponseParser
 {
-    /// <summary>Graph応答($batch等の生JSON)のメンバー配列を<see cref="TeamMember" />一覧へ変換する。</summary>
+    /// <summary>Graph応答($batch等の生JSON)のメンバー配列を<see cref="TeamMember" />一覧へ変換する</summary>
     public static List<TeamMember> ParseTeamMembers(IEnumerable<JsonElement> values)
     {
         return values.Select(x => new TeamMember(
@@ -27,7 +27,7 @@ internal static class GraphResponseParser
             .ToList();
     }
 
-    /// <summary>公式SDKのメンバーモデル配列を<see cref="TeamMember" />一覧へ変換する。</summary>
+    /// <summary>公式SDKのメンバーモデル配列を<see cref="TeamMember" />一覧へ変換する</summary>
     public static List<TeamMember> ParseTeamMembers(IEnumerable<GraphConversationMember> values)
     {
         return values.Select(member =>
@@ -40,7 +40,7 @@ internal static class GraphResponseParser
         }).ToList();
     }
 
-    /// <summary>ロール一覧に"owner"が含まれるかどうかを判定する。</summary>
+    /// <summary>ロール一覧に"owner"が含まれるかどうかを判定する</summary>
     private static bool HasOwnerRole(IEnumerable<string?>? roles)
     {
         return roles?.Any(role => role == "owner") == true;
@@ -61,27 +61,27 @@ internal static class GraphResponseParser
         };
     }
 
-    /// <summary>Graph応答(生JSON)のユーザー要素を<see cref="DirectoryUser" />へ変換する。</summary>
+    /// <summary>Graph応答(生JSON)のユーザー要素を<see cref="DirectoryUser" />へ変換する</summary>
     public static DirectoryUser ToDirectoryUser(JsonElement user)
     {
         return new DirectoryUser(Required(user, "id"), Required(user, "displayName"),
             Required(user, "userPrincipalName"), Optional(user, "mail"));
     }
 
-    /// <summary>Graph応答(生JSON)のユーザー配列を<see cref="DirectoryUser" />一覧へ変換する。</summary>
+    /// <summary>Graph応答(生JSON)のユーザー配列を<see cref="DirectoryUser" />一覧へ変換する</summary>
     public static List<DirectoryUser> ToDirectoryUsers(IEnumerable<JsonElement> users)
     {
         return users.Select(ToDirectoryUser).ToList();
     }
 
-    /// <summary>公式SDKのユーザーモデルを<see cref="DirectoryUser" />へ変換する。</summary>
+    /// <summary>公式SDKのユーザーモデルを<see cref="DirectoryUser" />へ変換する</summary>
     public static DirectoryUser ToDirectoryUser(GraphUser user)
     {
         return new DirectoryUser(Required(user.Id, "id"), Required(user.DisplayName, "displayName"),
             Required(user.UserPrincipalName, "userPrincipalName"), user.Mail);
     }
 
-    /// <summary>公式SDKのユーザーモデル配列を<see cref="DirectoryUser" />一覧へ変換する。</summary>
+    /// <summary>公式SDKのユーザーモデル配列を<see cref="DirectoryUser" />一覧へ変換する</summary>
     public static List<DirectoryUser> ToDirectoryUsers(IEnumerable<GraphUser> users)
     {
         return users.Select(ToDirectoryUser).ToList();
@@ -92,13 +92,13 @@ internal static class GraphResponseParser
         return value ?? throw new InvalidDataException($"{name} がありません。");
     }
 
-    /// <summary><see cref="GraphHttpClient.Required" />への委譲。</summary>
+    /// <summary><see cref="GraphHttpClient.Required" />への委譲</summary>
     private static string Required(JsonElement element, string name)
     {
         return GraphHttpClient.Required(element, name);
     }
 
-    /// <summary><see cref="GraphHttpClient.Optional" />への委譲。</summary>
+    /// <summary><see cref="GraphHttpClient.Optional" />への委譲</summary>
     private static string? Optional(JsonElement element, string name)
     {
         return GraphHttpClient.Optional(element, name);

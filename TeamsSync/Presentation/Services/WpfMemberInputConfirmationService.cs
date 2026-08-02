@@ -7,7 +7,7 @@ using TextBlock = System.Windows.Controls.TextBlock;
 
 namespace TeamsSync.Presentation.Services;
 
-/// <summary>既存のメンバー入力を置き換える前の確認ダイアログをWPF-UIのContentDialogとして表示する。</summary>
+/// <summary>既存のメンバー入力を置き換える前の確認ダイアログをWPF-UIのContentDialogとして表示する</summary>
 public sealed class WpfMemberInputConfirmationService(
     IContentDialogService contentDialogs) : IMemberInputConfirmationService
 {

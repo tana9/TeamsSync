@@ -7,7 +7,7 @@ using TeamsSync.Application.Abstractions;
 
 namespace TeamsSync.Infrastructure.Graph;
 
-/// <summary>Microsoft Graph公式SDKを使った通常のGraph API操作を提供する。</summary>
+/// <summary>Microsoft Graph公式SDKを使った通常のGraph API操作を提供する</summary>
 public sealed class GraphSdkClient
 {
     private readonly GraphServiceClient _read;

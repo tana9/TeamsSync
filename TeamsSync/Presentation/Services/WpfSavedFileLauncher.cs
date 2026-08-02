@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace TeamsSync.Presentation.Services;
 
-/// <summary>保存済みファイルをWindowsの関連付けで開く。</summary>
+/// <summary>保存済みファイルをWindowsの関連付けで開く</summary>
 public sealed class WpfSavedFileLauncher : ISavedFileLauncher
 {
     /// <inheritdoc />

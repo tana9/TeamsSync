@@ -5,10 +5,10 @@ namespace TeamsSync.Presentation.ViewModels;
 
 // SyncWorkspaceViewModelから表示用テキストの組み立て・フィルター件数の計算だけを切り出した純粋な
 // ヘルパー。Graph API呼び出しや進捗・キャンセルなどの同期実行ロジックとは関心事が異なるため、
-// 状態を持たないstaticメソッド群として分離し、ViewModel側の計算プロパティから呼び出す形にしている。
+// 状態を持たないstaticメソッド群として分離し、ViewModel側の計算プロパティから呼び出す形にしている
 public static class SyncWorkspaceTextFormatter
 {
-    /// <summary>同期実行結果の要約テキスト(中止・一部失敗・完了)を組み立てる。</summary>
+    /// <summary>同期実行結果の要約テキスト(中止・一部失敗・完了)を組み立てる</summary>
     public static string BuildResultSummaryText(bool cancelled, int successCount, int failureCount)
     {
         int processedCount = successCount + failureCount;
@@ -19,13 +19,13 @@ public static class SyncWorkspaceTextFormatter
                 : $"同期完了 — 成功 {successCount}件";
     }
 
-    /// <summary>未反映の残り件数を示すテキストを組み立てる(負数の場合は空文字)。</summary>
+    /// <summary>未反映の残り件数を示すテキストを組み立てる(負数の場合は空文字)</summary>
     public static string BuildResultRemainingText(int remainingCount)
     {
         return remainingCount < 0 ? "" : $"未反映 {remainingCount}件";
     }
 
-    /// <summary>入力元・検出列・件数を示す要約テキストを組み立てる。</summary>
+    /// <summary>入力元・検出列・件数を示す要約テキストを組み立てる</summary>
     public static string BuildInputSummary(MemberListDocument? document)
     {
         return document is null
@@ -33,7 +33,7 @@ public static class SyncWorkspaceTextFormatter
             : $"入力: {document.SourceName} • 列: {document.DetectedColumn} • {document.Addresses.Count}件";
     }
 
-    /// <summary>入力アドレスの先頭数件をプレビュー表示するテキストを組み立てる。</summary>
+    /// <summary>入力アドレスの先頭数件をプレビュー表示するテキストを組み立てる</summary>
     public static string BuildInputPreview(MemberListDocument? document)
     {
         return document is null
@@ -41,7 +41,7 @@ public static class SyncWorkspaceTextFormatter
             : $"先頭: {string.Join(" / ", document.Addresses.Take(5))}";
     }
 
-    /// <summary>差分未確認時に表示する案内メッセージを、現在の状態に応じて組み立てる。</summary>
+    /// <summary>差分未確認時に表示する案内メッセージを、現在の状態に応じて組み立てる</summary>
     public static string BuildEmptyStateMessage(bool signedIn, TeamInfo? team, MemberListDocument? document)
     {
         return !signedIn
@@ -54,8 +54,8 @@ public static class SyncWorkspaceTextFormatter
     }
 
     // モード選択コンボボックス(SyncWorkspaceViewModel.Modes)と最終確認ダイアログ
-    // (WpfSyncConfirmationService)の両方で同じ文言を使うため、ここへ1本化している。
-    /// <summary>同期モードの画面表示用ラベルを組み立てる。</summary>
+    // (WpfSyncConfirmationService)の両方で同じ文言を使うため、ここへ1本化している
+    /// <summary>同期モードの画面表示用ラベルを組み立てる</summary>
     public static string BuildModeLabel(SyncMode mode)
     {
         return mode switch
@@ -67,7 +67,7 @@ public static class SyncWorkspaceTextFormatter
         };
     }
 
-    /// <summary>差分確認中の進捗テキストを組み立てる。</summary>
+    /// <summary>差分確認中の進捗テキストを組み立てる</summary>
     public static string BuildPreviewProgressText(int previewProgressValue, int previewProgressMaximum)
     {
         return previewProgressValue > 0
@@ -77,7 +77,7 @@ public static class SyncWorkspaceTextFormatter
 
     /// <summary>
     ///     チームへ反映できない理由を、反映中・他処理中・未サインイン・未選択・未確認・エラーあり・
-    ///     変更なしの優先順位で判定して返す。反映可能な場合は「チームに反映できます」を返す。
+    ///     変更なしの優先順位で判定して返す。反映可能な場合は「チームに反映できます」を返す
     /// </summary>
     public static string BuildSyncUnavailableReason(bool isSyncing, bool isBusy, bool externallyBusy,
         bool signedIn, TeamInfo? team, MemberListDocument? document, SyncPlan? plan)
@@ -126,8 +126,8 @@ public static class SyncWorkspaceTextFormatter
     }
 
     // 差分一覧(changes)の内容から、フィルターごとの該当件数をChangeFilter.Countへ反映する。
-    // 呼び出し元(ViewModel)はこの後にCollectionViewSourceのRefreshとHasErrorsの変更通知を行う。
-    /// <summary>差分一覧の内容から、フィルターごとの該当件数を計算して反映する。</summary>
+    // 呼び出し元(ViewModel)はこの後にCollectionViewSourceのRefreshとHasErrorsの変更通知を行う
+    /// <summary>差分一覧の内容から、フィルターごとの該当件数を計算して反映する</summary>
     public static void UpdateFilterCounts(IReadOnlyList<ChangeFilter> filters,
         IReadOnlyCollection<SyncChangeRowViewModel> changes)
     {
@@ -143,8 +143,8 @@ public static class SyncWorkspaceTextFormatter
 
     // メンバーリストの再指定などで差分が無効化されたときは、古い件数を0件と表示するのではなく
     // 件数表示自体を消す(未確認状態に戻す)。0件表示だと「差分を確認した結果0件だった」と
-    // 誤解されるおそれがあるため。
-    /// <summary>すべてのフィルターの件数表示を未確認状態(-1)へ戻す。</summary>
+    // 誤解されるおそれがあるため
+    /// <summary>すべてのフィルターの件数表示を未確認状態(-1)へ戻す</summary>
     public static void ClearFilterCounts(IReadOnlyList<ChangeFilter> filters)
     {
         foreach (ChangeFilter filter in filters)
@@ -153,7 +153,7 @@ public static class SyncWorkspaceTextFormatter
         }
     }
 
-    /// <summary>差分確認後のステータス文言を、未解決ユーザーの有無と変更件数に応じて組み立てる。</summary>
+    /// <summary>差分確認後のステータス文言を、未解決ユーザーの有無と変更件数に応じて組み立てる</summary>
     public static string BuildPreviewStatusText(SyncPlan plan)
     {
         if (plan.HasErrors)
@@ -166,7 +166,7 @@ public static class SyncWorkspaceTextFormatter
             : $"追加 {plan.AddCount}件・削除 {plan.RemoveCount}件です。内容を確認してください";
     }
 
-    /// <summary>同期プランから、件数サマリーと削除警告(タイトル・本文)を組み立てる。</summary>
+    /// <summary>同期プランから、件数サマリーと削除警告(タイトル・本文)を組み立てる</summary>
     public static PlanPresentation BuildPlan(SyncPlan plan)
     {
         string excludedSuffix = plan.ExcludedCount > 0 ? $" / 除外 {plan.ExcludedCount}" : "";
@@ -178,7 +178,7 @@ public static class SyncWorkspaceTextFormatter
                 : $"リストにない一般メンバー {plan.RemoveCount}名を削除します。");
     }
 
-    /// <summary>実行結果から失敗した操作だけを行モデルへ変換する。</summary>
+    /// <summary>実行結果から失敗した操作だけを行モデルへ変換する</summary>
     public static IReadOnlyList<SyncResultRowViewModel> BuildFailedRows(SyncExecutionResult? result,
         int maxCount = int.MaxValue)
     {
@@ -191,5 +191,5 @@ public static class SyncWorkspaceTextFormatter
     }
 }
 
-/// <summary>同期プランの件数サマリーと削除警告の表示テキスト。</summary>
+/// <summary>同期プランの件数サマリーと削除警告の表示テキスト</summary>
 public sealed record PlanPresentation(string Summary, string RemovalTitle, string RemovalMessage);

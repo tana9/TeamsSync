@@ -13,12 +13,12 @@ using Xunit.Sdk;
 namespace TeamsSync.Tests.TestDoubles;
 
 // Presentation層のテストから共有する、外部依存を持たないテストダブルとDispatcherヘルパー。
-// 各テストは必要な振る舞いだけをプロパティやデリゲートで明示的に設定する。
+// 各テストは必要な振る舞いだけをプロパティやデリゲートで明示的に設定する
 internal static class DispatcherTestHelper
 {
     // DispatcherSynchronizationContext配下でTask.Runを含む非同期処理を、その完了までテストスレッドをブロックして
     // 同期的に待つためのヘルパー。Dispatcher.PushFrameでメッセージポンプを回すことで、Task.Run完了後の継続が
-    // (DispatcherSynchronizationContext.Postにより)テストスレッド上で実行されるようにする。
+    // (DispatcherSynchronizationContext.Postにより)テストスレッド上で実行されるようにする
     public static void RunOnDispatcher(Func<Task> action, TimeSpan? timeout = null)
     {
         DispatcherFrame frame = new();
@@ -61,7 +61,7 @@ internal static class DispatcherTestHelper
 
 internal sealed class FakeAuthenticationService : IAuthenticationService
 {
-    // サインアウト失敗/キャンセルのテスト用フック。未設定時は成功する。
+    // サインアウト失敗/キャンセルのテスト用フック。未設定時は成功する
     public Exception? SignOutException { get; set; }
     public string? UserName => null;
     public string? TenantId => null;
@@ -299,7 +299,7 @@ internal sealed class FakeMemberInputConfirmationService : IMemberInputConfirmat
 }
 
 // 複数の対話サービスを同じ状態で検証する既存の統合的ViewModelテスト向けアダプター。
-// 個々の振る舞いは責務別テストダブルへ委譲し、新規テストでは各サービスを直接使用する。
+// 個々の振る舞いは責務別テストダブルへ委譲し、新規テストでは各サービスを直接使用する
 internal sealed class FakeDialogs : IFilePickerService, ISyncConfirmationService,
     IMemberInputConfirmationService, INotificationService
 {

@@ -12,7 +12,7 @@ using TeamsSync.Presentation.Views;
 
 namespace TeamsSync.UiHarness;
 
-/// <summary>実テナントへ接続せず、本番UIをデモデータで確認する開発専用アプリ。</summary>
+/// <summary>実テナントへ接続せず、本番UIをデモデータで確認する開発専用アプリ</summary>
 public partial class App : System.Windows.Application
 {
     private IHost? _host;
@@ -34,14 +34,14 @@ public partial class App : System.Windows.Application
             .AddPresentation();
         // ISyncConfirmationService/IMemberInputConfirmationServiceともAddPresentation()が登録する
         // 本番のContentDialog実装をそのまま使う。「同期成功結果」「同期一部失敗」シナリオ(Execute: true)は
-        // ExecuteSyncCommand実行時に確認ダイアログが表示され、利用者が応答するまで待機する。
+        // ExecuteSyncCommand実行時に確認ダイアログが表示され、利用者が応答するまで待機する
 
         _host = builder.Build();
         await _host.StartAsync();
         MainWindow window = _host.Services.GetRequiredService<MainWindow>();
         window.Show();
 
-        // 認証画面を経由せず、起動直後からチーム選択以降のUIを確認できる状態にする。
+        // 認証画面を経由せず、起動直後からチーム選択以降のUIを確認できる状態にする
         MainWindowViewModel viewModel = _host.Services.GetRequiredService<MainWindowViewModel>();
         await viewModel.SignIn.SignInCommand.ExecuteAsync(null);
         ScenarioWindow scenarios =

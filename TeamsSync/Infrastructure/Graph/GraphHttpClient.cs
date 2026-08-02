@@ -11,7 +11,7 @@ namespace TeamsSync.Infrastructure.Graph;
 
 /// <summary>
 ///     Microsoft Graphへの生のHTTP通信(認証ヘッダー付与、エラー変換、ページング、バッチ)を担う。
-///     チーム・ユーザーに関するドメインロジックは<see cref="GraphTeamsGateway" />が持つ。
+///     チーム・ユーザーに関するドメインロジックは<see cref="GraphTeamsGateway" />が持つ
 /// </summary>
 public sealed partial class GraphHttpClient(
     IHttpClientFactory httpClientFactory,
@@ -23,7 +23,7 @@ public sealed partial class GraphHttpClient(
     private static readonly Uri GraphBase = new("https://graph.microsoft.com/v1.0/");
 
     /// <summary>
-    ///     GETリクエストを送信し、レスポンスボディをJSONとして解析する。
+    ///     GETリクエストを送信し、レスポンスボディをJSONとして解析する
     /// </summary>
     public async Task<JsonDocument> GetAsync(string relative, bool expectedNotFound = false,
         CancellationToken cancellationToken = default)
@@ -36,7 +36,7 @@ public sealed partial class GraphHttpClient(
     }
 
     /// <summary>
-    ///     <c>@odata.nextLink</c>を辿りながら全ページを取得し、<c>value</c>配列の要素をまとめて返す。
+    ///     <c>@odata.nextLink</c>を辿りながら全ページを取得し、<c>value</c>配列の要素をまとめて返す
     /// </summary>
     public async Task<List<JsonElement>> GetPagedAsync(string relative, CancellationToken cancellationToken)
     {
@@ -57,7 +57,7 @@ public sealed partial class GraphHttpClient(
 
     /// <summary>
     ///     更新系リクエストを送信する。<paramref name="replaceNames" />がtrueの場合、
-    ///     C#では使えない<c>@odata.type</c>/<c>user@odata.bind</c>相当のプロパティ名へ置換する。
+    ///     C#では使えない<c>@odata.type</c>/<c>user@odata.bind</c>相当のプロパティ名へ置換する
     /// </summary>
     public async Task SendAsync(HttpMethod method, string relative, object? body = null, bool replaceNames = false,
         CancellationToken cancellationToken = default)
@@ -76,7 +76,7 @@ public sealed partial class GraphHttpClient(
 
     /// <summary>
     ///     複数のGETリクエストを<c>$batch</c>エンドポイントへまとめて送信し、リクエストIDごとの
-    ///     レスポンスを返す。
+    ///     レスポンスを返す
     /// </summary>
     public async Task<Dictionary<string, JsonElement>> SendBatchAsync(
         IReadOnlyList<(string Id, string Url)> requests, CancellationToken cancellationToken)
@@ -96,7 +96,7 @@ public sealed partial class GraphHttpClient(
 
     /// <summary>
     ///     相対/絶対URLからGraph向けの<see cref="HttpRequestMessage" />を組み立てる。
-    ///     Graph以外のホストへのリクエストは拒否する。
+    ///     Graph以外のホストへのリクエストは拒否する
     /// </summary>
     private HttpRequestMessage CreateRequest(HttpMethod method, string relative, string? json = null)
     {
@@ -121,7 +121,7 @@ public sealed partial class GraphHttpClient(
 
     /// <summary>
     ///     アクセストークンと診断用ヘッダーを付与してリクエストを1回送信し、失敗時は
-    ///     <see cref="GraphException" />へ変換する。
+    ///     <see cref="GraphException" />へ変換する
     /// </summary>
     private async Task<HttpResponseMessage> SendOnceAsync(HttpRequestMessage request,
         string clientName, bool expectedNotFound = false, CancellationToken cancellationToken = default)
@@ -150,7 +150,7 @@ public sealed partial class GraphHttpClient(
         {
             // DiagnosticSummary(text)はJSON解析を伴うため、Errorログが無効な場合は評価しない(CA1873)。
             // [LoggerMessage]は内部でIsEnabledを判定するが、呼び出し側の引数(DiagnosticSummaryの呼び出し)
-            // 自体はC#の評価順序上どのみ実行されてしまうため、このガードは生成メソッド化後も必要。
+            // 自体はC#の評価順序上どのみ実行されてしまうため、このガードは生成メソッド化後も必要
             LogGraphCallFailed(logger, status, requestId, returnedClientRequestId,
                 GraphErrorFormatter.DiagnosticSummary(text));
         }
@@ -160,13 +160,13 @@ public sealed partial class GraphHttpClient(
             requestId, returnedClientRequestId);
     }
 
-    /// <summary>レスポンスヘッダーの最初の値を取得する(存在しない場合はnull)。</summary>
+    /// <summary>レスポンスヘッダーの最初の値を取得する(存在しない場合はnull)</summary>
     private static string? Header(HttpResponseMessage response, string name)
     {
         return response.Headers.TryGetValues(name, out IEnumerable<string>? values) ? values.FirstOrDefault() : null;
     }
 
-    /// <summary>JSON要素から文字列プロパティを取得する。存在しない場合は例外をスローする。</summary>
+    /// <summary>JSON要素から文字列プロパティを取得する。存在しない場合は例外をスローする</summary>
     public static string Required(JsonElement element, string name)
     {
         return element.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.String
@@ -174,7 +174,7 @@ public sealed partial class GraphHttpClient(
             : throw new InvalidDataException($"{name} がありません。");
     }
 
-    /// <summary>JSON要素から文字列プロパティを取得する。存在しない場合はnullを返す。</summary>
+    /// <summary>JSON要素から文字列プロパティを取得する。存在しない場合はnullを返す</summary>
     public static string? Optional(JsonElement element, string name)
     {
         return element.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.String
@@ -195,19 +195,19 @@ public sealed partial class GraphHttpClient(
         string? requestId, string clientRequestId, string diagnostic);
 }
 
-/// <summary>Microsoft Graph API呼び出しが失敗したことを表す例外。</summary>
+/// <summary>Microsoft Graph API呼び出しが失敗したことを表す例外</summary>
 public sealed class GraphException(
     HttpStatusCode statusCode,
     string message,
     string? requestId = null,
     string? clientRequestId = null) : Exception(message)
 {
-    /// <summary>レスポンスのHTTPステータスコード。</summary>
+    /// <summary>レスポンスのHTTPステータスコード</summary>
     public HttpStatusCode StatusCode { get; } = statusCode;
 
-    /// <summary>Graph側の診断用リクエストID(取得できた場合)。</summary>
+    /// <summary>Graph側の診断用リクエストID(取得できた場合)</summary>
     public string? RequestId { get; } = requestId;
 
-    /// <summary>クライアント側で発行した診断用リクエストID。</summary>
+    /// <summary>クライアント側で発行した診断用リクエストID</summary>
     public string? ClientRequestId { get; } = clientRequestId;
 }

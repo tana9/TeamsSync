@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace TeamsSync.Presentation.Services;
 
-/// <summary>埋め込みマニュアルを一時フォルダーへ展開し、既定のブラウザーで開く。</summary>
+/// <summary>埋め込みマニュアルを一時フォルダーへ展開し、既定のブラウザーで開く</summary>
 public sealed class WpfManualService : IManualService
 {
     public void OpenManual()

@@ -4,7 +4,7 @@ namespace TeamsSync.Presentation.ViewModels;
 
 /// <summary>
 ///     実行中フラグの管理と、キャンセル/例外発生時の共通ステータス報告をViewModelへ委譲するヘルパー。
-///     継承ではなくコンポジションで各ViewModelから利用する。
+///     継承ではなくコンポジションで各ViewModelから利用する
 /// </summary>
 public sealed class BusyOperationRunner(
     INotificationService notifications,
@@ -17,14 +17,14 @@ public sealed class BusyOperationRunner(
     /// <summary>
     ///     戻り値のない処理を実行し、成功したかどうかを返す。
     ///     例外・キャンセルはここで通知まで完結させるが、後続処理を続けてよいかの判断は
-    ///     呼び出し元の責務(例:サインアウト失敗時は画面状態を変更しない)のため戻り値で伝える。
+    ///     呼び出し元の責務(例:サインアウト失敗時は画面状態を変更しない)のため戻り値で伝える
     /// </summary>
     /// <param name="manageBusyState">
     ///     falseの場合、setBusyの呼び出しを行わない。既にこのインスタンスのRunAsyncで
     ///     処理中状態になっている呼び出し元から入れ子で呼ぶ場合に使う。同じインスタンスの
     ///     RunAsyncを入れ子でtrueのまま呼ぶと、内側の完了時にsetBusy(false)が呼ばれて
     ///     外側の処理がまだ実行中にもかかわらずIsBusyが早期にfalseへ戻ってしまう
-    ///     (画面が実行中に一瞬再操作可能になる不具合の原因になる)。
+    ///     (画面が実行中に一瞬再操作可能になる不具合の原因になる)
     /// </param>
     public async Task<bool> RunAsync(Func<Task> action,
         Func<Exception, SpecificExceptionResult?>? handleSpecificException = null,
@@ -60,10 +60,10 @@ public sealed class BusyOperationRunner(
     }
 
     /// <summary>
-    ///     戻り値のある処理を実行し、成功した場合はその結果を、失敗した場合は default(T) を返す。
+    ///     戻り値のある処理を実行し、成功した場合はその結果を、失敗した場合は default(T) を返す
     /// </summary>
     /// <param name="manageBusyState">
-    ///     <see cref="RunAsync(Func{Task}, Func{Exception, SpecificExceptionResult?}?, bool)" />を参照。
+    ///     <see cref="RunAsync(Func{Task}, Func{Exception, SpecificExceptionResult?}?, bool)" />を参照
     /// </param>
     public async Task<T?> RunAsync<T>(Func<Task<T>> action,
         Func<Exception, SpecificExceptionResult?>? handleSpecificException = null,
@@ -120,6 +120,6 @@ public sealed class BusyOperationRunner(
         }
     }
 
-    /// <summary>特定の例外を処理した際、ViewModelへ報告するステータスとダイアログのタイトルを保持する。</summary>
+    /// <summary>特定の例外を処理した際、ViewModelへ報告するステータスとダイアログのタイトルを保持する</summary>
     public record SpecificExceptionResult(string Status, string? DialogTitle = null, bool IsCritical = false);
 }

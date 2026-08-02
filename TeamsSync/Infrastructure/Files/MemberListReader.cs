@@ -14,7 +14,7 @@ namespace TeamsSync.Infrastructure.Files;
 /// <summary>
 ///     CSV(.csv)またはExcel(.xlsx)のメンバーリストファイルを読み込み、アドレス一覧へ変換する。
 ///     サイズ・行数・列数上限やZip展開後サイズなどの安全性検証は<see cref="MemberFileSecurityValidator" />へ、
-///     文字コード判定は<see cref="CsvEncodingDetector" />へ委譲する。
+///     文字コード判定は<see cref="CsvEncodingDetector" />へ委譲する
 /// </summary>
 public sealed class MemberListReader : IMemberListReader
 {
@@ -23,7 +23,7 @@ public sealed class MemberListReader : IMemberListReader
     public const int MaximumColumns = MemberFileSecurityValidator.MaximumColumns;
     public const long MaximumExpandedArchiveBytes = MemberFileSecurityValidator.MaximumExpandedArchiveBytes;
 
-    // Excelなどが排他的にファイルを開いている場合のWin32エラーコード(ERROR_SHARING_VIOLATION)に対応するHResult。
+    // Excelなどが排他的にファイルを開いている場合のWin32エラーコード(ERROR_SHARING_VIOLATION)に対応するHResult
     private const int SharingViolationHResult = unchecked((int)0x80070020);
 
     private static readonly string[] HeaderNames =
@@ -35,7 +35,7 @@ public sealed class MemberListReader : IMemberListReader
     // ヘッダー行も1行目のデータとして自前で扱う(ExtractColumn参照)ためHasHeaderRecord=false。
     // 行数上限の判定を物理行単位で行うため空行もスキップせずIgnoreBlankLines=false。
     // 引用符崩れなどの不正データは、誤った列を同期対象として採用しないよう行番号付きで拒否する。
-    // 引用符内の改行は正規のCSVとして許可するためLineBreakInQuotedFieldIsBadDataはfalseのままにする。
+    // 引用符内の改行は正規のCSVとして許可するためLineBreakInQuotedFieldIsBadDataはfalseのままにする
     private static readonly CsvConfiguration CsvReaderConfiguration = new(CultureInfo.InvariantCulture)
     {
         HasHeaderRecord = false,
@@ -47,7 +47,7 @@ public sealed class MemberListReader : IMemberListReader
 
     /// <summary>
     ///     指定したパスのファイルを拡張子に応じてCSV/Excelとして読み込み、アドレス列を抽出する。
-    ///     読込前後でファイル内容のハッシュを比較し、読込中の変更を検知する。
+    ///     読込前後でファイル内容のハッシュを比較し、読込中の変更を検知する
     /// </summary>
     public MemberListDocument Read(string path, CancellationToken cancellationToken)
     {
@@ -92,7 +92,7 @@ public sealed class MemberListReader : IMemberListReader
         }
     }
 
-    /// <summary>CSVファイルを解析し、アドレス候補列を抽出する。</summary>
+    /// <summary>CSVファイルを解析し、アドレス候補列を抽出する</summary>
     private static (IEnumerable<string>, string, string, bool) ReadCsv(string path,
         CancellationToken cancellationToken)
     {
@@ -130,7 +130,7 @@ public sealed class MemberListReader : IMemberListReader
         return (extracted.Values, "CSV", extracted.Column, extracted.IsNameColumn);
     }
 
-    /// <summary>Excelファイルの先頭ワークシートを解析し、アドレス候補列を抽出する。</summary>
+    /// <summary>Excelファイルの先頭ワークシートを解析し、アドレス候補列を抽出する</summary>
     private static (IEnumerable<string>, string, string, bool) ReadExcel(string path,
         CancellationToken cancellationToken)
     {
@@ -163,7 +163,7 @@ public sealed class MemberListReader : IMemberListReader
     }
 
     /// <summary>
-    ///     ヘッダー行からアドレス列(またはフォールバックの氏名列)を推定し、その列の値を抽出する。
+    ///     ヘッダー行からアドレス列(またはフォールバックの氏名列)を推定し、その列の値を抽出する
     /// </summary>
     private static (IEnumerable<string> Values, string Column, bool IsNameColumn) ExtractColumn(
         IReadOnlyList<string[]> rows)
@@ -183,7 +183,7 @@ public sealed class MemberListReader : IMemberListReader
 
     /// <summary>
     ///     ヘッダー名からメールアドレス列を優先的に探し、なければ氏名列を含む候補列を探す。
-    ///     戻り値には、見つかった列がメールアドレス列ではなく氏名列かどうかもあわせて含める。
+    ///     戻り値には、見つかった列がメールアドレス列ではなく氏名列かどうかもあわせて含める
     /// </summary>
     private static (int Index, bool IsNameColumn) FindPreferredColumn(IReadOnlyList<string> headers)
     {
@@ -200,7 +200,7 @@ public sealed class MemberListReader : IMemberListReader
         return (fallbackIndex, fallbackIndex >= 0);
     }
 
-    /// <summary>ファイル内容のSHA-256ハッシュを16進文字列で計算する。</summary>
+    /// <summary>ファイル内容のSHA-256ハッシュを16進文字列で計算する</summary>
     private static string ComputeSha256(string path)
     {
         using FileStream stream = OpenShared(path);
@@ -210,14 +210,14 @@ public sealed class MemberListReader : IMemberListReader
     // Excelなどが書込み用に開いたまま読み取り共有は許可しているケースを読めるようにするため、
     // File.OpenRead既定のFileShare.ReadWriteへ緩め、他プロセスの読み書きを妨げないようにする。
     // 完全排他(FileShare.None)のロックはこれでも読めないため、読込前後のSHA256比較(Read参照)で
-    // 途中変更を検知して安全側に倒す。
-    /// <summary>他プロセスによる読み書きを妨げないよう共有モードでファイルを開く。</summary>
+    // 途中変更を検知して安全側に倒す
+    /// <summary>他プロセスによる読み書きを妨げないよう共有モードでファイルを開く</summary>
     private static FileStream OpenShared(string path)
     {
         return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
     }
 
-    /// <summary>ヘッダー名の表記揺れ(前後空白・アンダースコア・空白・大文字小文字)を吸収する。</summary>
+    /// <summary>ヘッダー名の表記揺れ(前後空白・アンダースコア・空白・大文字小文字)を吸収する</summary>
     private static string NormalizeHeader(string value)
     {
         return value.Trim().Replace("_", "").Replace(" ", "").ToLowerInvariant();

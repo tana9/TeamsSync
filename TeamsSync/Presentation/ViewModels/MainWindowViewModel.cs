@@ -10,12 +10,12 @@ namespace TeamsSync.Presentation.ViewModels;
 
 /// <summary>
 ///     メインウィンドウ全体の状態(ステータス表示・入力の有効化)を管理し、
-///     子ViewModel(サインイン・チーム選択・メンバーリスト・同期ワークスペース)を束ねる。
+///     子ViewModel(サインイン・チーム選択・メンバーリスト・同期ワークスペース)を束ねる
 /// </summary>
 public partial class MainWindowViewModel : ObservableObject
 {
     /// <summary>
-    ///     子ViewModelのイベントを購読して連動させ、既定のステータスを設定する。
+    ///     子ViewModelのイベントを購読して連動させ、既定のステータスを設定する
     /// </summary>
     public MainWindowViewModel(IAuthenticationService authentication, TeamsAccessService teamsAccess,
         INotificationService dialogs, IUserPreferences preferences,
@@ -31,7 +31,7 @@ public partial class MainWindowViewModel : ObservableObject
         WorkflowSteps = new WorkflowStepsViewModel(SignIn, TeamSelection, MemberFile, SyncWorkspace);
 
         // SelectedTeam/IsBusyはMVVM Toolkitの[ObservableProperty]が自動でPropertyChangedを発行するため、
-        // 専用のカスタムイベントを設けず、子ViewModelのPropertyChangedをプロパティ名でフィルターして購読する。
+        // 専用のカスタムイベントを設けず、子ViewModelのPropertyChangedをプロパティ名でフィルターして購読する
         SignIn.PropertyChanged += (_, e) =>
         {
             switch (e.PropertyName)
@@ -84,40 +84,40 @@ public partial class MainWindowViewModel : ObservableObject
         UpdateAvailability();
     }
 
-    /// <summary>ウィンドウタイトル(アプリ名とバージョン)。</summary>
+    /// <summary>ウィンドウタイトル(アプリ名とバージョン)</summary>
     public string WindowTitle { get; } = $"TeamsSync {Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}";
 
-    /// <summary>各種入力操作が有効かどうか。</summary>
+    /// <summary>各種入力操作が有効かどうか</summary>
     [ObservableProperty]
     public partial bool InputsEnabled { get; set; } = true;
 
-    /// <summary>直近のステータスがエラーかどうか。</summary>
+    /// <summary>直近のステータスがエラーかどうか</summary>
     [ObservableProperty]
     public partial bool IsStatusError { get; set; }
 
-    /// <summary>画面下部に表示するステータスメッセージ。</summary>
+    /// <summary>画面下部に表示するステータスメッセージ</summary>
     [ObservableProperty]
     public partial string StatusText { get; set; } = "サインインしてください";
 
-    /// <summary>サインイン状態・アカウント表示を管理するViewModel。</summary>
+    /// <summary>サインイン状態・アカウント表示を管理するViewModel</summary>
     public SignInViewModel SignIn { get; }
 
-    /// <summary>チーム選択画面のViewModel。</summary>
+    /// <summary>チーム選択画面のViewModel</summary>
     public TeamSelectionViewModel TeamSelection { get; }
 
-    /// <summary>メンバーリスト入力画面のViewModel。</summary>
+    /// <summary>メンバーリスト入力画面のViewModel</summary>
     public MemberFileViewModel MemberFile { get; }
 
-    /// <summary>同期ワークスペース(モード選択・差分・実行)のViewModel。</summary>
+    /// <summary>同期ワークスペース(モード選択・差分・実行)のViewModel</summary>
     public SyncWorkspaceViewModel SyncWorkspace { get; }
 
-    /// <summary>画面手順(1〜3)の進捗状態を算出するViewModel。</summary>
+    /// <summary>画面手順(1〜3)の進捗状態を算出するViewModel</summary>
     public WorkflowStepsViewModel WorkflowSteps { get; }
 
-    /// <summary>利用者向けマニュアルを開く操作を管理するViewModel。</summary>
+    /// <summary>利用者向けマニュアルを開く操作を管理するViewModel</summary>
     public ManualViewModel Manual { get; }
 
-    /// <summary>選択中のチーム・メンバーリストの内容を同期ワークスペースへ反映する。</summary>
+    /// <summary>選択中のチーム・メンバーリストの内容を同期ワークスペースへ反映する</summary>
     private void UpdateSyncContext()
     {
         MemberFile.SetSelectedTeam(TeamSelection.SelectedTeam);
@@ -125,7 +125,7 @@ public partial class MainWindowViewModel : ObservableObject
             SignIn.TenantId, SignIn.CurrentUserId);
     }
 
-    /// <summary>ステータスメッセージとエラー表示状態を設定する。</summary>
+    /// <summary>ステータスメッセージとエラー表示状態を設定する</summary>
     private void SetStatus(string value, bool isError)
     {
         StatusText = value;
@@ -133,7 +133,7 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     /// <summary>
-    ///     サインイン状態・実行中フラグから各種入力の有効/無効を判定し、子ViewModelへ反映する。
+    ///     サインイン状態・実行中フラグから各種入力の有効/無効を判定し、子ViewModelへ反映する
     /// </summary>
     private void UpdateAvailability()
     {

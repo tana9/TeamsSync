@@ -11,14 +11,14 @@ using TextBlock = System.Windows.Controls.TextBlock;
 
 namespace TeamsSync.Presentation.Services;
 
-/// <summary>同期実行前の最終確認ダイアログをWPF-UIのContentDialogとして表示する。</summary>
+/// <summary>同期実行前の最終確認ダイアログをWPF-UIのContentDialogとして表示する</summary>
 public sealed class WpfSyncConfirmationService(
     IContentDialogService contentDialogs) : ISyncConfirmationService
 {
     private const int VisibleRemovalTargetCount = 10;
 
     /// <summary>
-    ///     対象チーム・件数内訳・入力元を表示する確認ダイアログを表示する。
+    ///     対象チーム・件数内訳・入力元を表示する確認ダイアログを表示する
     /// </summary>
     public async Task<bool> ConfirmSyncAsync(SyncConfirmation confirmation,
         CancellationToken cancellationToken = default)
@@ -27,7 +27,7 @@ public sealed class WpfSyncConfirmationService(
 
         // 固定幅(旧: Width=440)だと高DPIや長いチーム名・長い入力概要で内容が欠けるため、
         // MinWidthのみを指定して折り返しに任せ、縦方向はScrollViewerへ収めて200%表示でも
-        // 「チームに反映」ボタンが画面外に押し出されないようにする。
+        // 「チームに反映」ボタンが画面外に押し出されないようにする
         StackPanel content = new() { MinWidth = 340 };
         content.Children.Add(BuildHeaderBlock(plan));
         if (plan.RemoveCount > 0)
@@ -69,7 +69,7 @@ public sealed class WpfSyncConfirmationService(
                ContentDialogResult.Primary;
     }
 
-    /// <summary>対象チーム名と同期モードを表示するヘッダー部分を組み立てる。</summary>
+    /// <summary>対象チーム名と同期モードを表示するヘッダー部分を組み立てる</summary>
     private static UIElement BuildHeaderBlock(SyncPlan plan)
     {
         StackPanel panel = new();
@@ -89,8 +89,8 @@ public sealed class WpfSyncConfirmationService(
         return panel;
     }
 
-    // 削除は取り消せない操作のため、件数情報の中で最も目立つ位置・書式(枠線+強調色+アイコン)で表示する。
-    /// <summary>削除件数を強調表示する警告ボックスを組み立てる。</summary>
+    // 削除は取り消せない操作のため、件数情報の中で最も目立つ位置・書式(枠線+強調色+アイコン)で表示する
+    /// <summary>削除件数を強調表示する警告ボックスを組み立てる</summary>
     private static Border BuildRemovalWarningBox(SyncPlan plan)
     {
         Border removalBox = new()
@@ -126,7 +126,7 @@ public sealed class WpfSyncConfirmationService(
         return removalBox;
     }
 
-    /// <summary>指定削除で実際に削除する対象者を、最終確認ダイアログへ一覧表示する。</summary>
+    /// <summary>指定削除で実際に削除する対象者を、最終確認ダイアログへ一覧表示する</summary>
     private static UIElement BuildRemovalTargets(SyncPlan plan)
     {
         List<string> targets = plan.Changes.Where(change => change.Kind == ChangeKind.Remove)
@@ -147,7 +147,7 @@ public sealed class WpfSyncConfirmationService(
         };
     }
 
-    /// <summary>追加・変更なし・所有者保護の件数を表示する部分を組み立てる。</summary>
+    /// <summary>追加・変更なし・所有者保護の件数を表示する部分を組み立てる</summary>
     private static UIElement BuildCountsSection(SyncPlan plan)
     {
         StackPanel panel = new();
@@ -170,7 +170,7 @@ public sealed class WpfSyncConfirmationService(
         return panel;
     }
 
-    /// <summary>入力元ファイル名と入力概要を表示するテキスト要素を列挙する。</summary>
+    /// <summary>入力元ファイル名と入力概要を表示するテキスト要素を列挙する</summary>
     private static IEnumerable<UIElement> BuildInputSourceBlocks(SyncConfirmation confirmation)
     {
         TextBlock inputFileText = new()

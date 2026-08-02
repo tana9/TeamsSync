@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace TeamsSync.Infrastructure.Graph;
 
-/// <summary>SDK要求を既存の名前付きHttpClientへ転送し、診断情報と例外形式を維持する。</summary>
+/// <summary>SDK要求を既存の名前付きHttpClientへ転送し、診断情報と例外形式を維持する</summary>
 internal sealed partial class GraphSdkTransportHandler(HttpClient transport, ILogger<GraphHttpClient> logger)
     : HttpMessageHandler
 {
@@ -35,7 +35,7 @@ internal sealed partial class GraphSdkTransportHandler(HttpClient transport, ILo
         {
             // DiagnosticSummary(body)はJSON解析を伴うため、Errorログが無効な場合は評価しない(CA1873)。
             // [LoggerMessage]は内部でIsEnabledを判定するが、呼び出し側の引数(DiagnosticSummaryの呼び出し)
-            // 自体はC#の評価順序上どのみ実行されてしまうため、このガードは生成メソッド化後も必要。
+            // 自体はC#の評価順序上どのみ実行されてしまうため、このガードは生成メソッド化後も必要
             LogGraphCallFailed(logger, status, requestId, returnedClientRequestId,
                 GraphErrorFormatter.DiagnosticSummary(body));
         }

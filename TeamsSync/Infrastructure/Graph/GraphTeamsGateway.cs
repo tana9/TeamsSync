@@ -15,7 +15,7 @@ namespace TeamsSync.Infrastructure.Graph;
 ///     Microsoft Graph APIを介して、所有チームの判定、メンバー一覧の取得、
 ///     ユーザー検索、メンバーの追加・削除を行う。所有権キャッシュ(<see cref="TeamOwnershipCache" />)、
 ///     バッチ取得の再試行(<see cref="TeamMembersBatchFetcher" />)、ユーザー検索フォールバック
-///     (<see cref="GraphUserSearchService" />)を組み合わせるオーケストレーターとして振る舞う。
+///     (<see cref="GraphUserSearchService" />)を組み合わせるオーケストレーターとして振る舞う
 /// </summary>
 public sealed class GraphTeamsGateway : ITeamsGateway
 {
@@ -36,7 +36,7 @@ public sealed class GraphTeamsGateway : ITeamsGateway
     private readonly GraphSdkClient _sdk;
     private readonly GraphUserSearchService _userSearch;
 
-    /// <summary>コンストラクター。</summary>
+    /// <summary>コンストラクター</summary>
     public GraphTeamsGateway(GraphHttpClient http, GraphSdkClient sdk, ILogger<GraphTeamsGateway> logger)
     {
         _http = http;
@@ -46,7 +46,7 @@ public sealed class GraphTeamsGateway : ITeamsGateway
         _userSearch = new GraphUserSearchService(sdk);
     }
 
-    /// <summary>サインイン中のユーザー自身の情報を取得する。</summary>
+    /// <summary>サインイン中のユーザー自身の情報を取得する</summary>
     public async Task<(string Id, string DisplayName, string UserPrincipalName)> GetMeAsync(
         CancellationToken cancellationToken = default)
     {
@@ -57,13 +57,13 @@ public sealed class GraphTeamsGateway : ITeamsGateway
 
     /// <summary>
     ///     サインイン中のユーザーが参加している全チームのうち、所有者になっているチームを判定して返す。
-    ///     キャッシュ済みの判定結果を再利用しつつ、未判定のチームはバッチ取得で解決する。
+    ///     キャッシュ済みの判定結果を再利用しつつ、未判定のチームはバッチ取得で解決する
     /// </summary>
     public async Task<IReadOnlyList<TeamInfo>> GetOwnedTeamsAsync(string currentUserId,
         CancellationToken cancellationToken = default)
     {
         // me/joinedTeamsは$topクエリオプションを許可しない(400 "Query option 'Top' is not allowed")ため、
-        // 既定ページサイズのまま@odata.nextLinkでページングする。
+        // 既定ページサイズのまま@odata.nextLinkでページングする
         IReadOnlyList<Team> teams = await _sdk.GetJoinedTeamsAsync(cancellationToken);
         List<TeamInfo> candidates = teams.Select(x => new TeamInfo(
             Required(x.Id, "id"), Required(x.DisplayName, "displayName"), x.Description)).ToList();
@@ -109,13 +109,13 @@ public sealed class GraphTeamsGateway : ITeamsGateway
         return owned;
     }
 
-    /// <summary>所有チーム判定のキャッシュを消去する。ユーザーIDを指定するとそのユーザー分のみ消去する。</summary>
+    /// <summary>所有チーム判定のキャッシュを消去する。ユーザーIDを指定するとそのユーザー分のみ消去する</summary>
     public void ClearOwnedTeamsCache(string? currentUserId = null)
     {
         _ownershipCache.Clear(currentUserId);
     }
 
-    /// <summary>指定したチームの現メンバー一覧を取得する。</summary>
+    /// <summary>指定したチームの現メンバー一覧を取得する</summary>
     public async Task<IReadOnlyList<TeamMember>> GetTeamMembersAsync(string teamId,
         CancellationToken cancellationToken = default)
     {
@@ -124,7 +124,7 @@ public sealed class GraphTeamsGateway : ITeamsGateway
 
     /// <summary>
     ///     氏名またはメールアドレスからディレクトリ上のユーザーを検索する。
-    ///     まず直接参照を試み、見つからない場合は<see cref="GraphUserSearchService" />にフォールバックする。
+    ///     まず直接参照を試み、見つからない場合は<see cref="GraphUserSearchService" />にフォールバックする
     /// </summary>
     public async Task<IReadOnlyList<DirectoryUser>> FindUsersAsync(string identifier,
         CancellationToken cancellationToken = default)
@@ -140,14 +140,14 @@ public sealed class GraphTeamsGateway : ITeamsGateway
         }
     }
 
-    /// <summary>指定したユーザーをチームの一般メンバーとして追加する。</summary>
+    /// <summary>指定したユーザーをチームの一般メンバーとして追加する</summary>
     public Task AddMemberAsync(string teamId, string userId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("チームへのメンバー追加を実行します。TeamId={TeamId}", teamId);
         return _sdk.AddMemberAsync(teamId, userId, cancellationToken);
     }
 
-    /// <summary>指定したメンバーシップをチームから削除する。</summary>
+    /// <summary>指定したメンバーシップをチームから削除する</summary>
     public Task RemoveMemberAsync(string teamId, string membershipId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("チームからのメンバー削除を実行します。TeamId={TeamId}", teamId);
@@ -156,7 +156,7 @@ public sealed class GraphTeamsGateway : ITeamsGateway
 
     /// <summary>
     ///     1バッチ分の候補チームについて、メンバー一覧をバッチ取得(失敗分は個別フォールバック)したうえで
-    ///     所有者判定を行い、結果をキャッシュへ書き込む。
+    ///     所有者判定を行い、結果をキャッシュへ書き込む
     /// </summary>
     private async Task ResolveOwnershipBatchAsync(string currentUserId, IReadOnlyList<TeamInfo> candidates,
         IReadOnlyList<int> batch, bool[] ownership, CancellationToken cancellationToken)
@@ -174,7 +174,7 @@ public sealed class GraphTeamsGateway : ITeamsGateway
 
             // 個別取得も失敗した場合(members=null)は、そのチームだけ所有者判定を諦めて
             // false扱いにする(一覧から除外)。動的Microsoft 365グループなどメンバーを
-            // 直接取得できないチームが1件あっても、他の正常なチームの判定を継続できるようにする。
+            // 直接取得できないチームが1件あっても、他の正常なチームの判定を継続できるようにする
             bool isOwner = members is not null &&
                            (new TeamRoster(members).FindByUserId(currentUserId)?.IsOwner ?? false);
             _ownershipCache.Set(currentUserId, team.Id, isOwner);
@@ -184,7 +184,7 @@ public sealed class GraphTeamsGateway : ITeamsGateway
 
     /// <summary>
     ///     バッチ取得できなかったチームのメンバー一覧を個別APIで再取得する。個別取得も失敗した場合は
-    ///     警告ログを残したうえでnullを返し、呼び出し元がそのチームだけ判定を諦められるようにする。
+    ///     警告ログを残したうえでnullを返し、呼び出し元がそのチームだけ判定を諦められるようにする
     /// </summary>
     private async Task<List<TeamMember>?> TryFetchMembersIndividuallyAsync(TeamInfo team,
         CancellationToken cancellationToken)

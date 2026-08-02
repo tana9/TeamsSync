@@ -31,7 +31,7 @@ public sealed class TeamSelectionViewModelTests
         TeamSelectionViewModel viewModel = new(gateway, new FailingNotificationService());
         await viewModel.InitializeAsync("current-user", TestContext.Current.CancellationToken);
         viewModel.SelectedTeam = viewModel.Teams.Single(team => team.Id == "team-1");
-        // 再読込後は新しいTeamInfoインスタンスが返る想定のため、同じIdだが別インスタンスにしておく。
+        // 再読込後は新しいTeamInfoインスタンスが返る想定のため、同じIdだが別インスタンスにしておく
         gateway.OwnedTeams = [new TeamInfo("team-1", "開発", null), new TeamInfo("team-2", "運用", null)];
 
         await viewModel.RefreshCommand.ExecuteAsync(null);

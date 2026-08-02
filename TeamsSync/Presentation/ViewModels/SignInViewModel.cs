@@ -9,7 +9,7 @@ using TeamsSync.Presentation.Services;
 namespace TeamsSync.Presentation.ViewModels;
 
 /// <summary>
-///     Microsoft Entra IDへのサインイン・サインアウトと、サインイン中のアカウント表示を管理する。
+///     Microsoft Entra IDへのサインイン・サインアウトと、サインイン中のアカウント表示を管理する
 /// </summary>
 public partial class SignInViewModel : ObservableObject
 {
@@ -22,7 +22,7 @@ public partial class SignInViewModel : ObservableObject
 
     /// <summary>
     ///     コンストラクター。<paramref name="initializeTeamsAsync" />には、サインイン成功後に取得した
-    ///     ユーザーIDでチーム選択を初期化する処理を渡す(サインインと同じ処理中表示・エラー処理の対象にするため)。
+    ///     ユーザーIDでチーム選択を初期化する処理を渡す(サインインと同じ処理中表示・エラー処理の対象にするため)
     /// </summary>
     public SignInViewModel(IAuthenticationService authentication, TeamsAccessService teamsAccess,
         INotificationService notifications, Action<string, bool> reportStatus, Func<string, Task> initializeTeamsAsync)
@@ -34,41 +34,41 @@ public partial class SignInViewModel : ObservableObject
         _busyRunner = new BusyOperationRunner(notifications, reportStatus, value => IsBusy = value);
     }
 
-    /// <summary>サインイン中のアカウント表示テキスト。</summary>
+    /// <summary>サインイン中のアカウント表示テキスト</summary>
     [ObservableProperty]
     public partial string AccountText { get; set; } = "未サインイン";
 
-    /// <summary>サインイン・サインアウト処理の実行中かどうか。</summary>
+    /// <summary>サインイン・サインアウト処理の実行中かどうか</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SignInCommand), nameof(SignOutCommand))]
     public partial bool IsBusy { get; set; }
 
-    /// <summary>サインイン済みかどうか。</summary>
+    /// <summary>サインイン済みかどうか</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsNotSignedIn))]
     [NotifyCanExecuteChangedFor(nameof(SignInCommand), nameof(SignOutCommand))]
     public partial bool IsSignedIn { get; set; }
 
-    /// <summary>未サインインかどうか(<see cref="IsSignedIn" />の否定)。</summary>
+    /// <summary>未サインインかどうか(<see cref="IsSignedIn" />の否定)</summary>
     public bool IsNotSignedIn => !IsSignedIn;
 
-    /// <summary>サインイン中のテナントID。</summary>
+    /// <summary>サインイン中のテナントID</summary>
     public string? TenantId => _authentication.TenantId;
 
-    /// <summary>サインイン中のユーザーのオブジェクトID。</summary>
+    /// <summary>サインイン中のユーザーのオブジェクトID</summary>
     public string? CurrentUserId { get; private set; }
 
-    /// <summary>サインアウトが完了したときに発行される。</summary>
+    /// <summary>サインアウトが完了したときに発行される</summary>
     public event Action? SignedOut;
 
-    /// <summary>他画面の処理中状態を反映し、サインアウトコマンドの実行可否を再評価する。</summary>
+    /// <summary>他画面の処理中状態を反映し、サインアウトコマンドの実行可否を再評価する</summary>
     public void SetExternalBusy(bool value)
     {
         _externallyBusy = value;
         SignOutCommand.NotifyCanExecuteChanged();
     }
 
-    /// <summary>対話型サインインを行い、自身の情報を取得してチーム選択を初期化する。</summary>
+    /// <summary>対話型サインインを行い、自身の情報を取得してチーム選択を初期化する</summary>
     [RelayCommand(CanExecute = nameof(CanSignIn))]
     private async Task SignInAsync()
     {
@@ -88,13 +88,13 @@ public partial class SignInViewModel : ObservableObject
         return !IsBusy && !IsSignedIn;
     }
 
-    /// <summary>サインアウトし、成功した場合のみアカウント状態を未サインインへ戻す。</summary>
+    /// <summary>サインアウトし、成功した場合のみアカウント状態を未サインインへ戻す</summary>
     [RelayCommand(CanExecute = nameof(CanSignOut))]
     private async Task SignOutAsync()
     {
         // MSALのアカウント削除が失敗/キャンセルした場合、実際には認証情報が残っているため、
         // 画面だけを未サインイン状態にすると再サインアウトができなくなる。
-        // RunAsyncの成功判定を見て、成功時のみ画面状態を未サインインへ揃える。
+        // RunAsyncの成功判定を見て、成功時のみ画面状態を未サインインへ揃える
         bool succeeded =
             await _busyRunner.RunAsync(() => _authentication.SignOutAsync(), HandleAuthenticationException);
         if (!succeeded)
@@ -114,7 +114,7 @@ public partial class SignInViewModel : ObservableObject
         return !IsBusy && !_externallyBusy && IsSignedIn;
     }
 
-    /// <summary>認証設定エラーの場合に、専用のステータス・ダイアログタイトルを返す。</summary>
+    /// <summary>認証設定エラーの場合に、専用のステータス・ダイアログタイトルを返す</summary>
     private static BusyOperationRunner.SpecificExceptionResult? HandleAuthenticationException(Exception ex)
     {
         return ex is AuthenticationConfigurationException

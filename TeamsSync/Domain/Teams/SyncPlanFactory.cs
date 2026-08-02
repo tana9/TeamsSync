@@ -1,27 +1,27 @@
 namespace TeamsSync.Domain.Teams;
 
-/// <summary>1件のアドレス解決の結果種別。</summary>
+/// <summary>1件のアドレス解決の結果種別</summary>
 public enum ResolutionOutcome
 {
-    /// <summary>解決に失敗した。</summary>
+    /// <summary>解決に失敗した</summary>
     Error,
 
-    /// <summary>現メンバーの中に一意な一致があった。</summary>
+    /// <summary>現メンバーの中に一意な一致があった</summary>
     ExistingSingle,
 
-    /// <summary>ディレクトリ検索で一致した、現メンバーにいない新規ユーザー。</summary>
+    /// <summary>ディレクトリ検索で一致した、現メンバーにいない新規ユーザー</summary>
     NewUser,
 
-    /// <summary>ディレクトリ検索で一致したユーザーが、別のアドレスで既に現メンバーだった。</summary>
+    /// <summary>ディレクトリ検索で一致したユーザーが、別のアドレスで既に現メンバーだった</summary>
     SameUserDifferentAddress
 }
 
-/// <summary>1件のアドレス解決結果。</summary>
-/// <param name="Outcome">解決結果の種別。</param>
-/// <param name="Address">入力アドレス。</param>
-/// <param name="ExistingMember">現メンバーとして一致した場合のメンバー情報。</param>
-/// <param name="User">ディレクトリ検索で一致したユーザー情報。</param>
-/// <param name="ErrorReason">解決に失敗した場合の理由。</param>
+/// <summary>1件のアドレス解決結果</summary>
+/// <param name="Outcome">解決結果の種別</param>
+/// <param name="Address">入力アドレス</param>
+/// <param name="ExistingMember">現メンバーとして一致した場合のメンバー情報</param>
+/// <param name="User">ディレクトリ検索で一致したユーザー情報</param>
+/// <param name="ErrorReason">解決に失敗した場合の理由</param>
 public sealed record AddressResolution(
     ResolutionOutcome Outcome,
     string Address,
@@ -31,13 +31,13 @@ public sealed record AddressResolution(
 
 /// <summary>
 ///     解決済みのアドレス一覧と現メンバー構成(<see cref="TeamRoster" />)から同期プランを組み立てる。
-///     Graph通信を伴わない、純粋な業務ルールだけを担う。
+///     Graph通信を伴わない、純粋な業務ルールだけを担う
 /// </summary>
 public static class SyncPlanFactory
 {
     /// <summary>
     ///     アドレスごとの解決結果を追加・維持・保護・エラーへ分類し、完全同期モードでは
-    ///     リスト外の一般メンバーの削除も加えて、同期プランを作成する。
+    ///     リスト外の一般メンバーの削除も加えて、同期プランを作成する
     /// </summary>
     public static SyncPlan Create(TeamInfo team, TeamRoster roster,
         IReadOnlyList<AddressResolution> resolutions, SyncMode mode, IReadOnlyList<string> inputAddresses)
@@ -56,7 +56,7 @@ public static class SyncPlanFactory
     /// <summary>
     ///     アドレスごとの解決結果を、追加・維持・保護・エラーの各<see cref="SyncChange" />へ分類する。
     ///     同一ユーザーが氏名とメールアドレスなど複数の表記で重複指定された場合、2件目以降を別行にはせず
-    ///     最初の行のEmailへ表記を合流させて1行にまとめる。
+    ///     最初の行のEmailへ表記を合流させて1行にまとめる
     /// </summary>
     private static (Dictionary<string, DirectoryUser> Resolved, List<SyncChange> Changes) ClassifyResolutions(
         IReadOnlyList<AddressResolution> resolutions, SyncMode mode)
@@ -117,7 +117,7 @@ public static class SyncPlanFactory
 
     /// <summary>
     ///     既にチームに所属しているメンバーの変更種別・理由を判定する。所有者は常に保護し、
-    ///     所有者でなければ指定削除モードは削除、それ以外は<paramref name="keepReason" />を理由に維持する。
+    ///     所有者でなければ指定削除モードは削除、それ以外は<paramref name="keepReason" />を理由に維持する
     /// </summary>
     private static (ChangeKind Kind, ChangeReason Reason) ClassifyExistingMember(bool isOwner, SyncMode mode,
         ChangeReason keepReason)
@@ -134,7 +134,7 @@ public static class SyncPlanFactory
 
     /// <summary>
     ///     完全同期モード用に、入力リストに含まれない一般メンバー(所有者を除く)を
-    ///     削除対象の<see cref="SyncChange" />として列挙する。
+    ///     削除対象の<see cref="SyncChange" />として列挙する
     /// </summary>
     private static IEnumerable<SyncChange> ComputeRemovals(IReadOnlyList<TeamMember> current,
         Dictionary<string, DirectoryUser> resolved, IReadOnlyList<SyncChange> changes)

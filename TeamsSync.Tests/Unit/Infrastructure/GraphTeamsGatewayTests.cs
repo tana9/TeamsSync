@@ -202,7 +202,7 @@ public sealed class GraphTeamsGatewayTests
             {
                 string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
                 using JsonDocument doc = JsonDocument.Parse(requestBody);
-                // 403は権限不足であり待っても解決しないため、429/503と異なり即座に個別フォールバックへ回る。
+                // 403は権限不足であり待っても解決しないため、429/503と異なり即座に個別フォールバックへ回る
                 var responses = doc.RootElement.GetProperty("requests").EnumerateArray().Select(req =>
                 {
                     string? id = req.GetProperty("id").GetString();
@@ -255,7 +255,7 @@ public sealed class GraphTeamsGatewayTests
             {
                 string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
                 using JsonDocument doc = JsonDocument.Parse(requestBody);
-                // team-1はバッチ内で403(権限不足)となり、個別フォールバックへ回る。
+                // team-1はバッチ内で403(権限不足)となり、個別フォールバックへ回る
                 var responses = doc.RootElement.GetProperty("requests").EnumerateArray().Select(req =>
                 {
                     string? id = req.GetProperty("id").GetString();
@@ -276,7 +276,7 @@ public sealed class GraphTeamsGatewayTests
             }
 
             // team-1の個別フォールバック取得(GET /teams/team-1/members)も403で失敗させる。
-            // 動的Microsoft 365グループなど、Graphからメンバーを直接取得できないチームを想定している。
+            // 動的Microsoft 365グループなど、Graphからメンバーを直接取得できないチームを想定している
             return new HttpResponseMessage(HttpStatusCode.Forbidden)
             {
                 Content = new StringContent("{\"error\":{\"message\":\"forbidden\"}}")
@@ -288,7 +288,7 @@ public sealed class GraphTeamsGatewayTests
         IReadOnlyList<TeamInfo> owned =
             await gateway.GetOwnedTeamsAsync("current-user", TestContext.Current.CancellationToken);
 
-        // team-1は所有者判定を諦めて一覧から除外されるが、例外は伝播せずteam-2の判定は継続される。
+        // team-1は所有者判定を諦めて一覧から除外されるが、例外は伝播せずteam-2の判定は継続される
         Assert.Equal(["Bravo"], owned.Select(team => team.DisplayName));
         Assert.Contains(gatewayLogger.Entries, entry => entry.Level == LogLevel.Warning &&
                                                         entry.Message.Contains("個別のメンバー取得にも失敗"));
@@ -325,7 +325,7 @@ public sealed class GraphTeamsGatewayTests
                 }
 
                 // team-1は1回目のみ429(Retry-After=0秒)を返し、2回目以降は200を返す。
-                // team-2は最初から200(所有者ではない)。
+                // team-2は最初から200(所有者ではない)
                 var responses = requestList.Select(req =>
                 {
                     string? id = req.GetProperty("id").GetString();
@@ -367,7 +367,7 @@ public sealed class GraphTeamsGatewayTests
         Assert.Equal(["Alpha"], owned.Select(team => team.DisplayName));
         Assert.Equal(0, individualCallCount);
         Assert.Equal(2, batchCallCount);
-        // 1回目は2件(team-1, team-2)、2回目の再試行は429だったteam-1だけを含む1件のみ。
+        // 1回目は2件(team-1, team-2)、2回目の再試行は429だったteam-1だけを含む1件のみ
         Assert.Equal([2, 1], requestCountsPerCall);
     }
 
@@ -444,7 +444,7 @@ public sealed class GraphTeamsGatewayTests
                 string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
                 using JsonDocument doc = JsonDocument.Parse(requestBody);
                 List<JsonElement> requestList = doc.RootElement.GetProperty("requests").EnumerateArray().ToList();
-                // team-1は常に429を返し続け、再試行上限(3回)に達しても解消しないケースを再現する。
+                // team-1は常に429を返し続け、再試行上限(3回)に達しても解消しないケースを再現する
                 var responses = requestList.Select(req =>
                 {
                     string? id = req.GetProperty("id").GetString();
@@ -481,7 +481,7 @@ public sealed class GraphTeamsGatewayTests
             await gateway.GetOwnedTeamsAsync("current-user", TestContext.Current.CancellationToken);
 
         // team-2はバッチで直接200が返り所有者と判定、team-1は429の再試行上限に達して個別取得へ回り
-        // そちらでも所有者と判定される(バッチ成功と個別フォールバックの併存を確認する)。
+        // そちらでも所有者と判定される(バッチ成功と個別フォールバックの併存を確認する)
         Assert.Equal(["Alpha", "Bravo"], owned.Select(team => team.DisplayName));
         Assert.Equal(1, individualCallCount);
         Assert.Equal(3, batchCallCount);
@@ -503,7 +503,7 @@ public sealed class GraphTeamsGatewayTests
             Interlocked.Increment(ref batchCallCount);
             string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
             using JsonDocument doc = JsonDocument.Parse(requestBody);
-            // Retry-Afterを60秒と長く返し、待機中にキャンセルされることを検証できるようにする。
+            // Retry-Afterを60秒と長く返し、待機中にキャンセルされることを検証できるようにする
             var responses = doc.RootElement.GetProperty("requests").EnumerateArray().Select(req => new
             {
                 id = req.GetProperty("id").GetString(),

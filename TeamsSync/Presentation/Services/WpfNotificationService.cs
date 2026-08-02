@@ -14,7 +14,7 @@ using TextBox = Wpf.Ui.Controls.TextBox;
 
 namespace TeamsSync.Presentation.Services;
 
-/// <summary>スナックバー・ダイアログを用いて成功・警告・エラーをユーザーへ通知する。</summary>
+/// <summary>スナックバー・ダイアログを用いて成功・警告・エラーをユーザーへ通知する</summary>
 public sealed class WpfNotificationService(
     ISnackbarService snackbars,
     IContentDialogService contentDialogs,
@@ -131,7 +131,7 @@ public sealed class WpfNotificationService(
         };
         // 危険/成功/注意いずれの塗りつぶし背景上でも視認できるよう、Snackbar既定のリンク色に
         // 任せず「アクセント色背景上のテキスト」用ブラシを明示する。あわせてSemiBoldにして、
-        // 隣接する閉じるボタンと並んだときにクリック可能な要素だと分かるようにする。
+        // 隣接する閉じるボタンと並んだときにクリック可能な要素だと分かるようにする
         Hyperlink actionLink = new() { FontWeight = FontWeights.SemiBold };
         actionLink.SetResourceReference(TextElement.ForegroundProperty, "TextOnAccentFillColorPrimaryBrush");
         AutomationProperties.SetName(actionLink, actionText);

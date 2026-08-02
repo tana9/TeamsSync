@@ -2,24 +2,24 @@ using System.Collections.Concurrent;
 
 namespace TeamsSync.Infrastructure.Graph;
 
-/// <summary>ユーザーごとのチーム所有権判定結果を、アプリのセッション内でキャッシュする。</summary>
+/// <summary>ユーザーごとのチーム所有権判定結果を、アプリのセッション内でキャッシュする</summary>
 internal sealed class TeamOwnershipCache
 {
     private readonly ConcurrentDictionary<(string UserId, string TeamId), bool> _cache = new();
 
-    /// <summary>キャッシュ済みの判定結果を取得する。</summary>
+    /// <summary>キャッシュ済みの判定結果を取得する</summary>
     public bool TryGet(string userId, string teamId, out bool isOwner)
     {
         return _cache.TryGetValue((userId, teamId), out isOwner);
     }
 
-    /// <summary>判定結果をキャッシュへ書き込む。</summary>
+    /// <summary>判定結果をキャッシュへ書き込む</summary>
     public void Set(string userId, string teamId, bool isOwner)
     {
         _cache[(userId, teamId)] = isOwner;
     }
 
-    /// <summary>キャッシュを消去する。ユーザーIDを指定するとそのユーザー分のみ消去する。</summary>
+    /// <summary>キャッシュを消去する。ユーザーIDを指定するとそのユーザー分のみ消去する</summary>
     public void Clear(string? userId = null)
     {
         foreach ((string UserId, string TeamId) key in _cache.Keys)

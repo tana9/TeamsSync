@@ -18,7 +18,7 @@ namespace TeamsSync;
 
 /// <summary>
 ///     アプリケーションのエントリポイント。Generic Hostを構築し、DI・設定・ロギングを
-///     初期化したうえでメインウィンドウを表示する。
+///     初期化したうえでメインウィンドウを表示する
 /// </summary>
 public partial class App : System.Windows.Application
 {
@@ -30,9 +30,9 @@ public partial class App : System.Windows.Application
     //   として区別し、より具体的な案内を出す。
     // ②MainWindow.Show(): ここで初めてXAML/リソースが読み込まれる。この段階の失敗は、
     //   テーマ付きダイアログ自体の描画に必要なリソースが壊れている可能性があるため、
-    //   何にも依存しないネイティブのMessageBoxで最後の砦として報告する。
+    //   何にも依存しないネイティブのMessageBoxで最後の砦として報告する
     /// <summary>
-    ///     起動時にホストを構築し、設定の読み込みとDIコンテナの初期化を行ってからメインウィンドウを表示する。
+    ///     起動時にホストを構築し、設定の読み込みとDIコンテナの初期化を行ってからメインウィンドウを表示する
     /// </summary>
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -50,7 +50,7 @@ public partial class App : System.Windows.Application
             // 起動失敗時に表示するダイアログがこのアプリで最初のウィンドウになるため、既定の
             // ShutdownMode(OnLastWindowClose)のままだと、利用者がダイアログを閉じた時点で
             // 暗黙のシャットダウン(終了コード0)が走り、直後のShutdown(-1)と競合しうる。
-            // 失敗経路でだけ明示シャットダウンへ切り替え、終了コードを確実に-1にする。
+            // 失敗経路でだけ明示シャットダウンへ切り替え、終了コードを確実に-1にする
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
             await ShowThemedStartupErrorAsync(ex.Message, "起動時の設定エラー");
             Shutdown(-1);
@@ -82,7 +82,7 @@ public partial class App : System.Windows.Application
         }
     }
 
-    /// <summary>診断ログの保存を試み、利用者向けメッセージに添えるヒント文を組み立てる。</summary>
+    /// <summary>診断ログの保存を試み、利用者向けメッセージに添えるヒント文を組み立てる</summary>
     private static string BuildDiagnosticHint(Exception ex)
     {
         string? logPath = StartupFailureLog.TryWrite(ex);
@@ -91,7 +91,7 @@ public partial class App : System.Windows.Application
 
     /// <summary>
     ///     Generic Hostを構築・起動する。appsettings.jsonの埋め込みリソースが見つからない場合は、
-    ///     原因が既知であることを示す<see cref="StartupConfigurationException" />をスローする。
+    ///     原因が既知であることを示す<see cref="StartupConfigurationException" />をスローする
     /// </summary>
     private static async Task<IHost> BuildHostAsync(StartupEventArgs e)
     {
@@ -126,7 +126,7 @@ public partial class App : System.Windows.Application
         catch
         {
             // StartAsync失敗時、hostへの参照をこのメソッドの外へ一切渡さないため、
-            // ここで破棄しないとSerilog等が開いたファイルハンドルがリークする。
+            // ここで破棄しないとSerilog等が開いたファイルハンドルがリークする
             await AppHostShutdown.StopAndDisposeAsync(host, null);
             throw;
         }
@@ -134,7 +134,7 @@ public partial class App : System.Windows.Application
 
     /// <summary>
     ///     WPF-UIのテーマ付きダイアログ(独立ウィンドウ)でエラーを表示する。
-    ///     ContentDialogとは異なりContentDialogHostを必要としないため、MainWindow表示前でも使える。
+    ///     ContentDialogとは異なりContentDialogHostを必要としないため、MainWindow表示前でも使える
     /// </summary>
     private static async Task ShowThemedStartupErrorAsync(string message, string title)
     {
@@ -144,15 +144,15 @@ public partial class App : System.Windows.Application
 
     // UIスレッドの未処理例外を診断できるようログへ記録する。既存の挙動(未処理のままなら
     // プロセスが終了する)は変えない(e.Handledは設定しない)。原因不明のままクラッシュログが
-    // 残らない状態を避けることが目的で、任意の例外を握りつぶして実行を継続させる意図ではない。
-    /// <summary>UIスレッドで発生した未処理の例外をログへ記録する。</summary>
+    // 残らない状態を避けることが目的で、任意の例外を握りつぶして実行を継続させる意図ではない
+    /// <summary>UIスレッドで発生した未処理の例外をログへ記録する</summary>
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         _host?.Services.GetService<ILogger<App>>()?.LogCritical(e.Exception, "UIスレッドで未処理の例外が発生しました");
     }
 
     /// <summary>
-    ///     終了時にホストを停止・破棄し、リソースを解放する。
+    ///     終了時にホストを停止・破棄し、リソースを解放する
     /// </summary>
     protected override async void OnExit(ExitEventArgs e)
     {

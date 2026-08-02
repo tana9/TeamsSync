@@ -167,7 +167,7 @@ public sealed class MemberFileViewModelTests
         // (ObservableCollectionの変更を含む)はTask.Runの完了スレッド上で継続される。
         // WPF実行時はDispatcherSynchronizationContextにより自動的にUIスレッドへ戻るが、
         // テストにはDispatcherのメッセージポンプが存在しないため、DispatcherSynchronizationContextを
-        // 設定した上でPushFrameによりメッセージポンプを模擬し、継続がテストスレッド上で実行されるようにする。
+        // 設定した上でPushFrameによりメッセージポンプを模擬し、継続がテストスレッド上で実行されるようにする
         SynchronizationContext? originalContext = SynchronizationContext.Current;
         SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
         try

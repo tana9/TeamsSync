@@ -2,14 +2,14 @@ namespace TeamsSync.Domain.Teams;
 
 /// <summary>
 ///     1件の入力アドレスを現メンバーまたはディレクトリ検索結果と突き合わせて解決する業務ルール。
-///     Graph通信を伴わない、純粋な判定だけを担う。
+///     Graph通信を伴わない、純粋な判定だけを担う
 /// </summary>
 public static class AddressResolver
 {
     /// <summary>
     ///     メールアドレスまたは正規化した氏名で現メンバーから一致を探す。
     ///     複数一致した場合は特定不能としてエラーにする。一致がなければnullを返し、
-    ///     呼び出し側にディレクトリ検索を委ねる。
+    ///     呼び出し側にディレクトリ検索を委ねる
     /// </summary>
     public static AddressResolution? TryResolveFromRoster(string address, TeamRoster roster)
     {
@@ -26,7 +26,7 @@ public static class AddressResolver
     }
 
     /// <summary>
-    ///     ディレクトリ検索の候補から一意なユーザーを特定し、既に別アドレスでメンバーかどうかを判定する。
+    ///     ディレクトリ検索の候補から一意なユーザーを特定し、既に別アドレスでメンバーかどうかを判定する
     /// </summary>
     public static AddressResolution ResolveFromDirectory(string address,
         IReadOnlyList<DirectoryUser> candidates, TeamRoster roster)

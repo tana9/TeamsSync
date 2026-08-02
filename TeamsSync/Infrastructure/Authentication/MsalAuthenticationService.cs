@@ -7,7 +7,7 @@ using TeamsSync.Application.Abstractions;
 namespace TeamsSync.Infrastructure.Authentication;
 
 /// <summary>
-///     MSAL.NETを用いてMicrosoft Entra IDへのサインイン・サインアウトとアクセストークン取得を行う。
+///     MSAL.NETを用いてMicrosoft Entra IDへのサインイン・サインアウトとアクセストークン取得を行う
 /// </summary>
 public sealed class MsalAuthenticationService(
     IOptionsMonitor<EntraOptions> options,
@@ -54,15 +54,15 @@ public sealed class MsalAuthenticationService(
     private string? _configuredClientId;
     private AuthenticationResult? _result;
 
-    /// <summary>サインイン中のユーザー名(未サインインの場合はnull)。</summary>
+    /// <summary>サインイン中のユーザー名(未サインインの場合はnull)</summary>
     public string? UserName => _result?.Account?.Username;
 
-    /// <summary>サインイン中のテナントID(未サインインの場合はnull)。</summary>
+    /// <summary>サインイン中のテナントID(未サインインの場合はnull)</summary>
     public string? TenantId => _result?.TenantId;
 
     /// <summary>
     ///     アクセストークンを取得する。サイレント取得できない場合、またはinteractiveが
-    ///     指定された場合は、システムブラウザーでの対話型サインインへフォールバックする。
+    ///     指定された場合は、システムブラウザーでの対話型サインインへフォールバックする
     /// </summary>
     public async Task<string> GetTokenAsync(bool interactive = false,
         CancellationToken cancellationToken = default)
@@ -98,7 +98,7 @@ public sealed class MsalAuthenticationService(
     }
 
     /// <summary>
-    ///     MSALにキャッシュされているすべてのアカウントを削除し、サインイン状態をクリアする。
+    ///     MSALにキャッシュされているすべてのアカウントを削除し、サインイン状態をクリアする
     /// </summary>
     public async Task SignOutAsync(CancellationToken cancellationToken = default)
     {
@@ -118,7 +118,7 @@ public sealed class MsalAuthenticationService(
 
     /// <summary>
     ///     現在の設定に対応する<see cref="IPublicClientApplication" />を取得または作成する。
-    ///     ClientIdが未設定の場合は<see cref="AuthenticationConfigurationException" />をスローする。
+    ///     ClientIdが未設定の場合は<see cref="AuthenticationConfigurationException" />をスローする
     /// </summary>
     private IPublicClientApplication GetOrCreateApp()
     {

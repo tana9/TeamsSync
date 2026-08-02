@@ -2,7 +2,7 @@ namespace TeamsSync.Domain.Teams;
 
 /// <summary>
 ///     現在のチームメンバー一覧を保持し、メールアドレス・正規化氏名・ユーザーIDでの検索や、
-///     同期プラン作成に必要な集計・スナップショットを提供する。
+///     同期プラン作成に必要な集計・スナップショットを提供する
 /// </summary>
 public sealed class TeamRoster
 {
@@ -10,7 +10,7 @@ public sealed class TeamRoster
     private readonly Dictionary<string, List<TeamMember>> _byName = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, TeamMember> _byUserId = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>コンストラクター。現在のメンバー一覧から検索用の索引を構築する。</summary>
+    /// <summary>コンストラクター。現在のメンバー一覧から検索用の索引を構築する</summary>
     public TeamRoster(IReadOnlyList<TeamMember> members)
     {
         Members = members;
@@ -22,14 +22,14 @@ public sealed class TeamRoster
         }
     }
 
-    /// <summary>現在のメンバー一覧。</summary>
+    /// <summary>現在のメンバー一覧</summary>
     public IReadOnlyList<TeamMember> Members { get; }
 
-    /// <summary>一般メンバー(所有者を除く)の件数。</summary>
+    /// <summary>一般メンバー(所有者を除く)の件数</summary>
     public int NonOwnerCount => Members.Count(x => !x.IsOwner);
 
     /// <summary>
-    ///     メールアドレスまたは正規化した氏名で現メンバーから一致を探す。
+    ///     メールアドレスまたは正規化した氏名で現メンバーから一致を探す
     /// </summary>
     public IReadOnlyList<TeamMember> FindByAddressOrName(string value)
     {
@@ -55,7 +55,7 @@ public sealed class TeamRoster
         return matches;
     }
 
-    /// <summary>ユーザーIDで現メンバーを検索する。</summary>
+    /// <summary>ユーザーIDで現メンバーを検索する</summary>
     public TeamMember? FindByUserId(string userId)
     {
         return _byUserId.GetValueOrDefault(userId);
@@ -63,7 +63,7 @@ public sealed class TeamRoster
 
     /// <summary>
     ///     同期入力として取り込み可能な一般メンバー(所有者を除き、メールアドレスがあるメンバー)を、
-    ///     メールアドレスの重複を除いてメールアドレス順に並べて返す。
+    ///     メールアドレスの重複を除いてメールアドレス順に並べて返す
     /// </summary>
     public IReadOnlyList<TeamMember> ImportableMembers()
     {
@@ -75,7 +75,7 @@ public sealed class TeamRoster
             .ToList();
     }
 
-    /// <summary>再検証(プラン同値性の判定)で使う、現メンバーシップのスナップショットを作成する。</summary>
+    /// <summary>再検証(プラン同値性の判定)で使う、現メンバーシップのスナップショットを作成する</summary>
     public IReadOnlyList<TeamMembershipSnapshot> BuildMembershipSnapshot()
     {
         return Members

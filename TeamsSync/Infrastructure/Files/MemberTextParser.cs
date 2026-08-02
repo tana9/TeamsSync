@@ -8,7 +8,7 @@ using TeamsSync.Domain.Teams;
 namespace TeamsSync.Infrastructure.Files;
 
 /// <summary>
-///     テキストとして貼り付けられた氏名・メールアドレスの一覧を解析し、アドレス一覧へ変換する。
+///     テキストとして貼り付けられた氏名・メールアドレスの一覧を解析し、アドレス一覧へ変換する
 /// </summary>
 public sealed class MemberTextParser : IMemberTextParser
 {
@@ -19,7 +19,7 @@ public sealed class MemberTextParser : IMemberTextParser
     // ReadOnlySpan<char>.EnumerateLines()はフォームフィード(U+000C)・NEL(U+0085)・LS/PS(U+2028/2029)も
     // 行区切りとして扱うため、これらを使うと制御文字を拒否する下のチェックをすり抜けて
     // 無言で改行扱いになってしまう。意図した区切り(\r\n・\n・\r)だけを使うため、
-    // 明示的な区切り文字リストで分割する。
+    // 明示的な区切り文字リストで分割する
     private static readonly string[] LineSeparators = ["\r\n", "\n", "\r"];
 
     /// <inheritdoc />
@@ -82,14 +82,14 @@ public sealed class MemberTextParser : IMemberTextParser
 
     /// <summary>
     ///     貼り付けテキストを1行1件として検証・解析する。タブ・制御文字・行長超過・件数超過は
-    ///     <see cref="InvalidDataException" />として拒否する。
+    ///     <see cref="InvalidDataException" />として拒否する
     /// </summary>
     public MemberListDocument Parse(string text)
     {
         return Parse(text, CancellationToken.None);
     }
 
-    /// <summary>`表示名 &lt;メールアドレス&gt;`形式の場合は山括弧内だけを識別子として返す。</summary>
+    /// <summary>`表示名 &lt;メールアドレス&gt;`形式の場合は山括弧内だけを識別子として返す</summary>
     private static string ParseLine(ReadOnlySpan<char> line, int lineNumber)
     {
         DisplayLineFormat format = MemberIdentifierLine.ParseDisplayLine(line, out string identifier);

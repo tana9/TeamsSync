@@ -1,6 +1,6 @@
 namespace TeamsSync.Infrastructure.Graph;
 
-/// <summary>Bearerトークンを送信できるMicrosoft Graphエンドポイントを制限する。</summary>
+/// <summary>Bearerトークンを送信できるMicrosoft Graphエンドポイントを制限する</summary>
 internal static class GraphEndpointValidator
 {
     private const string GraphHost = "graph.microsoft.com";

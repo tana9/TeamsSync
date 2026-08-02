@@ -9,7 +9,7 @@ using TeamsSync.Presentation.Services;
 
 namespace TeamsSync.Presentation.ViewModels;
 
-/// <summary>選択中チームの現在の一般メンバーをGraph APIから取得し、入力欄へ反映する取り込み操作を管理する。</summary>
+/// <summary>選択中チームの現在の一般メンバーをGraph APIから取得し、入力欄へ反映する取り込み操作を管理する</summary>
 public partial class TeamMemberImportViewModel : ObservableObject
 {
     private readonly Func<bool> _canImport;
@@ -24,7 +24,7 @@ public partial class TeamMemberImportViewModel : ObservableObject
     /// <summary>
     ///     コンストラクター。<paramref name="canImport" />には入力欄側(ファイル読込中・解析中・
     ///     テキスト貼り付けタブが選択されているかなど)の実行可否を、<paramref name="hasExistingInput" />には
-    ///     置き換え確認が必要な既存入力の有無を、それぞれ呼び出し元(<see cref="MemberFileViewModel" />)から渡す。
+    ///     置き換え確認が必要な既存入力の有無を、それぞれ呼び出し元(<see cref="MemberFileViewModel" />)から渡す
     /// </summary>
     public TeamMemberImportViewModel(TeamsAccessService teamsAccess, IMemberTextParser textParser,
         INotificationService notifications, IMemberInputConfirmationService inputConfirmation,
@@ -38,7 +38,7 @@ public partial class TeamMemberImportViewModel : ObservableObject
         _hasExistingInput = hasExistingInput;
     }
 
-    /// <summary>現在のチームメンバーを取得中かどうか。</summary>
+    /// <summary>現在のチームメンバーを取得中かどうか</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsFetchingMembers))]
     public partial bool IsImportingMembers { get; set; }
@@ -46,22 +46,22 @@ public partial class TeamMemberImportViewModel : ObservableObject
     // 置き換え確認ダイアログの応答待ちの間は、Graph API通信自体は完了しているため取得中の
     // 進捗表示(ProgressRing)を出し続けると「まだ何か処理中」と誤解される。取り込みコマンドの
     // 実行不可・キャンセル可能といった他の状態はIsImportingMembers側に残したまま、
-    // 進捗表示の可視性だけをこのプロパティで分けて制御する。
-    /// <summary>置き換え確認ダイアログの応答待ちかどうか。</summary>
+    // 進捗表示の可視性だけをこのプロパティで分けて制御する
+    /// <summary>置き換え確認ダイアログの応答待ちかどうか</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsFetchingMembers))]
     public partial bool IsAwaitingConfirmation { get; set; }
 
-    /// <summary>取得中の進捗表示を出すべきかどうか(確認ダイアログの応答待ち中は除く)。</summary>
+    /// <summary>取得中の進捗表示を出すべきかどうか(確認ダイアログの応答待ち中は除く)</summary>
     public bool IsFetchingMembers => IsImportingMembers && !IsAwaitingConfirmation;
 
-    /// <summary>ステータスメッセージを通知するために発行される。</summary>
+    /// <summary>ステータスメッセージを通知するために発行される</summary>
     public event Action<string, bool>? StatusChanged;
 
-    /// <summary>取り込みに成功したときに、対象チーム・整形済みテキスト・解析済み文書を渡して発行される。</summary>
+    /// <summary>取り込みに成功したときに、対象チーム・整形済みテキスト・解析済み文書を渡して発行される</summary>
     public event Action<TeamInfo, string, MemberListDocument>? Imported;
 
-    /// <summary>現在選択されているチームを設定する。チームが変わった場合は進行中の取り込みをキャンセルする。</summary>
+    /// <summary>現在選択されているチームを設定する。チームが変わった場合は進行中の取り込みをキャンセルする</summary>
     public void SetSelectedTeam(TeamInfo? team)
     {
         if (_selectedTeam?.Id != team?.Id)
@@ -73,14 +73,14 @@ public partial class TeamMemberImportViewModel : ObservableObject
         NotifyCanExecuteChanged();
     }
 
-    /// <summary>呼び出し元(入力欄)側の状態変化に応じて、取り込みコマンドの実行可否を再評価させる。</summary>
+    /// <summary>呼び出し元(入力欄)側の状態変化に応じて、取り込みコマンドの実行可否を再評価させる</summary>
     public void NotifyCanExecuteChanged()
     {
         ImportCurrentMembersCommand.NotifyCanExecuteChanged();
         CancelImportCurrentMembersCommand.NotifyCanExecuteChanged();
     }
 
-    /// <summary>選択中チームの一般メンバーを取得し、テキスト入力として反映する。</summary>
+    /// <summary>選択中チームの一般メンバーを取得し、テキスト入力として反映する</summary>
     [RelayCommand(CanExecute = nameof(CanImportCurrentMembers))]
     private async Task ImportCurrentMembersAsync()
     {
@@ -175,7 +175,7 @@ public partial class TeamMemberImportViewModel : ObservableObject
         return !IsImportingMembers && _selectedTeam is not null && _canImport();
     }
 
-    /// <summary>実行中の現在メンバー取り込みをキャンセルする。</summary>
+    /// <summary>実行中の現在メンバー取り込みをキャンセルする</summary>
     [RelayCommand(CanExecute = nameof(CanCancelImportCurrentMembers))]
     private void CancelImportCurrentMembers()
     {

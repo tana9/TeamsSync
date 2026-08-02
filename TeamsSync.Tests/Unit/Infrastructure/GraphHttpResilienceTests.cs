@@ -106,7 +106,7 @@ public sealed class GraphHttpResilienceTests
                 TestContext.Current.CancellationToken);
 
         // 429はGraph側が処理前に明示的に拒否した応答であり重複実行の懸念がないため、
-        // 非冪等なPOSTでも例外的に再試行する(DependencyInjection.AllowThrottlingRetryForUnsafeHttpMethods参照)。
+        // 非冪等なPOSTでも例外的に再試行する(DependencyInjection.AllowThrottlingRetryForUnsafeHttpMethods参照)
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(2, handler.CallCount);
     }
@@ -117,7 +117,7 @@ public sealed class GraphHttpResilienceTests
         // 標準レジリエンスハンドラーの既定バックオフ(2秒)ではなく、応答のRetry-Afterヘッダーが
         // 実際に待機時間として使われていることを、1回目と2回目の呼び出し間隔(gap)を計測して確認する。
         // 呼び出し開始からの経過時間には初回リクエストのパイプライン構築コストが乗り不安定なため、
-        // ハンドラー呼び出し時刻そのものを記録し、その差分だけを検証対象にする。
+        // ハンドラー呼び出し時刻そのものを記録し、その差分だけを検証対象にする
         TimeSpan retryAfter = TimeSpan.FromMilliseconds(300);
         Stopwatch stopwatch = Stopwatch.StartNew();
         List<long> callTimestampsMs = [];
@@ -148,7 +148,7 @@ public sealed class GraphHttpResilienceTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(2, handler.CallCount);
         long gapMs = callTimestampsMs[1] - callTimestampsMs[0];
-        // Retry-After(300ms)に近い間隔であり、既定バックオフ(2秒)まで引きずられていないことを確認する。
+        // Retry-After(300ms)に近い間隔であり、既定バックオフ(2秒)まで引きずられていないことを確認する
         Assert.InRange(gapMs, retryAfter.TotalMilliseconds - 50, 1500);
     }
 
@@ -199,7 +199,7 @@ public sealed class GraphHttpResilienceTests
             .DeleteAsync("teams/team-1/members/member-1", TestContext.Current.CancellationToken);
 
         // 503はサーバー側で実際に処理済みだった可能性を否定できないため、429と異なり
-        // 非冪等なDELETE/POSTでは引き続き再試行しない。
+        // 非冪等なDELETE/POSTでは引き続き再試行しない
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         Assert.Equal(1, handler.CallCount);
     }

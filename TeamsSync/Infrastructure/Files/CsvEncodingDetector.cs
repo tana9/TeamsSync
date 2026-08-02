@@ -2,12 +2,12 @@ using System.Text;
 
 namespace TeamsSync.Infrastructure.Files;
 
-/// <summary>CSVファイルの文字コードをBOMまたは内容から判定する。</summary>
+/// <summary>CSVファイルの文字コードをBOMまたは内容から判定する</summary>
 internal static class CsvEncodingDetector
 {
     /// <summary>
     ///     BOMからCSVファイルの文字コードを判定する。BOMがない場合はUTF-8として妥当かを検証し、
-    ///     妥当でなければShift-JIS(コードページ932)にフォールバックする。
+    ///     妥当でなければShift-JIS(コードページ932)にフォールバックする
     /// </summary>
     public static Encoding Detect(string path)
     {
@@ -46,7 +46,7 @@ internal static class CsvEncodingDetector
         }
 
         // BOMがない場合はUTF-8として妥当かをStreamReaderでチャンク単位に検証する。
-        // byte[]とstringの両方を全体分保持しないため、ReadAllBytes+GetStringよりピークメモリが小さい。
+        // byte[]とstringの両方を全体分保持しないため、ReadAllBytes+GetStringよりピークメモリが小さい
         try
         {
             using FileStream stream = OpenShared(path);
@@ -66,7 +66,7 @@ internal static class CsvEncodingDetector
     }
 
     // Excelなどが書込み用に開いたまま読み取り共有は許可しているケースを読めるようにするため、
-    // File.OpenRead既定のFileShare.ReadWriteへ緩め、他プロセスの読み書きを妨げないようにする。
+    // File.OpenRead既定のFileShare.ReadWriteへ緩め、他プロセスの読み書きを妨げないようにする
     private static FileStream OpenShared(string path)
     {
         return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);

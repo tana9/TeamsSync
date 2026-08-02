@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace TeamsSync.Infrastructure.Graph;
 
-/// <summary>Graphのエラー応答から、ユーザーへ安全に提示できる診断情報だけを抽出する。</summary>
+/// <summary>Graphのエラー応答から、ユーザーへ安全に提示できる診断情報だけを抽出する</summary>
 internal static class GraphErrorFormatter
 {
     private const int MaximumDiagnosticMessageLength = 512;

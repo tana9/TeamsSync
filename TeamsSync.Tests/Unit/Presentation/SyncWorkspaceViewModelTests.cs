@@ -183,7 +183,7 @@ public sealed class SyncWorkspaceViewModelTests
         Assert.Contains("列: email", viewModel.InputSummary);
 
         // メンバーリストの再指定で差分が無効化されたときは、古い件数を0件と表示するのではなく
-        // 件数表示自体を消す(-1)。0件表示だと「確認した結果0件だった」と誤解されるおそれがあるため。
+        // 件数表示自体を消す(-1)。0件表示だと「確認した結果0件だった」と誤解されるおそれがあるため
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["missing@example.com", "other@example.com"], "members2.csv",
                 "C:\\members2.csv", DateTime.Now, "CSV", "email"), true);
@@ -196,7 +196,7 @@ public sealed class SyncWorkspaceViewModelTests
         // ComboBoxのSelectedItem表示はDisplayMemberPathバインディング経由でINotifyPropertyChangedを
         // 見て更新される。CollectionViewSource.Refresh()だけではドロップダウン内のリストは
         // 更新されても選択中アイテムの表示テキストが更新されないWPFの既知の癖があるため、
-        // 選択中インスタンスへ直接PropertyChangedが飛ぶことを確認する。
+        // 選択中インスタンスへ直接PropertyChangedが飛ぶことを確認する
         FakeTeamsGateway gateway = new();
         gateway.Users["missing@example.com"] = new DirectoryUser(
             "user-1", "User", "missing@example.com", "missing@example.com");
@@ -474,7 +474,7 @@ public sealed class SyncWorkspaceViewModelTests
             new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
         // FakeTeamsGateway.AddMemberAsync既定ではMembersを更新しないため、再検証(ReconcileAsync)後も
         // 追加前の状態のまま扱われ未反映として残ってしまう。実際のGraph APIと同様に反映されたことにするため、
-        // OnAddでMembersへ反映する。
+        // OnAddでMembersへ反映する
         gateway.OnAdd = (_, userId, _) =>
         {
             gateway.Members = gateway.Members
@@ -595,7 +595,7 @@ public sealed class SyncWorkspaceViewModelTests
     // _busyRunnerでIsBusyを管理する。入れ子のRunAsyncが互いのIsBusy状態を意識せず
     // setBusy(false)を呼ぶと、内側(再検証)の完了時点で外側(実際のメンバー追加/削除より前)の
     // IsBusyが早期にfalseへ戻ってしまい、画面の入力カードが実行中に一瞬再操作可能になる。
-    // IsBusyがfalseに戻る「タイミング」を、実際にメンバー追加処理が始まったかどうかで検証する。
+    // IsBusyがfalseに戻る「タイミング」を、実際にメンバー追加処理が始まったかどうかで検証する
     [Fact]
     public async Task SyncWorkspace_同期実行中はメンバー追加処理が始まるまでIsBusyがfalseに戻らない()
     {

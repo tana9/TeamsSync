@@ -1,7 +1,7 @@
 namespace TeamsSync.Presentation.Views;
 
 /// <summary>
-///     Viewのロード状態とDataContext変更に合わせて、ViewModelイベントの購読先を1つだけ維持する。
+///     Viewのロード状態とDataContext変更に合わせて、ViewModelイベントの購読先を1つだけ維持する
 /// </summary>
 internal sealed class ViewModelEventSubscription<TViewModel>(
     Action<TViewModel> subscribe,
@@ -12,7 +12,7 @@ internal sealed class ViewModelEventSubscription<TViewModel>(
     private bool _isLoaded;
     private bool _isSubscribed;
 
-    /// <summary>Viewのロード時に現在のDataContextを記録し、イベントを購読する。</summary>
+    /// <summary>Viewのロード時に現在のDataContextを記録し、イベントを購読する</summary>
     public void Load(TViewModel? dataContext)
     {
         _isLoaded = true;
@@ -20,14 +20,14 @@ internal sealed class ViewModelEventSubscription<TViewModel>(
         SubscribeCurrent();
     }
 
-    /// <summary>Viewのアンロード時にイベント購読を解除する。</summary>
+    /// <summary>Viewのアンロード時にイベント購読を解除する</summary>
     public void Unload()
     {
         _isLoaded = false;
         UnsubscribeCurrent();
     }
 
-    /// <summary>DataContext変更時に旧ViewModelを解除し、ロード中なら新ViewModelを購読する。</summary>
+    /// <summary>DataContext変更時に旧ViewModelを解除し、ロード中なら新ViewModelを購読する</summary>
     public void ChangeDataContext(TViewModel? dataContext)
     {
         if (ReferenceEquals(_dataContext, dataContext))

@@ -126,7 +126,7 @@ public sealed class SyncPlanFactoryTests
     {
         // 「追加+削除」プランのうち追加だけがGraphへ反映され、削除は失敗したと仮定する。
         // 実行後の最新Rosterを渡して同じ入力から再計画すると、既に反映済みの追加は
-        // 現メンバーとして解決されて消え、未反映の削除だけが差分として残ることを確認する。
+        // 現メンバーとして解決されて消え、未反映の削除だけが差分として残ることを確認する
         TeamMember stale = Member("old-membership", "old-id", "Old", "old@example.com");
         TeamRoster rosterBeforeExecution = new([stale]);
         DirectoryUser newUser = new("new-id", "New", "new@example.com", "new@example.com");

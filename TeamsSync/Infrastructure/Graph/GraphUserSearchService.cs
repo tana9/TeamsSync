@@ -6,16 +6,16 @@ namespace TeamsSync.Infrastructure.Graph;
 
 /// <summary>
 ///     直接参照(UPN/メールの完全一致)でユーザーが見つからなかった場合の、
-///     ディレクトリユーザー検索フォールバックを担当する。
+///     ディレクトリユーザー検索フォールバックを担当する
 /// </summary>
 internal sealed class GraphUserSearchService(GraphSdkClient sdk)
 {
     // 直接参照(UPN/メールの完全一致)で見つからない場合のフォールバック。
     // 1) mail/UPNの完全一致フィルター、2) 表示名の全文検索、3) 表示名の前方一致、の順に緩めて試す。
-    // 段階を分けることで、$search特有のあいまい一致による誤検出を最小限にしている。
+    // 段階を分けることで、$search特有のあいまい一致による誤検出を最小限にしている
     /// <summary>
     ///     直接参照で見つからなかった場合のフォールバック検索。メール/UPNの完全一致、
-    ///     表示名の全文検索、表示名の前方一致の順に段階的に緩めて試す。
+    ///     表示名の全文検索、表示名の前方一致の順に段階的に緩めて試す
     /// </summary>
     public async Task<IReadOnlyList<DirectoryUser>> SearchAsync(string identifier,
         CancellationToken cancellationToken)

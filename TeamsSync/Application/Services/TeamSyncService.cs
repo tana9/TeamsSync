@@ -12,7 +12,7 @@ namespace TeamsSync.Application.Services;
 /// <summary>
 ///     入力アドレス一覧と現メンバーを突き合わせて同期プランを作成し、そのプランに基づいて
 ///     メンバーの追加・削除を実行する。アドレスの解決判定自体は<see cref="AddressResolver" />に委ね、
-///     このクラスはGraph呼び出し・並列制御・進捗通知だけを担う。
+///     このクラスはGraph呼び出し・並列制御・進捗通知だけを担う
 /// </summary>
 public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSyncService>? logger = null)
 {
@@ -31,14 +31,14 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
     // 確認が必要(TODO.md「同期実行の操作間ディレイを見直す」参照)。
     // 実際にスロットリング(429)された場合はAddStandardResilienceHandler(DependencyInjection.cs)が
     // Retry-Afterに従って自動再試行する。POST/DELETEは非冪等操作のため429以外(503・タイムアウト等)は
-    // 重複実行を避けるため再試行しない(DependencyInjection.AllowThrottlingRetryForUnsafeHttpMethods参照)。
+    // 重複実行を避けるため再試行しない(DependencyInjection.AllowThrottlingRetryForUnsafeHttpMethods参照)
     private static readonly TimeSpan OperationThrottleDelay = TimeSpan.FromMilliseconds(300);
 
     private readonly ILogger<TeamSyncService> _logger = logger ?? NullLogger<TeamSyncService>.Instance;
 
     /// <summary>
     ///     入力アドレス一覧を現メンバーおよびディレクトリと突き合わせて解決し、
-    ///     追加・削除・維持・エラーの各変更内容をまとめた同期プランを作成する。
+    ///     追加・削除・維持・エラーの各変更内容をまとめた同期プランを作成する
     /// </summary>
     public async Task<SyncPlan> BuildPlanAsync(TeamInfo team, IReadOnlyList<string> addresses,
         SyncMode mode = SyncMode.FullSync, IProgress<int>? progress = null,
@@ -61,7 +61,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
     }
 
     /// <summary>
-    ///     入力アドレス一覧を、同時実行数を制限しつつ入力順を維持して解決する。
+    ///     入力アドレス一覧を、同時実行数を制限しつつ入力順を維持して解決する
     /// </summary>
     private async Task<AddressResolutionBatch> ResolveAddressesAsync(IReadOnlyList<string> addresses,
         TeamRoster current, IProgress<int>? progress, CancellationToken cancellationToken)
@@ -90,7 +90,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
 
     /// <summary>
     ///     1件のアドレスを解決する。現メンバーの中に一致があればそれを優先し、
-    ///     なければ同時実行数を制限しつつディレクトリ検索(<see cref="ITeamsGateway.FindUsersAsync" />)を行う。
+    ///     なければ同時実行数を制限しつつディレクトリ検索(<see cref="ITeamsGateway.FindUsersAsync" />)を行う
     /// </summary>
     private async Task<AddressResolutionAttempt> ResolveAddressAsync(string address, TeamRoster current,
         SemaphoreSlim concurrency, CancellationToken cancellationToken)
@@ -117,7 +117,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
 
     /// <summary>
     ///     プレビュー済みのプランが最新の状態と一致しているかどうかを再検証する。
-    ///     実行までの間にメンバーシップが変化していた場合は最新のプランを返す。
+    ///     実行までの間にメンバーシップが変化していた場合は最新のプランを返す
     /// </summary>
     public async Task<SyncPlanRevalidation> RevalidatePlanAsync(SyncPlan preview,
         CancellationToken cancellationToken = default)
@@ -129,7 +129,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
 
     /// <summary>
     ///     実行済みプランと同じチーム・入力アドレスに対して、実行後の実際の状態を反映した
-    ///     新しいプランを作成する(実行結果の確認用)。
+    ///     新しいプランを作成する(実行結果の確認用)
     /// </summary>
     public Task<SyncPlan> ReconcileAsync(SyncPlan executedPlan,
         CancellationToken cancellationToken = default)
@@ -140,7 +140,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
 
     /// <summary>
     ///     同期プランに含まれる追加・削除操作を順に実行する。未解決の変更がある場合、
-    ///     または追加のみモードで削除が含まれる場合は例外をスローする。
+    ///     または追加のみモードで削除が含まれる場合は例外をスローする
     /// </summary>
     public async Task<SyncExecutionResult> ExecuteAsync(SyncPlan plan,
         IProgress<SyncProgress>? progress = null, SyncAuditContext? auditContext = null,
@@ -207,7 +207,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
     /// <summary>
     ///     1件の追加・削除操作を実行し、結果を<paramref name="results" />へ追加する。
     ///     成功結果はスロットリング用のdelay前にresultsへ積むため、delay中にキャンセルされても
-    ///     直前の操作の成功結果は失われない。戻り値はキャンセルされたかどうかのみを表す。
+    ///     直前の操作の成功結果は失われない。戻り値はキャンセルされたかどうかのみを表す
     /// </summary>
     private async Task<bool> ExecuteChangeAsync(string teamId, SyncChange change, int index, int totalOperations,
         IProgress<SyncProgress>? progress, List<SyncOperationResult> results, CancellationToken cancellationToken)
@@ -252,7 +252,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
     }
 
     /// <summary>
-    ///     キャンセルによる同期中断を、成功・失敗件数とともに警告ログへ出力する。
+    ///     キャンセルによる同期中断を、成功・失敗件数とともに警告ログへ出力する
     /// </summary>
     private void LogSyncCancelled(IReadOnlyList<SyncOperationResult> results, int totalOperations)
     {
@@ -261,7 +261,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
             Math.Max(0, totalOperations - results.Count));
     }
 
-    /// <summary>並列処理の完了件数を一定間隔と最終件だけ通知する。</summary>
+    /// <summary>並列処理の完了件数を一定間隔と最終件だけ通知する</summary>
     private sealed class BatchedProgressReporter
     {
         private readonly object _gate = new();

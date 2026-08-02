@@ -4,7 +4,7 @@ using TeamsSync.Domain.Teams;
 
 namespace TeamsSync.Application.Services;
 
-/// <summary>サインイン利用者、所有チーム、現在メンバーの参照ユースケースを提供する。</summary>
+/// <summary>サインイン利用者、所有チーム、現在メンバーの参照ユースケースを提供する</summary>
 public sealed class TeamsAccessService(ITeamsGateway teamsGateway)
 {
     public async Task<CurrentUser> GetCurrentUserAsync(CancellationToken cancellationToken = default)

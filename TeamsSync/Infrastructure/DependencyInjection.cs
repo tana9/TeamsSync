@@ -16,13 +16,13 @@ namespace TeamsSync.Infrastructure;
 
 /// <summary>
 ///     インフラストラクチャ層(認証・Graph API・ファイルI/O・設定)のサービスをDIコンテナへ
-///     登録するための拡張メソッドを提供する。
+///     登録するための拡張メソッドを提供する
 /// </summary>
 public static class DependencyInjection
 {
     /// <summary>
     ///     認証・Teamsゲートウェイ・ファイル読み書き・ユーザー設定など、インフラストラクチャ層の
-    ///     サービス実装をサービスコレクションへ登録する。
+    ///     サービス実装をサービスコレクションへ登録する
     /// </summary>
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
@@ -41,7 +41,7 @@ public static class DependencyInjection
 
     /// <summary>
     ///     Microsoft Graph呼び出し用の読み取り/書き込み<see cref="HttpClient" />を、
-    ///     標準レジリエンスハンドラー(429/503のリトライを含む)付きで登録する。
+    ///     標準レジリエンスハンドラー(429/503のリトライを含む)付きで登録する
     /// </summary>
     public static IServiceCollection AddGraphHttpClients(this IServiceCollection services)
     {
@@ -71,10 +71,10 @@ public static class DependencyInjection
     // 「Graph側が処理する前に明示的にスロットリングで拒否した」ことが応答から確定しており、
     // タイムアウトや503のような「サーバー側では実際に処理済みだったかもしれない」曖昧さがないため、
     // 非冪等操作でも安全に再試行できる。DisableForUnsafeHttpMethods()の後に適用し、429の場合だけ
-    // その抑止を上書きして許可する(それ以外の失敗は引き続き重複実行防止のため再試行しない)。
+    // その抑止を上書きして許可する(それ以外の失敗は引き続き重複実行防止のため再試行しない)
     /// <summary>
     ///     <see cref="HttpRetryStrategyOptionsExtensions.DisableForUnsafeHttpMethods" />適用後も、
-    ///     429(スロットリング)応答だけは非冪等なHTTPメソッドでも再試行を許可する。
+    ///     429(スロットリング)応答だけは非冪等なHTTPメソッドでも再試行を許可する
     /// </summary>
     private static void AllowThrottlingRetryForUnsafeHttpMethods(HttpRetryStrategyOptions options)
     {
@@ -90,7 +90,7 @@ public static class DependencyInjection
         };
     }
 
-    /// <summary>認証ヘッダーを検証していない転送先へ引き継がないGraph用ハンドラーを作成する。</summary>
+    /// <summary>認証ヘッダーを検証していない転送先へ引き継がないGraph用ハンドラーを作成する</summary>
     internal static SocketsHttpHandler CreateGraphPrimaryHandler()
     {
         return new SocketsHttpHandler

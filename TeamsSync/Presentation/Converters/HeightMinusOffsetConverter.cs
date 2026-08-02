@@ -9,16 +9,16 @@ namespace TeamsSync.Presentation.Converters;
 // 同期失敗が複数件あるときに下段の同期差分カードやアクションバーが画面からはみ出るおそれがある。
 // values[0]=ContentGridのActualHeight、values[1]=SyncActionBarViewのActualHeightを受け取り、
 // そこからConverterParameter(下段カードの最低保証分など、変動しない固定の予約分)を差し引いた
-// 残りを上段ScrollViewerの上限として使う。
+// 残りを上段ScrollViewerの上限として使う
 /// <summary>
 ///     コンテナの高さからアクションバーの実高さと固定予約分を差し引き、上段スクロール領域の
-///     MaxHeightを動的に算出するマルチバインディング用コンバータ。
+///     MaxHeightを動的に算出するマルチバインディング用コンバータ
 /// </summary>
 public sealed class HeightMinusOffsetConverter : IMultiValueConverter
 {
     /// <summary>
     ///     values[0]=コンテナのActualHeight、values[1]=アクションバーのActualHeightから、
-    ///     ConverterParameterで指定した固定予約分を差し引いた残り高さ(0以上)を返す。
+    ///     ConverterParameterで指定した固定予約分を差し引いた残り高さ(0以上)を返す
     /// </summary>
     public object Convert(object?[] values, Type targetType, object? parameter, CultureInfo culture)
     {
@@ -28,7 +28,7 @@ public sealed class HeightMinusOffsetConverter : IMultiValueConverter
         return Math.Max(0, containerHeight - actionBarHeight - reservedHeight);
     }
 
-    /// <summary>このコンバータは片方向専用のためサポートしない。</summary>
+    /// <summary>このコンバータは片方向専用のためサポートしない</summary>
     public object[] ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture)
     {
         throw new NotSupportedException();
