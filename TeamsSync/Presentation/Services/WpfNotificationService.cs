@@ -83,14 +83,15 @@ public sealed class WpfNotificationService(
             Margin = new Thickness(12, 0, 0, 0),
             VerticalAlignment = VerticalAlignment.Center
         };
-        Hyperlink actionLink = new();
+        // 危険/成功/注意いずれの塗りつぶし背景上でも視認できるよう、Snackbar既定のリンク色に
+        // 任せず「アクセント色背景上のテキスト」用ブラシを明示する。あわせてSemiBoldにして、
+        // 隣接する閉じるボタンと並んだときにクリック可能な要素だと分かるようにする。
+        Hyperlink actionLink = new() { FontWeight = FontWeights.SemiBold };
+        actionLink.SetResourceReference(TextElement.ForegroundProperty, "TextOnAccentFillColorPrimaryBrush");
         AutomationProperties.SetName(actionLink, actionText);
-        actionLink.Inlines.Add(new InlineUIContainer(new SymbolIcon
-        {
-            Symbol = actionIcon,
-            FontSize = 16,
-            Margin = new Thickness(0, 0, 4, 0)
-        }));
+        SymbolIcon icon = new() { Symbol = actionIcon, FontSize = 16, Margin = new Thickness(0, 0, 4, 0) };
+        icon.SetResourceReference(SymbolIcon.ForegroundProperty, "TextOnAccentFillColorPrimaryBrush");
+        actionLink.Inlines.Add(new InlineUIContainer(icon));
         actionLink.Inlines.Add(new Run(actionText));
         actionLink.Click += (_, _) => executeAction();
         actionTextBlock.Inlines.Add(actionLink);
