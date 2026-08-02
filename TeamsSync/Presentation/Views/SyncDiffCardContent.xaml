@@ -120,49 +120,38 @@
                 <DataGridTemplateColumn Header="判定" Width="120">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
+                            <!-- 枠線なしの塗りつぶしだけにすることで、このアプリのui:Button(角丸+枠線+塗りつぶし)と
+                                 見た目が紛らわしくならないようにしている。判定はクリックできない状態表示。 -->
                             <Border HorizontalAlignment="Left" Padding="12,4" CornerRadius="4">
                                 <Border.Style>
                                     <Style TargetType="Border">
                                         <Setter Property="Background"
                                                 Value="{DynamicResource SystemFillColorNeutralBackgroundBrush}" />
-                                        <Setter Property="BorderBrush"
-                                                Value="{DynamicResource SystemFillColorNeutralBrush}" />
-                                        <Setter Property="BorderThickness" Value="1" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding Kind}"
                                                          Value="{x:Static domain:ChangeKind.Add}">
                                                 <Setter Property="Background"
                                                         Value="{DynamicResource SystemFillColorSuccessBackgroundBrush}" />
-                                                <Setter Property="BorderBrush"
-                                                        Value="{DynamicResource SystemFillColorSuccessBrush}" />
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding Kind}"
                                                          Value="{x:Static domain:ChangeKind.Remove}">
                                                 <Setter Property="Background"
                                                         Value="{DynamicResource SystemFillColorCriticalBackgroundBrush}" />
-                                                <Setter Property="BorderBrush"
-                                                        Value="{DynamicResource SystemFillColorCriticalBrush}" />
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding Kind}"
                                                          Value="{x:Static domain:ChangeKind.Protected}">
                                                 <Setter Property="Background"
                                                         Value="{DynamicResource SystemFillColorAttentionBackgroundBrush}" />
-                                                <Setter Property="BorderBrush"
-                                                        Value="{DynamicResource SystemFillColorAttentionBrush}" />
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding Kind}"
                                                          Value="{x:Static domain:ChangeKind.NotMember}">
                                                 <Setter Property="Background"
                                                         Value="{DynamicResource SystemFillColorNeutralBackgroundBrush}" />
-                                                <Setter Property="BorderBrush"
-                                                        Value="{DynamicResource SystemFillColorNeutralBrush}" />
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding Kind}"
                                                          Value="{x:Static domain:ChangeKind.Error}">
                                                 <Setter Property="Background"
                                                         Value="{DynamicResource SystemFillColorCautionBackgroundBrush}" />
-                                                <Setter Property="BorderBrush"
-                                                        Value="{DynamicResource SystemFillColorCautionBrush}" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
