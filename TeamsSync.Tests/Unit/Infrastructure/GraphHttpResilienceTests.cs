@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
 
@@ -108,6 +109,47 @@ public sealed class GraphHttpResilienceTests
         // 非冪等なPOSTでも例外的に再試行する(DependencyInjection.AllowThrottlingRetryForUnsafeHttpMethods参照)。
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(2, handler.CallCount);
+    }
+
+    [Fact]
+    public async Task WriteClient_POSTの429再試行はRetryAfterの秒数だけ待機する()
+    {
+        // 標準レジリエンスハンドラーの既定バックオフ(2秒)ではなく、応答のRetry-Afterヘッダーが
+        // 実際に待機時間として使われていることを、1回目と2回目の呼び出し間隔(gap)を計測して確認する。
+        // 呼び出し開始からの経過時間には初回リクエストのパイプライン構築コストが乗り不安定なため、
+        // ハンドラー呼び出し時刻そのものを記録し、その差分だけを検証対象にする。
+        TimeSpan retryAfter = TimeSpan.FromMilliseconds(300);
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        List<long> callTimestampsMs = [];
+        CountingHandler handler = new((call, _) =>
+        {
+            callTimestampsMs.Add(stopwatch.ElapsedMilliseconds);
+            if (call == 1)
+            {
+                HttpResponseMessage response = new((HttpStatusCode)429);
+                response.Headers.RetryAfter = new RetryConditionHeaderValue(retryAfter);
+                return Task.FromResult(response);
+            }
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+        });
+        ServiceCollection services = new();
+        services.AddLogging();
+        services.AddGraphHttpClients();
+        services.AddHttpClient(GraphHttpClient.WriteHttpClientName)
+            .ConfigurePrimaryHttpMessageHandler(() => handler);
+        using ServiceProvider provider = services.BuildServiceProvider();
+        IHttpClientFactory factory = provider.GetRequiredService<IHttpClientFactory>();
+
+        using HttpResponseMessage response = await factory.CreateClient(GraphHttpClient.WriteHttpClientName)
+            .PostAsync("teams/team-1/members", new StringContent("{}"),
+                TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(2, handler.CallCount);
+        long gapMs = callTimestampsMs[1] - callTimestampsMs[0];
+        // Retry-After(300ms)に近い間隔であり、既定バックオフ(2秒)まで引きずられていないことを確認する。
+        Assert.InRange(gapMs, retryAfter.TotalMilliseconds - 50, 1500);
     }
 
     [Fact]
