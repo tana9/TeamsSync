@@ -44,19 +44,11 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
         IReadOnlyList<TeamMember> current = await teamsGateway.GetTeamMembersAsync(team.Id, cancellationToken);
-        CurrentMemberIndex currentIndex = new(current);
-        AddressResolutionBatch resolutionBatch = await ResolveAddressesAsync(addresses, currentIndex, progress,
+        TeamRoster roster = new(current);
+        AddressResolutionBatch resolutionBatch = await ResolveAddressesAsync(addresses, roster, progress,
             cancellationToken);
 
-        (Dictionary<string, DirectoryUser> resolved, List<SyncChange> changes) =
-            ClassifyResolutions(resolutionBatch.Resolutions, mode);
-        if (mode == SyncMode.FullSync)
-        {
-            changes.AddRange(ComputeRemovals(current, resolved, changes));
-        }
-
-        List<TeamMembershipSnapshot> snapshot = BuildMembershipSnapshot(current);
-        SyncPlan plan = new(team, changes, addresses, current.Count(x => !x.IsOwner), snapshot, mode);
+        SyncPlan plan = SyncPlanFactory.Create(team, roster, resolutionBatch.Resolutions, mode, addresses);
         _logger.LogInformation(
             "同期差分を作成しました。TeamId={TeamId}, Add={Add}, Remove={Remove}, Errors={Errors}, " +
             "InputCount={InputCount}, UniqueInputCount={UniqueInputCount}, DirectorySearchCount={DirectorySearchCount}, " +
@@ -70,7 +62,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
     ///     入力アドレス一覧を、同時実行数を制限しつつ入力順を維持して解決する。
     /// </summary>
     private async Task<AddressResolutionBatch> ResolveAddressesAsync(IReadOnlyList<string> addresses,
-        CurrentMemberIndex current, IProgress<int>? progress, CancellationToken cancellationToken)
+        TeamRoster current, IProgress<int>? progress, CancellationToken cancellationToken)
     {
         using SemaphoreSlim concurrency = new(AddressResolutionConcurrency);
         BatchedProgressReporter progressReporter = new(progress, addresses.Count, ProgressReportInterval);
@@ -95,119 +87,10 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
     }
 
     /// <summary>
-    ///     アドレスごとの解決結果を、追加・維持・保護・エラーの各<see cref="SyncChange" />へ分類する。
-    ///     同一ユーザーが氏名とメールアドレスなど複数の表記で重複指定された場合、2件目以降を別行にはせず
-    ///     最初の行のEmailへ表記を合流させて1行にまとめる。
-    /// </summary>
-    private static (Dictionary<string, DirectoryUser> Resolved, List<SyncChange> Changes) ClassifyResolutions(
-        IReadOnlyList<AddressResolution> resolutions, SyncMode mode)
-    {
-        Dictionary<string, DirectoryUser> resolved = new(StringComparer.OrdinalIgnoreCase);
-        List<SyncChange> changes = [];
-        Dictionary<string, int> rowIndexByUserId = new(StringComparer.OrdinalIgnoreCase);
-
-        void AddOrMergeChange(string address, string userId, string? membershipId, string displayName,
-            ChangeKind kind, ChangeReason reason)
-        {
-            if (rowIndexByUserId.TryGetValue(userId, out int index))
-            {
-                changes[index] = changes[index] with { Email = $"{changes[index].Email} ／ {address}" };
-                return;
-            }
-
-            rowIndexByUserId[userId] = changes.Count;
-            changes.Add(new SyncChange(kind, displayName, address, reason, userId, membershipId));
-        }
-
-        foreach (AddressResolution resolution in resolutions)
-        {
-            switch (resolution)
-            {
-                case { Outcome: ResolutionOutcome.Error }:
-                    changes.Add(new SyncChange(ChangeKind.Error, "", resolution.Address,
-                        resolution.ErrorReason));
-                    break;
-                case { Outcome: ResolutionOutcome.ExistingSingle, ExistingMember: { } existing }:
-                    (ChangeKind existingKind, ChangeReason existingReason) = ClassifyExistingMember(
-                        existing.IsOwner, mode, ChangeReason.AlreadyMember);
-                    AddOrMergeChange(resolution.Address, existing.UserId, existing.MembershipId,
-                        existing.DisplayName, existingKind, existingReason);
-                    break;
-                case
-                {
-                    Outcome: ResolutionOutcome.SameUserDifferentAddress, ExistingMember: { } sameUser,
-                    User: { } sameUserAccount
-                }:
-                    resolved[resolution.Address] = sameUserAccount;
-                    (ChangeKind sameUserKind, ChangeReason sameUserReason) = ClassifyExistingMember(
-                        sameUser.IsOwner, mode, ChangeReason.AlreadyMemberDifferentIdentifier);
-                    AddOrMergeChange(resolution.Address, sameUser.UserId, sameUser.MembershipId,
-                        sameUser.DisplayName, sameUserKind, sameUserReason);
-                    break;
-                case { Outcome: ResolutionOutcome.NewUser, User: { } user }:
-                    resolved[resolution.Address] = user;
-                    AddOrMergeChange(resolution.Address, user.Id, null, user.DisplayName,
-                        mode == SyncMode.RemoveSpecified ? ChangeKind.NotMember : ChangeKind.Add,
-                        mode == SyncMode.RemoveSpecified ? ChangeReason.NotCurrentMember : ChangeReason.AddToTeam);
-                    break;
-            }
-        }
-
-        return (resolved, changes);
-    }
-
-    /// <summary>
-    ///     既にチームに所属しているメンバーの変更種別・理由を判定する。所有者は常に保護し、
-    ///     所有者でなければ指定削除モードは削除、それ以外は<paramref name="keepReason" />を理由に維持する。
-    /// </summary>
-    private static (ChangeKind Kind, ChangeReason Reason) ClassifyExistingMember(bool isOwner, SyncMode mode,
-        ChangeReason keepReason)
-    {
-        if (isOwner)
-        {
-            return (ChangeKind.Protected, ChangeReason.OwnerProtected);
-        }
-
-        return mode == SyncMode.RemoveSpecified
-            ? (ChangeKind.Remove, ChangeReason.RemoveSpecified)
-            : (ChangeKind.Keep, keepReason);
-    }
-
-    /// <summary>
-    ///     完全同期モード用に、入力リストに含まれない一般メンバー(所有者を除く)を
-    ///     削除対象の<see cref="SyncChange" />として列挙する。
-    /// </summary>
-    private static IEnumerable<SyncChange> ComputeRemovals(IReadOnlyList<TeamMember> current,
-        Dictionary<string, DirectoryUser> resolved, IReadOnlyList<SyncChange> changes)
-    {
-        HashSet<string> wantedIds = resolved.Values.Select(x => x.Id)
-            .Concat(changes.Where(x => x.Kind is ChangeKind.Keep or ChangeKind.Protected)
-                .Select(x => x.UserId!))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        return current.Where(x => !x.IsOwner && !wantedIds.Contains(x.UserId))
-            .Select(member => new SyncChange(ChangeKind.Remove, member.DisplayName, member.Email,
-                ChangeReason.RemoveNotInInput, member.UserId, member.MembershipId));
-    }
-
-    /// <summary>
-    ///     再検証(<see cref="RevalidatePlanAsync" />)で使う、現メンバーシップのスナップショットを作成する。
-    /// </summary>
-    private static List<TeamMembershipSnapshot> BuildMembershipSnapshot(IReadOnlyList<TeamMember> current)
-    {
-        return current
-            .Select(member => new TeamMembershipSnapshot(
-                member.MembershipId, member.UserId, member.IsOwner))
-            .OrderBy(member => member.MembershipId, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(member => member.UserId, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-    }
-
-    /// <summary>
     ///     1件のアドレスを解決する。現メンバーの中に一致があればそれを優先し、
     ///     なければ同時実行数を制限しつつディレクトリ検索(<see cref="ITeamsGateway.FindUsersAsync" />)を行う。
     /// </summary>
-    private async Task<AddressResolutionAttempt> ResolveAddressAsync(string address, CurrentMemberIndex current,
+    private async Task<AddressResolutionAttempt> ResolveAddressAsync(string address, TeamRoster current,
         SemaphoreSlim concurrency, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -233,7 +116,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
     ///     メールアドレスまたは正規化した氏名で現メンバーから一致を探す。
     ///     複数一致した場合は特定不能としてエラーにする。
     /// </summary>
-    private static AddressResolution? TryResolveFromCurrentMembers(string address, CurrentMemberIndex current)
+    private static AddressResolution? TryResolveFromCurrentMembers(string address, TeamRoster current)
     {
         IReadOnlyList<TeamMember> existingMatches = current.FindByAddressOrName(address);
         if (existingMatches.Count > 1)
@@ -251,7 +134,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
     ///     ディレクトリ検索の候補から一意なユーザーを特定し、既に別アドレスでメンバーかどうかを判定する。
     /// </summary>
     private static AddressResolution ResolveFromCandidates(string address,
-        IReadOnlyList<DirectoryUser> candidates, CurrentMemberIndex current)
+        IReadOnlyList<DirectoryUser> candidates, TeamRoster current)
     {
         List<DirectoryUser> exactMatches = candidates
             .DistinctBy(user => user.Id, StringComparer.OrdinalIgnoreCase).ToList();
@@ -269,64 +152,6 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
             ? new AddressResolution(ResolutionOutcome.SameUserDifferentAddress, address,
                 sameUser, user)
             : new AddressResolution(ResolutionOutcome.NewUser, address, User: user);
-    }
-
-    /// <summary>現在メンバーをメールアドレス・正規化氏名・ユーザーIDで定数時間検索する索引。</summary>
-    private sealed class CurrentMemberIndex
-    {
-        private readonly Dictionary<string, List<TeamMember>> _byEmail = new(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, List<TeamMember>> _byName = new(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, TeamMember> _byUserId = new(StringComparer.OrdinalIgnoreCase);
-
-        public CurrentMemberIndex(IEnumerable<TeamMember> members)
-        {
-            foreach (TeamMember member in members)
-            {
-                Add(_byEmail, member.Email, member);
-                Add(_byName, UserIdentifier.NormalizeName(member.DisplayName), member);
-                _byUserId.TryAdd(member.UserId, member);
-            }
-        }
-
-        public IReadOnlyList<TeamMember> FindByAddressOrName(string value)
-        {
-            List<TeamMember> matches = [];
-            if (_byEmail.TryGetValue(value, out List<TeamMember>? emailMatches))
-            {
-                matches.AddRange(emailMatches);
-            }
-
-            string normalizedName = UserIdentifier.NormalizeName(value);
-            if (_byName.TryGetValue(normalizedName, out List<TeamMember>? nameMatches))
-            {
-                foreach (TeamMember member in nameMatches)
-                {
-                    if (!matches.Any(match => string.Equals(match.MembershipId, member.MembershipId,
-                            StringComparison.OrdinalIgnoreCase)))
-                    {
-                        matches.Add(member);
-                    }
-                }
-            }
-
-            return matches;
-        }
-
-        public TeamMember? FindByUserId(string userId)
-        {
-            return _byUserId.GetValueOrDefault(userId);
-        }
-
-        private static void Add(Dictionary<string, List<TeamMember>> index, string key, TeamMember member)
-        {
-            if (!index.TryGetValue(key, out List<TeamMember>? matches))
-            {
-                matches = [];
-                index.Add(key, matches);
-            }
-
-            matches.Add(member);
-        }
     }
 
     /// <summary>並列処理の完了件数を一定間隔と最終件だけ通知する。</summary>
@@ -376,7 +201,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
     {
         SyncPlan latest = await BuildPlanAsync(
             preview.Team, preview.InputAddresses, preview.Mode, cancellationToken: cancellationToken);
-        return new SyncPlanRevalidation(PlansAreEquivalent(preview, latest), latest);
+        return new SyncPlanRevalidation(preview.IsEquivalentTo(latest), latest);
     }
 
     /// <summary>
@@ -398,27 +223,9 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         IProgress<SyncProgress>? progress = null, SyncAuditContext? auditContext = null,
         CancellationToken cancellationToken = default)
     {
-        ValidateExecutablePlan(plan);
+        plan.EnsureExecutable();
         using IDisposable? auditScope = BeginAuditScope(plan, auditContext);
         return await ExecuteOperationsAsync(plan, progress, cancellationToken);
-    }
-
-    private static void ValidateExecutablePlan(SyncPlan plan)
-    {
-        if (plan.HasErrors)
-        {
-            throw new InvalidOperationException("未解決ユーザーがあります。同期は実行できません。");
-        }
-
-        if (plan.Mode == SyncMode.AddOnly && plan.RemoveCount > 0)
-        {
-            throw new InvalidOperationException("追加のみモードではメンバーを削除できません。");
-        }
-
-        if (plan.Mode == SyncMode.RemoveSpecified && plan.AddCount > 0)
-        {
-            throw new InvalidOperationException("指定メンバー削除モードではメンバーを追加できません。");
-        }
     }
 
     private IDisposable? BeginAuditScope(SyncPlan plan, SyncAuditContext? auditContext)
@@ -530,63 +337,6 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
             results.Count(result => result.Succeeded), results.Count(result => !result.Succeeded),
             Math.Max(0, totalOperations - results.Count));
     }
-
-    /// <summary>
-    ///     2つのプランが、同期モード・メンバーシップのスナップショット・
-    ///     追加/削除/保護/エラーの各操作内容の点で同一かどうかを判定する。
-    /// </summary>
-    private static bool PlansAreEquivalent(SyncPlan preview, SyncPlan latest)
-    {
-        if (preview.Mode != latest.Mode)
-        {
-            return false;
-        }
-
-        IReadOnlyList<TeamMembershipSnapshot> previewSnapshot = preview.MembershipSnapshot ?? [];
-        IReadOnlyList<TeamMembershipSnapshot> latestSnapshot = latest.MembershipSnapshot ?? [];
-        if (!previewSnapshot.SequenceEqual(latestSnapshot))
-        {
-            return false;
-        }
-
-        static IEnumerable<(ChangeKind Kind, string? UserId, string? MembershipId)> Operations(
-            SyncPlan plan)
-        {
-            return plan.Changes
-                .Where(change => change.Kind is ChangeKind.Add or ChangeKind.Remove or
-                    ChangeKind.Protected or ChangeKind.NotMember or ChangeKind.Error)
-                .Select(change => (change.Kind, change.UserId, change.MembershipId))
-                .OrderBy(change => change.Kind)
-                .ThenBy(change => change.UserId, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(change => change.MembershipId, StringComparer.OrdinalIgnoreCase);
-        }
-
-        return Operations(preview).SequenceEqual(Operations(latest));
-    }
-
-    /// <summary>1件のアドレス解決の結果種別。</summary>
-    private enum ResolutionOutcome
-    {
-        /// <summary>解決に失敗した。</summary>
-        Error,
-
-        /// <summary>現メンバーの中に一意な一致があった。</summary>
-        ExistingSingle,
-
-        /// <summary>ディレクトリ検索で一致した、現メンバーにいない新規ユーザー。</summary>
-        NewUser,
-
-        /// <summary>ディレクトリ検索で一致したユーザーが、別のアドレスで既に現メンバーだった。</summary>
-        SameUserDifferentAddress
-    }
-
-    /// <summary>1件のアドレス解決結果を保持する内部データ。</summary>
-    private sealed record AddressResolution(
-        ResolutionOutcome Outcome,
-        string Address,
-        TeamMember? ExistingMember = null,
-        DirectoryUser? User = null,
-        ChangeReason ErrorReason = ChangeReason.Unspecified);
 
     private sealed record AddressResolutionAttempt(AddressResolution Resolution, bool DirectorySearched);
 

@@ -245,10 +245,11 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     // このときはtrueのままでEmptyStateMessage側のオーバーレイは出ないため、
     // ただの空白の表にならないよう専用の案内を別途表示する。
     // 「変更なし」フィルターなどへ切り替えて実際に行が表示されているときは、案内を隠す必要があるため
-    // 現在のフィルター後のビュー(ChangesView)が空かどうかもあわせて判定する。
+    // 現在のフィルターの該当件数もあわせて判定する。SelectedFilter.CountはUpdateFilterCountsが
+    // ChangesViewと同じ述語で既に算出済みのため、ChangesViewを再列挙する必要はない。
     /// <summary>差分確認の結果、追加・削除ともに0件で新たに行う変更がなく、かつ現在のフィルターでは一覧に何も表示されないかどうか。</summary>
     public bool HasNoChangesToApply =>
-        _plan is not null && _plan.HasNoActionableChanges && !ChangesView.Cast<object>().Any();
+        _plan is not null && _plan.HasNoActionableChanges && SelectedFilter.Count == 0;
 
     /// <summary>変更なし(同期済み)の場合に一覧領域へ表示する案内文。</summary>
     public string NoChangesMessage => _plan is null ? "" : SyncWorkspaceTextFormatter.BuildPreviewStatusText(_plan);

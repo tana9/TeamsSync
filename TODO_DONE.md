@@ -3,6 +3,16 @@
 `TODO.md`から、全項目が完了した(チェックボックスが全て`[x]`の)セクションをここへ移動した履歴。
 新しい完了項目は`TODO.md`側で管理し、セクション内が全て完了した時点でここへ移動する。
 
+### 同期判定の業務ルールをDomain Modelへ集約する
+
+- [x] `TeamSyncService`の`ClassifyResolutions`、`ClassifyExistingMember`、`ComputeRemovals`から、Graphアクセスに依存しない同期差分の判定をDomain層の`SyncPlanFactory`へ移す
+- [x] 現在メンバーのメールアドレス・正規化氏名・ユーザーIDによる検索と、メンバーシップスナップショット生成を`TeamRoster`というDomain Modelへ集約する
+- [x] `ValidateExecutablePlan`のモード別実行可否判定を`SyncPlan.EnsureExecutable`として表現する
+- [x] `PlansAreEquivalent`の同期プラン同値性判定を`SyncPlan.IsEquivalentTo`へ移し、再検証のオーケストレーションだけをApplication層へ残す
+- [x] 所有者保護、追加のみ、指定削除、完全同期、曖昧・未解決ユーザー、重複入力、プラン同値性の既存挙動をDomain層の単体テスト(`TeamRosterTests`、`SyncPlanFactoryTests`、`TeamModelsTests`)で固定する
+
+完了条件: Graph通信、並列制御、進捗通知、ログをApplication/Infrastructure層に維持しながら、同期差分・実行可否・プラン同値性の業務ルールがDomain層だけでテストできる。
+
 ### 通常エラーをコピー可能な持続型通知へ統一する
 
 - [x] 復旧可能な通常エラーを、24時間表示・標準閉じるボタン付きのSnackbarへ変更する

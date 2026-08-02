@@ -136,4 +136,59 @@ public sealed record SyncPlan(
     /// <summary>実際にGraphへ送信する操作(追加・削除)だけを抽出した一覧。</summary>
     public IReadOnlyList<SyncChange> Operations =>
         Changes.Where(x => x.Kind is ChangeKind.Add or ChangeKind.Remove).ToList();
+
+    /// <summary>
+    ///     未解決の変更がある場合、または選択した同期モードと矛盾する追加・削除が含まれる場合に例外をスローする。
+    /// </summary>
+    public void EnsureExecutable()
+    {
+        if (HasErrors)
+        {
+            throw new InvalidOperationException("未解決ユーザーがあります。同期は実行できません。");
+        }
+
+        if (Mode == SyncMode.AddOnly && RemoveCount > 0)
+        {
+            throw new InvalidOperationException("追加のみモードではメンバーを削除できません。");
+        }
+
+        if (Mode == SyncMode.RemoveSpecified && AddCount > 0)
+        {
+            throw new InvalidOperationException("指定メンバー削除モードではメンバーを追加できません。");
+        }
+    }
+
+    /// <summary>
+    ///     このプランと<paramref name="other" />が、同期モード・メンバーシップのスナップショット・
+    ///     追加/削除/保護/未所属/エラーの各操作内容の点で同一かどうかを判定する。
+    /// </summary>
+    public bool IsEquivalentTo(SyncPlan other)
+    {
+        if (Mode != other.Mode)
+        {
+            return false;
+        }
+
+        IReadOnlyList<TeamMembershipSnapshot> snapshot = MembershipSnapshot ?? [];
+        IReadOnlyList<TeamMembershipSnapshot> otherSnapshot = other.MembershipSnapshot ?? [];
+        if (!snapshot.SequenceEqual(otherSnapshot))
+        {
+            return false;
+        }
+
+        // Operationsプロパティ(追加・削除のみ)より広く、保護・未所属・エラーも比較対象に含めるため、
+        // 同名の紛らわしさを避けてComparisonKeysという別名にしている。
+        static IEnumerable<(ChangeKind Kind, string? UserId, string? MembershipId)> ComparisonKeys(SyncPlan plan)
+        {
+            return plan.Changes
+                .Where(change => change.Kind is ChangeKind.Add or ChangeKind.Remove or
+                    ChangeKind.Protected or ChangeKind.NotMember or ChangeKind.Error)
+                .Select(change => (change.Kind, change.UserId, change.MembershipId))
+                .OrderBy(change => change.Kind)
+                .ThenBy(change => change.UserId, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(change => change.MembershipId, StringComparer.OrdinalIgnoreCase);
+        }
+
+        return ComparisonKeys(this).SequenceEqual(ComparisonKeys(other));
+    }
 }
