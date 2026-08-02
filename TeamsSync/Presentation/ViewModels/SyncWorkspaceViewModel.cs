@@ -481,12 +481,11 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         }
     }
 
-    // 実行直前にチームメンバーを再取得し、プレビュー作成後に構成が変わっていないか確認する。
-    // falseを返す場合、最新の差分は既にApplyPlanで画面へ反映済みなので、呼び出し元は実行を中断するだけでよい。
-    // 呼び出し元のExecuteSyncAsyncが既に同じ_busyRunnerでIsBusy=trueにしている(唯一の呼び出し元、
-    // 常にその中から呼ばれる前提)ため、ここでmanageBusyState: falseを指定しないと、この処理が
-    // 完了した時点でIsBusyがfalseへ戻ってしまい、まだRunSyncAndReconcileAsyncが実行中にもかかわらず
-    // 画面の入力カードや「チームに反映」ボタンが一瞬再操作可能になってしまう
+    /// <summary>
+    ///     実行直前にチームメンバーを再取得し、プレビュー作成後にチーム構成が変化していないか検証する。
+    ///     構成が変化していた場合は、最新の同期プランを画面へ反映する
+    /// </summary>
+    /// <returns>プレビュー時点の同期プランをそのまま実行できる場合はtrue。それ以外の場合はfalse</returns>
     private async Task<bool> RevalidateBeforeExecuteAsync()
     {
         return await _busyRunner.RunAsync(async () =>
@@ -585,8 +584,6 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         StatusChanged?.Invoke("同期を中止しました。Teams側の最新状態を再確認してください", true);
     }
 
-    // 実行後にTeams側の最終状態を再取得し、未反映分だけを新しい差分として表示する。
-    // 再取得自体に失敗しても既に完了した操作結果は保存できるため、差分だけを無効化して継続可能にする
     /// <summary>
     ///     同期完了後にTeams側の最終状態を再取得し、未反映分を新しい差分として表示する。
     ///     再取得に失敗しても既に完了した実行結果は保持したまま、差分だけを無効化する
@@ -782,12 +779,15 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         OnPropertyChanged(nameof(HiddenFailedResultsText));
     }
 
-    // announceStatus: falseの呼び出し元は、この直後に自分でより具体的な状況(再検証結果・完了結果など)を
-    // StatusChangedへ通知する。既定の案内文と二重にスクリーンリーダーへ読み上げさせないための引数
     /// <summary>
     ///     作成した同期プランを画面へ反映する(差分一覧・件数サマリー・削除警告)。
-    ///     <paramref name="announceStatus" />がfalseの場合、既定の案内文とフォーカス移動は行わない
+    ///     ステータスを通知する場合は、差分一覧へのフォーカス移動も要求する
     /// </summary>
+    /// <param name="plan">画面へ反映する同期プラン</param>
+    /// <param name="announceStatus">
+    ///     既定のステータスメッセージを通知し、差分一覧へのフォーカス移動を要求する場合はtrue。
+    ///     呼び出し元が個別のステータスを通知する場合はfalse
+    /// </param>
     private void ApplyPlan(SyncPlan plan, bool announceStatus = true)
     {
         _plan = plan;

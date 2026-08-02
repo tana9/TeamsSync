@@ -139,7 +139,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         bool memberImportActive = MemberFile.Import.IsImportingMembers;
         bool syncActive = SyncWorkspace.IsBusy || SyncWorkspace.IsSyncing;
-        InputsEnabled = SignIn.IsSignedIn && !SignIn.IsBusy && !TeamSelection.IsBusy && !syncActive;
+        InputsEnabled = SignIn is { IsSignedIn: true, IsBusy: false } && !TeamSelection.IsBusy && !syncActive;
         InputsEnabled &= !memberImportActive;
         TeamSelection.SetExternalBusy(SignIn.IsBusy || syncActive || memberImportActive);
         MemberFile.SetEnabled(InputsEnabled);
