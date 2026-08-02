@@ -219,6 +219,16 @@ TeamsSync の今後の改善項目。メンバー削除を伴うアプリケー�
 
 完了条件: 終了処理中に例外が発生しても、ログを残さずに無言でクラッシュしない。
 
+### 起動時エラー表示をWPFリソース依存の有無で段階分けする
+
+- [x] `App.xaml.cs`の`OnStartup`が、起動失敗時にアプリ内で唯一ネイティブ`MessageBox`(WPF-UIのFluentテーマ非適用)を使っていた点を見直した(コードレビューで指摘、2026-08-02)
+- [x] 起動処理を2段階に分割した。①`BuildHostAsync`(設定読込・DI構築、WPFリソース非依存)の失敗はWPF-UIのテーマ付き`Wpf.Ui.Controls.MessageBox`(`ContentDialogHost`を必要とせず単独ウィンドウとして表示可能)で報告。②`MainWindow.Show()`(XAML/リソース読込を伴う)の失敗は、テーマ描画自体が壊れている可能性があるため従来どおりネイティブ`MessageBox`で報告する「最後の砦」のまま維持した
+- [x] `appsettings.json`埋め込みリソース欠落のような原因が既知の起動失敗を`StartupConfigurationException`として区別し、より具体的な案内を表示できるようにした。他の箇所(`BusyOperationRunner`等)への例外表示の一元化は、起動時と実行時で扱う例外の種類が重複しないため見送った
+- [x] ビルド・全テスト(280件)が成功することを確認した
+- [x] セルフレビューで3点追加修正: `BuildHostAsync`で`host.StartAsync()`失敗時に`host`が破棄されず残る資源リークを修正(`AppHostShutdown.StopAndDisposeAsync`で確実に破棄)、2箇所に重複していた診断ログヒント組み立てを`BuildDiagnosticHint`へ集約、起動失敗の3経路で`ShutdownMode = OnExplicitShutdown`を設定し、既定の`OnLastWindowClose`による暗黙シャットダウン(終了コード0)と明示的な`Shutdown(-1)`の競合を回避
+
+完了条件: 起動失敗時、WPFリソースに依存できる場面ではアプリのテーマと一貫したダイアログで報告し、依存できない場面(リソース破損等)では最後までネイティブダイアログで報告できる。
+
 ### appsettings.jsonのClientId公開範囲を確認する
 
 - [ ] `TeamsSync/appsettings.json`にプレースホルダーではなく実際のEntra ClientIdがコミットされている点が、意図した公開かどうかを確認する(コードレビューで指摘、2026-08-02)。パブリッククライアントのClientId自体は秘密情報ではないため緊急対応は不要
