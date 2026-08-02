@@ -29,8 +29,9 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
     // 300msは「秒4リクエスト」の解釈(緩い方)に約20%の余裕を残した値。「分4リクエスト」が
     // 正しい場合はこの値では429が頻発する可能性があるため、実テナントでの429発生有無の
     // 確認が必要(TODO.md「同期実行の操作間ディレイを見直す」参照)。
-    // 実際にスロットリングされた場合はAddStandardResilienceHandler(DependencyInjection.cs)が
-    // Retry-Afterに従って自動再試行する。
+    // 実際にスロットリング(429)された場合はAddStandardResilienceHandler(DependencyInjection.cs)が
+    // Retry-Afterに従って自動再試行する。POST/DELETEは非冪等操作のため429以外(503・タイムアウト等)は
+    // 重複実行を避けるため再試行しない(DependencyInjection.AllowThrottlingRetryForUnsafeHttpMethods参照)。
     private static readonly TimeSpan OperationThrottleDelay = TimeSpan.FromMilliseconds(300);
 
     private readonly ILogger<TeamSyncService> _logger = logger ?? NullLogger<TeamSyncService>.Instance;

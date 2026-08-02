@@ -1,6 +1,10 @@
+using System.Net;
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
+
+using Polly.Retry;
 
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Infrastructure.Authentication;
@@ -51,6 +55,7 @@ public static class DependencyInjection
             {
                 options.Retry.ShouldRetryAfterHeader = true;
                 options.Retry.DisableForUnsafeHttpMethods();
+                AllowThrottlingRetryForUnsafeHttpMethods(options.Retry);
             });
         return services;
 
@@ -60,6 +65,30 @@ public static class DependencyInjection
             client.Timeout = Timeout.InfiniteTimeSpan;
         }
 
+    }
+
+    // DisableForUnsafeHttpMethods()はPOST/PUT/DELETE/PATCH/CONNECTについて、429だけでなく
+    // タイムアウトや503を含むあらゆる再試行対象応答を一律に再試行しないようにする。しかし429は
+    // 「Graph側が処理する前に明示的にスロットリングで拒否した」ことが応答から確定しており、
+    // タイムアウトや503のような「サーバー側では実際に処理済みだったかもしれない」曖昧さがないため、
+    // 非冪等操作でも安全に再試行できる。DisableForUnsafeHttpMethods()の後に適用し、429の場合だけ
+    // その抑止を上書きして許可する(それ以外の失敗は引き続き重複実行防止のため再試行しない)。
+    /// <summary>
+    ///     <see cref="HttpRetryStrategyOptionsExtensions.DisableForUnsafeHttpMethods" />適用後も、
+    ///     429(スロットリング)応答だけは非冪等なHTTPメソッドでも再試行を許可する。
+    /// </summary>
+    private static void AllowThrottlingRetryForUnsafeHttpMethods(HttpRetryStrategyOptions options)
+    {
+        Func<RetryPredicateArguments<HttpResponseMessage>, ValueTask<bool>> shouldHandle = options.ShouldHandle;
+        options.ShouldHandle = async args =>
+        {
+            if (args.Outcome.Result?.StatusCode == HttpStatusCode.TooManyRequests)
+            {
+                return true;
+            }
+
+            return await shouldHandle(args).ConfigureAwait(args.Context.ContinueOnCapturedContext);
+        };
     }
 
     /// <summary>認証ヘッダーを検証していない転送先へ引き継がないGraph用ハンドラーを作成する。</summary>

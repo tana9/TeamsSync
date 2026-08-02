@@ -78,7 +78,7 @@ public sealed class GraphHttpResilienceTests
     }
 
     [Fact]
-    public async Task WriteClient_POSTの429を自動再試行しない()
+    public async Task WriteClient_POSTの429はRetryAfterに従って再試行する()
     {
         CountingHandler handler = new((call, _) =>
         {
@@ -104,8 +104,40 @@ public sealed class GraphHttpResilienceTests
             .PostAsync("teams/team-1/members", new StringContent("{}"),
                 TestContext.Current.CancellationToken);
 
-        Assert.Equal((HttpStatusCode)429, response.StatusCode);
-        Assert.Equal(1, handler.CallCount);
+        // 429はGraph側が処理前に明示的に拒否した応答であり重複実行の懸念がないため、
+        // 非冪等なPOSTでも例外的に再試行する(DependencyInjection.AllowThrottlingRetryForUnsafeHttpMethods参照)。
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(2, handler.CallCount);
+    }
+
+    [Fact]
+    public async Task WriteClient_DELETEの429はRetryAfterに従って再試行する()
+    {
+        CountingHandler handler = new((call, _) =>
+        {
+            if (call == 1)
+            {
+                HttpResponseMessage response = new((HttpStatusCode)429);
+                response.Headers.RetryAfter =
+                    new RetryConditionHeaderValue(TimeSpan.Zero);
+                return Task.FromResult(response);
+            }
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+        });
+        ServiceCollection services = new();
+        services.AddLogging();
+        services.AddGraphHttpClients();
+        services.AddHttpClient(GraphHttpClient.WriteHttpClientName)
+            .ConfigurePrimaryHttpMessageHandler(() => handler);
+        using ServiceProvider provider = services.BuildServiceProvider();
+        IHttpClientFactory factory = provider.GetRequiredService<IHttpClientFactory>();
+
+        using HttpResponseMessage response = await factory.CreateClient(GraphHttpClient.WriteHttpClientName)
+            .DeleteAsync("teams/team-1/members/member-1", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(2, handler.CallCount);
     }
 
     [Fact]
@@ -123,6 +155,29 @@ public sealed class GraphHttpResilienceTests
 
         using HttpResponseMessage response = await factory.CreateClient(GraphHttpClient.WriteHttpClientName)
             .DeleteAsync("teams/team-1/members/member-1", TestContext.Current.CancellationToken);
+
+        // 503はサーバー側で実際に処理済みだった可能性を否定できないため、429と異なり
+        // 非冪等なDELETE/POSTでは引き続き再試行しない。
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Equal(1, handler.CallCount);
+    }
+
+    [Fact]
+    public async Task WriteClient_POSTの503を自動再試行しない()
+    {
+        CountingHandler handler = new((_, _) => Task.FromResult(
+            new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)));
+        ServiceCollection services = new();
+        services.AddLogging();
+        services.AddGraphHttpClients();
+        services.AddHttpClient(GraphHttpClient.WriteHttpClientName)
+            .ConfigurePrimaryHttpMessageHandler(() => handler);
+        using ServiceProvider provider = services.BuildServiceProvider();
+        IHttpClientFactory factory = provider.GetRequiredService<IHttpClientFactory>();
+
+        using HttpResponseMessage response = await factory.CreateClient(GraphHttpClient.WriteHttpClientName)
+            .PostAsync("teams/team-1/members", new StringContent("{}"),
+                TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         Assert.Equal(1, handler.CallCount);
