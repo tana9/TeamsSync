@@ -17,6 +17,21 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
 {
     private const int AddressResolutionConcurrency = 15;
     private const int ProgressReportInterval = 25;
+
+    // Graphのレート制限を悪化させないよう、追加・削除操作の間に挟む待機時間。
+    // Microsoft Graph公式ドキュメントのソース(throttling-teams.md)によると、
+    // POST /teams/{team-id}/members の「リソース(チーム)あたり」の上限は表記が「4rpm」
+    // (4リクエスト/分)だが、同じページの補足文では「A maximum of four requests per
+    // second per app can be issued on a given team.」(4リクエスト/秒)となっており、
+    // ドキュメント内で表記が食い違っている。
+    // https://github.com/microsoftgraph/microsoft-graph-docs-contrib/blob/main/includes/throttling-teams.md
+    // 300msは「秒4リクエスト」の解釈(緩い方)に約20%の余裕を残した値。「分4リクエスト」が
+    // 正しい場合はこの値では429が頻発する可能性があるため、実テナントでの429発生有無の
+    // 確認が必要(TODO.md「同期実行の操作間ディレイを見直す」参照)。
+    // 実際にスロットリングされた場合はAddStandardResilienceHandler(DependencyInjection.cs)が
+    // Retry-Afterに従って自動再試行する。
+    private static readonly TimeSpan OperationThrottleDelay = TimeSpan.FromMilliseconds(300);
+
     private readonly ILogger<TeamSyncService> _logger = logger ?? NullLogger<TeamSyncService>.Instance;
 
     /// <summary>
@@ -113,12 +128,10 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
                         resolution.ErrorReason));
                     break;
                 case { Outcome: ResolutionOutcome.ExistingSingle, ExistingMember: { } existing }:
+                    (ChangeKind existingKind, ChangeReason existingReason) = ClassifyExistingMember(
+                        existing.IsOwner, mode, ChangeReason.AlreadyMember);
                     AddOrMergeChange(resolution.Address, existing.UserId, existing.MembershipId,
-                        existing.DisplayName,
-                        existing.IsOwner ? ChangeKind.Protected :
-                        mode == SyncMode.RemoveSpecified ? ChangeKind.Remove : ChangeKind.Keep,
-                        existing.IsOwner ? ChangeReason.OwnerProtected :
-                        mode == SyncMode.RemoveSpecified ? ChangeReason.RemoveSpecified : ChangeReason.AlreadyMember);
+                        existing.DisplayName, existingKind, existingReason);
                     break;
                 case
                 {
@@ -126,13 +139,10 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
                     User: { } sameUserAccount
                 }:
                     resolved[resolution.Address] = sameUserAccount;
+                    (ChangeKind sameUserKind, ChangeReason sameUserReason) = ClassifyExistingMember(
+                        sameUser.IsOwner, mode, ChangeReason.AlreadyMemberDifferentIdentifier);
                     AddOrMergeChange(resolution.Address, sameUser.UserId, sameUser.MembershipId,
-                        sameUser.DisplayName,
-                        sameUser.IsOwner ? ChangeKind.Protected :
-                        mode == SyncMode.RemoveSpecified ? ChangeKind.Remove : ChangeKind.Keep,
-                        sameUser.IsOwner ? ChangeReason.OwnerProtected :
-                        mode == SyncMode.RemoveSpecified ? ChangeReason.RemoveSpecified :
-                        ChangeReason.AlreadyMemberDifferentIdentifier);
+                        sameUser.DisplayName, sameUserKind, sameUserReason);
                     break;
                 case { Outcome: ResolutionOutcome.NewUser, User: { } user }:
                     resolved[resolution.Address] = user;
@@ -144,6 +154,23 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         }
 
         return (resolved, changes);
+    }
+
+    /// <summary>
+    ///     既にチームに所属しているメンバーの変更種別・理由を判定する。所有者は常に保護し、
+    ///     所有者でなければ指定削除モードは削除、それ以外は<paramref name="keepReason" />を理由に維持する。
+    /// </summary>
+    private static (ChangeKind Kind, ChangeReason Reason) ClassifyExistingMember(bool isOwner, SyncMode mode,
+        ChangeReason keepReason)
+    {
+        if (isOwner)
+        {
+            return (ChangeKind.Protected, ChangeReason.OwnerProtected);
+        }
+
+        return mode == SyncMode.RemoveSpecified
+            ? (ChangeKind.Remove, ChangeReason.RemoveSpecified)
+            : (ChangeKind.Keep, keepReason);
     }
 
     /// <summary>
@@ -417,12 +444,18 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         _logger.LogInformation(
             "SyncStarted Add={AddCount} Remove={RemoveCount} Keep={KeepCount} Protected={ProtectedCount}",
             plan.AddCount, plan.RemoveCount, plan.KeepCount, plan.ProtectedCount);
+
+        SyncExecutionResult BuildCancelledResult()
+        {
+            LogSyncCancelled(results, operations.Count);
+            return new SyncExecutionResult(results, true);
+        }
+
         for (int i = 0; i < operations.Count; i++)
         {
             if (cancellationToken.IsCancellationRequested)
             {
-                LogSyncCancelled(results, operations.Count);
-                return new SyncExecutionResult(results, true);
+                return BuildCancelledResult();
             }
 
             SyncChange change = operations[i];
@@ -431,8 +464,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
                 cancellationToken);
             if (cancelled)
             {
-                LogSyncCancelled(results, operations.Count);
-                return new SyncExecutionResult(results, true);
+                return BuildCancelledResult();
             }
         }
 
@@ -470,7 +502,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
             progress?.Report(new SyncProgress(index + 1, totalOperations, change.Kind, change.Email));
             if (index < totalOperations - 1)
             {
-                await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
+                await Task.Delay(OperationThrottleDelay, cancellationToken);
             }
 
             return false;
