@@ -358,6 +358,14 @@
 
 完了条件: 上記クラスがそれぞれ単一の責務に対応し、doc commentが実際の責務と一致している。
 
+### 所有チーム一覧取得の堅牢性を高める
+
+- [x] `GraphTeamsGateway.GetOwnedTeamsAsync`のバッチフォールバック(`FetchMembersIndividuallyAsync`)が失敗した場合、`Task.WhenAll`を通じて例外が伝播し所有チーム一覧の取得全体が失敗する現状を修正した(コードレビューで指摘、2026-08-02)
+- [x] 個別取得でも`GraphException`が発生するチームは`TryFetchMembersIndividuallyAsync`が`null`を返し、所有者判定falseとして一覧から除外する形にした。他の正常なチームの判定は継続し、警告ログ(TeamId・StatusCode)を残す
+- [x] 個別フォールバックも失敗するケースの自動テストを追加した(`GetOwnedTeams_バッチと個別取得の両方が失敗したチームは除外し他のチームの判定を継続する`)
+
+完了条件: 一部のチームでメンバー取得が恒常的に失敗しても、他の所有チームは通常どおり一覧に表示される。
+
 ## 優先度: 低・配布準備だった項目
 
 ### GetPagedAsyncのページング効率を改善する
@@ -366,3 +374,97 @@
 - [x] `GetPagedAsync`を`IAsyncEnumerable<JsonElement>`化して試したが、既存の呼び出し元4箇所は全件必要なロジックで早期終了の恩恵がなく、複雑性が増えるだけだったため`Task<List<JsonElement>>`へ戻した
 
 完了条件: ページングが必要なエンドポイントで、既定ページサイズに起因する余分なHTTPリクエストが発生しない。
+
+### 同期プランAPIのモード指定を整理する
+
+- [x] `TeamSyncService.RevalidatePlanAsync`の未使用`mode`引数を削除するか、呼び出し側が指定したモードを再検証へ反映する
+- [x] プレビューと異なるモードを指定した場合の期待動作を決め、公開APIとテストを一致させる
+
+完了条件: 再検証時に使用される同期モードがAPIから一意に分かり、無視される引数が存在しない。
+
+### ユーザー設定と同期結果CSVを原子的に保存する
+
+- [x] `preferences.json`を一時ファイルへ書き込み、フラッシュ後に置換する
+- [x] 同期結果CSVも一時ファイルへ書き込み、完了後に置換して、保存失敗時に既存ファイルや不完全なCSVを残さない
+- [x] 設定とCSVで共通利用できる安全なファイル置換処理を検討する
+- [x] 保存中のプロセス終了やディスク障害で、直前の正常な設定まで破損しない方式にする
+- [x] 一時ファイルの残存、置換失敗、連続保存、保存中断、既存CSVへの上書き失敗をテストする
+
+完了条件: 設定または同期結果の保存途中でアプリが終了しても、直前の正常なファイルを維持し、不完全なファイルを正式な保存結果として残さない。
+
+### Graph URLとエラー表示を追加で堅牢化する
+
+- [x] Graph APIの絶対URL検証でHTTPSとホスト名に加えて既定ポート443を要求する
+- [x] ユーザー情報を含むURLを拒否し、自動リダイレクト時にもBearerトークンが外部ホストへ送信されないことをテストする
+- [x] Graphのレスポンス本文全体を利用者向け例外メッセージへ含めず、状態コード、request ID、利用者向け要約を表示する
+- [x] 詳細なレスポンス本文は機密情報と長さに配慮してログへ記録し、HTMLや極端に長い応答のテストを追加する
+
+完了条件: Bearerトークンの送信先を公式Graphの標準HTTPSエンドポイントに限定し、エラー応答の機密情報や長大な本文を画面へ露出しない。
+
+### 設定保存失敗時のセッション状態を明確にする
+
+- [x] `LastFolder`の保存に失敗した場合、セッション中は新しいフォルダーを使い続けるか、直前の値へ戻すかを仕様として決定する
+- [x] メンバーファイル読込時と同期結果保存時で同じ挙動に統一する
+- [x] 保存失敗後に次のファイル選択ダイアログへ渡される初期フォルダーをテストする
+
+完了条件: 設定保存に失敗した後の画面上の動作と、次回起動後の永続状態の違いが意図どおりで、入力経路によって挙動が変わらない。
+
+### キャンセル可能な単発処理の定型コードを共通化する
+
+- [x] `MemberFileViewModel.Load`、`MemberFileViewModel.ApplyPastedTextInputAsync`、`TeamMemberImportViewModel.ImportCurrentMembersAsync`の3箇所に、「直前の`CancellationTokenSource`をキャンセル・破棄してから新しいものに差し替え、完了時に自分がまだ最新なら破棄してnullへ戻す」というほぼ同一の定型コードが重複していた(コードレビューで指摘、2026-08-02)
+- [x] 共通ヘルパー`RestartableCancellation`(`Presentation/ViewModels/RestartableCancellation.cs`)へ切り出した。フラグの設定・`NotifyCanExecuteChanged`の呼び出しタイミングは各箇所そのまま維持し、`CancellationTokenSource`のBegin/End/Cancelの定型処理だけを置き換えた
+- [x] 置き換え後、既存のロード/解析/取り込みキャンセルの単体テストを含む全273件がそのまま成功することを確認した
+
+完了条件: 3箇所のキャンセル管理コードが共通化され、かつ既存の挙動(キャンセル・差し替え・エラー処理)が変わらない。
+
+### 終了時の未処理例外に備える
+
+- [x] `MainWindow.xaml.cs`の`OnClosing`(async void)内`CancelAndWaitAsync()`をtry/catchで保護した(コードレビューで指摘、2026-08-02)。例外発生時は`ILogger<MainWindow>`へ記録したうえで、`finally`で必ず`Close()`する(利用者の「閉じる」操作を無言で無効化しない)
+- [x] `App.xaml.cs`に`Application.DispatcherUnhandledException`ハンドラーを追加し、UIスレッドの未処理例外を`LogCritical`で記録するようにした。既存の挙動(未処理のままならプロセスが終了する)は変えていない(`e.Handled`は設定せず、任意の例外を握りつぶして実行継続する意図ではないため)
+- [x] ビルド・全テスト(280件)が成功することを確認した。`OnClosing`自体はWPFウィンドウのライフサイクルに依存するため直接の単体テストは追加していない(既存の`MainWindowEscapeTests`と同様、他のWPFグルーコードもコードレビューでの目視確認に留めている)
+
+完了条件: 終了処理中に例外が発生しても、ログを残さずに無言でクラッシュしない。
+
+### 起動時エラー表示をWPFリソース依存の有無で段階分けする
+
+- [x] `App.xaml.cs`の`OnStartup`が、起動失敗時にアプリ内で唯一ネイティブ`MessageBox`(WPF-UIのFluentテーマ非適用)を使っていた点を見直した(コードレビューで指摘、2026-08-02)
+- [x] 起動処理を2段階に分割した。①`BuildHostAsync`(設定読込・DI構築、WPFリソース非依存)の失敗はWPF-UIのテーマ付き`Wpf.Ui.Controls.MessageBox`(`ContentDialogHost`を必要とせず単独ウィンドウとして表示可能)で報告。②`MainWindow.Show()`(XAML/リソース読込を伴う)の失敗は、テーマ描画自体が壊れている可能性があるため従来どおりネイティブ`MessageBox`で報告する「最後の砦」のまま維持した
+- [x] `appsettings.json`埋め込みリソース欠落のような原因が既知の起動失敗を`StartupConfigurationException`として区別し、より具体的な案内を表示できるようにした。他の箇所(`BusyOperationRunner`等)への例外表示の一元化は、起動時と実行時で扱う例外の種類が重複しないため見送った
+- [x] ビルド・全テスト(280件)が成功することを確認した
+- [x] セルフレビューで3点追加修正: `BuildHostAsync`で`host.StartAsync()`失敗時に`host`が破棄されず残る資源リークを修正(`AppHostShutdown.StopAndDisposeAsync`で確実に破棄)、2箇所に重複していた診断ログヒント組み立てを`BuildDiagnosticHint`へ集約、起動失敗の3経路で`ShutdownMode = OnExplicitShutdown`を設定し、既定の`OnLastWindowClose`による暗黙シャットダウン(終了コード0)と明示的な`Shutdown(-1)`の競合を回避
+
+完了条件: 起動失敗時、WPFリソースに依存できる場面ではアプリのテーマと一貫したダイアログで報告し、依存できない場面(リソース破損等)では最後までネイティブダイアログで報告できる。
+
+### Viewのイベント購読ライフサイクルを修正する
+
+- [x] `SyncDiffCardContent`、`MemberListInputView`、`TeamSelectionCardContent`のViewModelイベントを`Loaded`で購読し、`Unloaded`で解除する対称的な実装へ統一する
+- [x] 同じ`DataContext`のままViewがアンロード、再ロードされた場合にも、差分・入力・チーム選択へのフォーカス要求が1回だけ処理されることを確認する
+- [x] `DataContextChanged`と`Loaded`が連続してもイベントが二重購読されないようにする
+
+完了条件: Viewの再表示後もフォーカス移動が機能し、イベントの未購読や二重購読が発生しない。
+
+### 同期ワークスペースの責務を分割する
+
+- [x] `SyncWorkspaceViewModel`から、実行前再検証・同期実行・実行後再取得を調整する処理を専用のコーディネーターへ分離する
+- [x] 保存したCSVを開くOS依存処理を`ISavedFileLauncher`などのサービスへ移し、ViewModelから`Process.Start`への直接依存をなくす
+- [x] プレビュー、部分失敗、キャンセル、再取得失敗、CSV起動失敗の既存動作を維持するテストを追加する
+- [x] 分割後も処理の流れを追いやすくするため、細かすぎるサービス分割や単なる委譲だけの型は増やさない
+
+完了条件: ViewModelが画面状態とコマンドの調整に集中し、同期ユースケースとOS依存処理を独立してテストできる。
+
+### DomainとApplicationのモデル境界を整理する
+
+- [x] `TeamModels.cs`の型を、純粋な同期ドメイン、アプリケーション入出力、表示専用モデルに分類する
+- [x] `SyncChange.Detail`などの表示文、`MemberListDocument`のファイル情報、`SyncAuditContext`、進捗・実行結果をDomainへ置く必要があるか見直す
+- [x] 現在の依存方向（Domain/ApplicationからPresentation/Infrastructureへ依存しない）をアーキテクチャテストで固定する
+- [x] 小規模アプリに不釣り合いな集約・リポジトリ・プロジェクト分割は導入せず、必要な境界だけを明確にする
+
+完了条件: Domainに置く概念の基準が明確で、表示・ファイル・監査の都合が同期ドメインへ不必要に混在しない。
+
+### ESCキーの一時UI優先順位を自動テストする
+
+- [x] ESC処理の優先順位を「ContentDialog、同期キャンセル、Snackbar」の順で判定できるテスト可能な形にする
+- [x] ダイアログ表示中は背面のSnackbarを閉じず、同期中はSnackbarよりキャンセルを優先し、それ以外はSnackbarを閉じることをテストする
+- [x] Snackbarが表示されていない場合はESCを処理済みにせず、他のWPF標準操作を妨げないことをテストする
+
+完了条件: ESCの優先順位が回帰テストで固定され、キーボードだけで最前面の一時UIを予測どおり閉じられる。
