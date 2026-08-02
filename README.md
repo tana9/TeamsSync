@@ -40,7 +40,7 @@ dotnet run --project TeamsSync/TeamsSync.csproj
 
 ## マニュアルの生成
 
-利用者向けマニュアル([MANUAL.md](MANUAL.md))は、exeに埋め込むHTML
+利用者向けマニュアル([MANUAL.md](TeamsSync/docs/MANUAL.md))は、exeに埋め込むHTML
 (`TeamsSync/Resources/Manual.html`)としても保持しています。MANUAL.mdを
 更新したら、[Task](https://taskfile.dev/)と[pandoc](https://pandoc.org/)を
 インストールした環境で次を実行し、HTMLを再生成してください。

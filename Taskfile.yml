@@ -11,14 +11,14 @@ tasks:
   manual:
     desc: MANUAL.mdからexeに埋め込むHTMLマニュアルを生成します(要pandoc)
     sources:
-      - MANUAL.md
+      - TeamsSync/docs/MANUAL.md
       - docs/manual-style.css
       - docs/manual-callouts.lua
     generates:
       - "{{.MANUAL_OUTPUT}}"
     cmds:
       - >-
-        pandoc MANUAL.md
+        pandoc TeamsSync/docs/MANUAL.md
         --standalone
         --embed-resources
         --css=docs/manual-style.css
