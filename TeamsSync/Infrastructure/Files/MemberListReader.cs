@@ -18,9 +18,13 @@ namespace TeamsSync.Infrastructure.Files;
 /// </summary>
 public sealed class MemberListReader : IMemberListReader
 {
+    /// <summary>入力ファイルに許容する最大サイズ(バイト)</summary>
     public const long MaximumFileSizeBytes = MemberFileSecurityValidator.MaximumFileSizeBytes;
+    /// <summary>入力ファイルに許容する最大行数</summary>
     public const int MaximumRows = MemberFileSecurityValidator.MaximumRows;
+    /// <summary>入力ファイルに許容する最大列数</summary>
     public const int MaximumColumns = MemberFileSecurityValidator.MaximumColumns;
+    /// <summary>Excelファイルの展開後データに許容する最大サイズ(バイト)</summary>
     public const long MaximumExpandedArchiveBytes = MemberFileSecurityValidator.MaximumExpandedArchiveBytes;
 
     // Excelなどが排他的にファイルを開いている場合のWin32エラーコード(ERROR_SHARING_VIOLATION)に対応するHResult

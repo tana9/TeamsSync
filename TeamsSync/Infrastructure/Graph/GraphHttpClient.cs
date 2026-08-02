@@ -18,7 +18,10 @@ public sealed partial class GraphHttpClient(
     IAuthenticationService auth,
     ILogger<GraphHttpClient> logger)
 {
+    /// <summary>Graph APIの読み取り要求に使用する名前付きHTTPクライアントの名前</summary>
     public const string ReadHttpClientName = "MicrosoftGraph.Read";
+
+    /// <summary>Graph APIの更新要求に使用する名前付きHTTPクライアントの名前</summary>
     public const string WriteHttpClientName = "MicrosoftGraph.Write";
     private static readonly Uri GraphBase = new("https://graph.microsoft.com/v1.0/");
 

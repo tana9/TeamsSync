@@ -262,29 +262,19 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
     }
 
     /// <summary>並列処理の完了件数を一定間隔と最終件だけ通知する</summary>
-    private sealed class BatchedProgressReporter
+    private sealed class BatchedProgressReporter(IProgress<int>? progress, int total, int interval)
     {
-        private readonly object _gate = new();
-        private readonly int _interval;
-        private readonly IProgress<int>? _progress;
-        private readonly int _total;
+        private readonly Lock _gate = new();
+        private readonly int _interval = interval;
         private int _completed;
-        private int _nextReport;
-
-        public BatchedProgressReporter(IProgress<int>? progress, int total, int interval)
-        {
-            _progress = progress;
-            _total = total;
-            _interval = interval;
-            _nextReport = interval;
-        }
+        private int _nextReport = interval;
 
         public void Advance(int count)
         {
             lock (_gate)
             {
                 _completed += count;
-                if (_completed < _total && _completed < _nextReport)
+                if (_completed < total && _completed < _nextReport)
                 {
                     return;
                 }
@@ -294,7 +284,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
                     _nextReport += _interval;
                 }
 
-                _progress?.Report(_completed);
+                progress?.Report(_completed);
             }
         }
     }

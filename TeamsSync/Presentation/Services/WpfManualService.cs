@@ -5,6 +5,7 @@ namespace TeamsSync.Presentation.Services;
 /// <summary>埋め込みマニュアルを一時フォルダーへ展開し、既定のブラウザーで開く</summary>
 public sealed class WpfManualService : IManualService
 {
+    /// <inheritdoc />
     public void OpenManual()
     {
         string path = Path.Combine(Path.GetTempPath(), "TeamsSync", "Manual.html");

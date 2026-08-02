@@ -22,28 +22,33 @@ public sealed class WpfNotificationService(
 {
     private static readonly TimeSpan PersistentErrorTimeout = TimeSpan.FromDays(1);
 
+    /// <inheritdoc />
     public void ShowSuccess(string title, string message)
     {
         snackbars.Show(title, message, ControlAppearance.Success, TimeSpan.FromSeconds(5));
     }
 
+    /// <inheritdoc />
     public void ShowWarning(string title, string message)
     {
         snackbars.Show(title, message, ControlAppearance.Caution, TimeSpan.FromSeconds(8));
     }
 
+    /// <inheritdoc />
     public void ShowSuccessWithAction(string title, string message, string actionText, Action action)
     {
         ShowWithAction(title, message, actionText, action, ControlAppearance.Success, TimeSpan.FromSeconds(8),
             SymbolRegular.DocumentCsv24);
     }
 
+    /// <inheritdoc />
     public void ShowWarningWithAction(string title, string message, string actionText, Action action)
     {
         ShowWithAction(title, message, actionText, action, ControlAppearance.Caution, TimeSpan.FromSeconds(10),
             SymbolRegular.DocumentCsv24);
     }
 
+    /// <inheritdoc />
     public Task ShowErrorAsync(string message, string title = "エラー", Action? onClosed = null)
     {
         ShowWithAction(title, message, "詳細をコピー", () => Clipboard.SetText(message),
@@ -52,6 +57,7 @@ public sealed class WpfNotificationService(
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc />
     public Task ShowCriticalErrorAsync(string message, string title = "エラー", Action? onClosed = null)
     {
         return ShowErrorSafelyAsync(async () =>

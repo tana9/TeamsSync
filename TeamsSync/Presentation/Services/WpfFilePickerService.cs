@@ -5,6 +5,7 @@ namespace TeamsSync.Presentation.Services;
 /// <summary>Win32の標準ファイルダイアログで入出力ファイルを選択させる</summary>
 public sealed class WpfFilePickerService : IFilePickerService
 {
+    /// <inheritdoc />
     public string? PickMemberFile(string? initialDirectory)
     {
         OpenFileDialog dialog = new()

@@ -19,6 +19,10 @@ public sealed class BusyOperationRunner(
     ///     例外・キャンセルはここで通知まで完結させるが、後続処理を続けてよいかの判断は
     ///     呼び出し元の責務(例:サインアウト失敗時は画面状態を変更しない)のため戻り値で伝える
     /// </summary>
+    /// <param name="action">実行する非同期処理</param>
+    /// <param name="handleSpecificException">
+    ///     例外を固有のステータス通知へ変換する関数。既定のエラー処理を使う場合はnull
+    /// </param>
     /// <param name="manageBusyState">
     ///     falseの場合、setBusyの呼び出しを行わない。既にこのインスタンスのRunAsyncで
     ///     処理中状態になっている呼び出し元から入れ子で呼ぶ場合に使う。同じインスタンスの
@@ -62,6 +66,10 @@ public sealed class BusyOperationRunner(
     /// <summary>
     ///     戻り値のある処理を実行し、成功した場合はその結果を、失敗した場合は default(T) を返す
     /// </summary>
+    /// <param name="action">実行する非同期処理</param>
+    /// <param name="handleSpecificException">
+    ///     例外を固有のステータス通知へ変換する関数。既定のエラー処理を使う場合はnull
+    /// </param>
     /// <param name="manageBusyState">
     ///     <see cref="RunAsync(Func{Task}, Func{Exception, SpecificExceptionResult?}?, bool)" />を参照
     /// </param>

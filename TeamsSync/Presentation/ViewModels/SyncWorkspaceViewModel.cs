@@ -511,7 +511,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
     /// <summary>
     ///     同期プランを実行し、結果を画面へ反映する。キャンセルされた場合と正常終了した場合とで
-    ///     後処理(<see cref="HandleSyncCancelled" />/<see cref="ReconcileAfterSyncAsync" />)を分ける
+    ///     後処理をキャンセル時と正常終了時で分ける
     /// </summary>
     private async Task RunSyncAndReconcileAsync()
     {

@@ -10,7 +10,7 @@ using TeamsSync.Presentation.Services;
 namespace TeamsSync.Presentation.ViewModels;
 
 /// <summary>
-///     メンバーリストの入力(ファイル選択・ドラッグ&ドロップ・テキスト貼り付け)を管理し、
+///     メンバーリストの入力(ファイル選択・ドラッグ&amp;ドロップ・テキスト貼り付け)を管理し、
 ///     解析結果の<see cref="MemberListDocument" />を保持する。Teamsからの現在メンバー取り込みは
 ///     <see cref="Import" />(<see cref="TeamMemberImportViewModel" />)へ委譲する
 /// </summary>
@@ -172,7 +172,7 @@ public partial class MemberFileViewModel : ObservableObject
         }
     }
 
-    /// <summary>ドラッグ&ドロップされたファイルを読み込む</summary>
+    /// <summary>ドラッグ&amp;ドロップされたファイルを読み込む</summary>
     [RelayCommand(CanExecute = nameof(CanLoad))]
     private async Task LoadDroppedFile(string? path)
     {

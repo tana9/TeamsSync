@@ -49,17 +49,29 @@ public enum ChangeKind
 /// <summary>同期差分がその状態になった業務上の理由</summary>
 public enum ChangeReason
 {
+    /// <summary>理由が指定されていない</summary>
     Unspecified,
+    /// <summary>現在のチームに同じ識別子のメンバーが複数存在する</summary>
     AmbiguousCurrentMember,
+    /// <summary>ディレクトリに一致するユーザーが複数存在する</summary>
     AmbiguousDirectoryUser,
+    /// <summary>ディレクトリに一致するユーザーが存在しない</summary>
     UserNotFound,
+    /// <summary>所有者であるため変更対象から保護された</summary>
     OwnerProtected,
+    /// <summary>指定削除モードの入力に含まれている</summary>
     RemoveSpecified,
+    /// <summary>既にチームのメンバーである</summary>
     AlreadyMember,
+    /// <summary>別の識別子で解決された同一ユーザーが既にメンバーである</summary>
     AlreadyMemberDifferentIdentifier,
+    /// <summary>現在はチームのメンバーではない</summary>
     NotCurrentMember,
+    /// <summary>チームへの追加が必要である</summary>
     AddToTeam,
+    /// <summary>完全同期の入力に含まれないため削除が必要である</summary>
     RemoveNotInInput,
+    /// <summary>利用者が変更対象から個別に除外した</summary>
     ManuallyExcluded
 }
 

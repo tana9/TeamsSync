@@ -6,6 +6,7 @@ namespace TeamsSync.Presentation.ViewModels;
 // SyncWorkspaceViewModelから表示用テキストの組み立て・フィルター件数の計算だけを切り出した純粋な
 // ヘルパー。Graph API呼び出しや進捗・キャンセルなどの同期実行ロジックとは関心事が異なるため、
 // 状態を持たないstaticメソッド群として分離し、ViewModel側の計算プロパティから呼び出す形にしている
+/// <summary>同期ワークスペースに表示するテキストと表示モデルを組み立てる</summary>
 public static class SyncWorkspaceTextFormatter
 {
     /// <summary>同期実行結果の要約テキスト(中止・一部失敗・完了)を組み立てる</summary>
