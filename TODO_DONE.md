@@ -468,3 +468,11 @@
 - [x] Snackbarが表示されていない場合はESCを処理済みにせず、他のWPF標準操作を妨げないことをテストする
 
 完了条件: ESCの優先順位が回帰テストで固定され、キーボードだけで最前面の一時UIを予測どおり閉じられる。
+
+### appsettings.jsonのClientId公開範囲を確認する
+
+- [x] `TeamsSync/appsettings.json`にプレースホルダーではなく実際のEntra ClientIdがコミットされている点を確認した(コードレビューで指摘、2026-08-02)。パブリッククライアントのClientId自体は秘密情報ではないが、意図しない公開だったため除外する方針とした
+- [x] `.gitignore`へ`TeamsSync/appsettings.json`を追加し、gitの追跡対象から除外した(調査時点で既に対応済みだったことを確認)
+- [x] `main`/GitHub(origin)のどのコミットにも実ClientIdを含む履歴が存在しないことを確認した。過去のsquash前の履歴を指すローカルバックアップタグ(`backup-before-squash-20260730-200421`、GitHubへは未push)だけが残っていたため削除し、`git gc --prune=now`で該当オブジェクトを完全に刈り取った
+
+完了条件: リポジトリに含まれるClientIdが公開して問題ない値であることが確認済み、または方針がドキュメント化されている。
