@@ -136,7 +136,7 @@ public sealed class SyncWorkspaceViewModelTests
 
         await viewModel.ExecuteSyncCommand.ExecuteAsync(null);
 
-        Assert.Equal("同期を実行できませんでした", notifications.ErrorTitle);
+        Assert.Equal("チームへ反映できませんでした", notifications.ErrorTitle);
         Assert.Equal("dialog failed", notifications.ErrorMessage);
     }
 
@@ -179,7 +179,7 @@ public sealed class SyncWorkspaceViewModelTests
 
         await viewModel.PreviewCommand.ExecuteAsync(null);
 
-        Assert.Contains("同期を実行できます", viewModel.SyncUnavailableReason);
+        Assert.Contains("チームに反映できます", viewModel.SyncUnavailableReason);
         Assert.Contains(viewModel.Filters, filter => filter.Kind == ChangeKind.Add && filter.Count == 1);
         Assert.Contains("列: email", viewModel.InputSummary);
 

@@ -470,8 +470,8 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
                 await RunSyncAndReconcileAsync();
             }, ex => new BusyOperationRunner.SpecificExceptionResult(
-                "同期を実行できませんでした。通知の「詳細をコピー」から内容を確認できます",
-                "同期を実行できませんでした"));
+                "チームへ反映できませんでした。通知の「詳細をコピー」から内容を確認できます",
+                "チームへ反映できませんでした"));
         }
         finally
         {
@@ -485,7 +485,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     // 呼び出し元のExecuteSyncAsyncが既に同じ_busyRunnerでIsBusy=trueにしている(唯一の呼び出し元、
     // 常にその中から呼ばれる前提)ため、ここでmanageBusyState: falseを指定しないと、この処理が
     // 完了した時点でIsBusyがfalseへ戻ってしまい、まだRunSyncAndReconcileAsyncが実行中にもかかわらず
-    // 画面の入力カードや「同期を実行」ボタンが一瞬再操作可能になってしまう。
+    // 画面の入力カードや「チームに反映」ボタンが一瞬再操作可能になってしまう。
     private async Task<bool> RevalidateBeforeExecuteAsync()
     {
         return await _busyRunner.RunAsync(async () =>
@@ -501,7 +501,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             }
 
             _notifications.ShowWarning("同期差分が変更されました",
-                "チームのメンバー構成がプレビュー後に変更されました。最新の差分を確認して、もう一度同期を実行してください。");
+                "チームのメンバー構成がプレビュー後に変更されました。最新の差分を確認して、もう一度チームに反映してください。");
             StatusChanged?.Invoke("最新の同期差分を表示しました。内容を再確認してください", true);
             return false;
         }, ex => new BusyOperationRunner.SpecificExceptionResult(

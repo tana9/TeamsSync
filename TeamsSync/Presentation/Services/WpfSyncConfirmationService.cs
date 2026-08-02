@@ -26,7 +26,7 @@ public sealed class WpfSyncConfirmationService(
 
         // 固定幅(旧: Width=440)だと高DPIや長いチーム名・長い入力概要で内容が欠けるため、
         // MinWidthのみを指定して折り返しに任せ、縦方向はScrollViewerへ収めて200%表示でも
-        // 「同期を実行」ボタンが画面外に押し出されないようにする。
+        // 「チームに反映」ボタンが画面外に押し出されないようにする。
         StackPanel content = new() { MinWidth = 340 };
         content.Children.Add(BuildHeaderBlock(plan));
         if (plan.RemoveCount > 0)
@@ -57,7 +57,7 @@ public sealed class WpfSyncConfirmationService(
         {
             Title = ConfirmationDialogHelper.BuildTitle("同期の最終確認"),
             Content = scrollViewer,
-            PrimaryButtonText = "同期を実行",
+            PrimaryButtonText = "チームに反映",
             PrimaryButtonIcon = new SymbolIcon { Symbol = SymbolRegular.ArrowSync24 },
             CloseButtonText = "キャンセル",
             CloseButtonIcon = new SymbolIcon { Symbol = SymbolRegular.Dismiss24 },

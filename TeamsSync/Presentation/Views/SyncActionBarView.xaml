@@ -57,12 +57,12 @@
                 </TextBlock>
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <ui:Button Content="同期を_実行" Command="{Binding SyncWorkspace.ExecuteSyncCommand}"
+                <ui:Button Content="チームに_反映" Command="{Binding SyncWorkspace.ExecuteSyncCommand}"
                            Icon="{ui:SymbolIcon Symbol=ArrowSync24}"
                            Appearance="Primary" Margin="4,0"
                            ToolTip="{Binding SyncWorkspace.SyncUnavailableReason}"
                            ToolTipService.ShowOnDisabled="True"
-                           AutomationProperties.Name="確認した差分で同期を実行" />
+                           AutomationProperties.Name="確認した差分をチームに反映" />
             </StackPanel>
         </Grid>
 

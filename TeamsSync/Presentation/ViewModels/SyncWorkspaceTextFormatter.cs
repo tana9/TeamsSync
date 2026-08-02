@@ -84,15 +84,15 @@ public static class SyncWorkspaceTextFormatter
     }
 
     /// <summary>
-    ///     同期を実行できない理由を、実行中・他処理中・未サインイン・未選択・未確認・エラーあり・
-    ///     変更なしの優先順位で判定して返す。実行可能な場合は「同期を実行できます」を返す。
+    ///     チームへ反映できない理由を、反映中・他処理中・未サインイン・未選択・未確認・エラーあり・
+    ///     変更なしの優先順位で判定して返す。反映可能な場合は「チームに反映できます」を返す。
     /// </summary>
     public static string BuildSyncUnavailableReason(bool isSyncing, bool isBusy, bool externallyBusy,
         bool signedIn, TeamInfo? team, MemberListDocument? document, SyncPlan? plan)
     {
         if (isSyncing)
         {
-            return "同期を実行中です";
+            return "チームへ反映中です";
         }
 
         if (isBusy || externallyBusy)
@@ -127,10 +127,10 @@ public static class SyncWorkspaceTextFormatter
 
         if (plan.HasNoActionableChanges)
         {
-            return "実行する変更はありません";
+            return "反映する変更はありません";
         }
 
-        return "同期を実行できます";
+        return "チームに反映できます";
     }
 
     // 差分一覧(changes)の内容から、フィルターごとの該当件数をChangeFilter.Countへ反映する。

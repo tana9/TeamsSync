@@ -160,7 +160,7 @@ public sealed class SyncWorkspaceTextFormatterTests
         string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(true, false, false, true, Team, Document(),
             PlanWithAdd());
 
-        Assert.Equal("同期を実行中です", text);
+        Assert.Equal("チームへ反映中です", text);
     }
 
     [Fact]
@@ -238,7 +238,7 @@ public sealed class SyncWorkspaceTextFormatterTests
         string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, Team,
             Document(), plan);
 
-        Assert.Equal("実行する変更はありません", text);
+        Assert.Equal("反映する変更はありません", text);
     }
 
     [Fact]
@@ -247,7 +247,7 @@ public sealed class SyncWorkspaceTextFormatterTests
         string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, Team,
             Document(), PlanWithAdd());
 
-        Assert.Equal("同期を実行できます", text);
+        Assert.Equal("チームに反映できます", text);
     }
 
     [Theory]

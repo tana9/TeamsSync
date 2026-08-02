@@ -30,7 +30,7 @@ public sealed class AccessibilityMarkupTests
         [
             "Microsoft 365へサインイン", "同期対象チームの検索と選択", "メンバー入力方法",
             "同期モード", "同期差分一覧", "同期進捗", "同期処理をキャンセル",
-            "同期差分を確認", "確認した差分で同期を実行"
+            "同期差分を確認", "確認した差分をチームに反映"
         ];
 
         foreach (string name in names)
