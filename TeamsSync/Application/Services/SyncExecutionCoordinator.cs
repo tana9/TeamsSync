@@ -5,8 +5,20 @@ using TeamsSync.Domain.Teams;
 namespace TeamsSync.Application.Services;
 
 /// <summary>同期実行、監査CSV保存、実行後の最新状態取得を1つのユースケースとして調整する</summary>
-public sealed class SyncExecutionCoordinator(TeamSyncService syncService, ISyncResultWriter resultWriter)
+public sealed class SyncExecutionCoordinator
 {
+    private readonly ISyncExecutor _executor;
+    private readonly ISyncPlanService _plans;
+    private readonly ISyncResultWriter _resultWriter;
+
+    /// <summary>分割されたプラン作成・同期実行サービスを使用してユースケースを構成する</summary>
+    public SyncExecutionCoordinator(ISyncPlanService plans, ISyncExecutor executor, ISyncResultWriter resultWriter)
+    {
+        _plans = plans;
+        _executor = executor;
+        _resultWriter = resultWriter;
+    }
+
     /// <summary>実行直前にプレビュー済みプランを最新のメンバー構成で再検証する</summary>
     /// <param name="plan">再検証するプレビュー済みの同期プラン</param>
     /// <param name="cancellationToken">処理のキャンセルを通知するトークン</param>
@@ -14,7 +26,7 @@ public sealed class SyncExecutionCoordinator(TeamSyncService syncService, ISyncR
     public Task<SyncPlanRevalidation> RevalidateAsync(SyncPlan plan,
         CancellationToken cancellationToken = default)
     {
-        return syncService.RevalidatePlanAsync(plan, cancellationToken);
+        return _plans.RevalidatePlanAsync(plan, cancellationToken);
     }
 
     /// <summary>
@@ -31,14 +43,14 @@ public sealed class SyncExecutionCoordinator(TeamSyncService syncService, ISyncR
         IProgress<SyncProgress>? progress = null, Action? reconciliationStarting = null,
         CancellationToken cancellationToken = default)
     {
-        SyncExecutionResult execution = await syncService.ExecuteAsync(
+        SyncExecutionResult execution = await _executor.ExecuteAsync(
             plan, progress, auditContext, cancellationToken);
 
         string resultLogPath = "";
         Exception? logSaveError = null;
         try
         {
-            resultLogPath = resultWriter.WriteAutoLog(plan, execution, auditContext.ExecutionId);
+            resultLogPath = _resultWriter.WriteAutoLog(plan, execution, auditContext.ExecutionId);
         }
         catch (Exception ex)
         {
@@ -52,7 +64,7 @@ public sealed class SyncExecutionCoordinator(TeamSyncService syncService, ISyncR
             try
             {
                 reconciliationStarting?.Invoke();
-                remainingPlan = await syncService.ReconcileAsync(plan, cancellationToken);
+                remainingPlan = await _plans.ReconcileAsync(plan, cancellationToken);
             }
             catch (Exception ex)
             {

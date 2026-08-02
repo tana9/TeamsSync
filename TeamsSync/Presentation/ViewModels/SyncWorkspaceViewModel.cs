@@ -29,7 +29,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     private readonly SyncExecutionCoordinator _executionCoordinator;
     private readonly INotificationService _notifications;
     private readonly ISavedFileLauncher _savedFileLauncher;
-    private readonly TeamSyncService _syncService;
+    private readonly ISyncPlanService _syncService;
     private string? _actorObjectId;
     private MemberListDocument? _document;
     private bool _externallyBusy;
@@ -43,12 +43,13 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     private string? _tenantId;
 
     /// <summary>コンストラクター。差分一覧の絞り込みビューと既定の選択状態を初期化する</summary>
-    public SyncWorkspaceViewModel(TeamSyncService syncService, ISyncResultWriter resultWriter,
-        ISyncConfirmationService confirmation, INotificationService notifications,
+    public SyncWorkspaceViewModel(ISyncPlanService syncService, ISyncExecutor syncExecutor,
+        ISyncResultWriter resultWriter, ISyncConfirmationService confirmation, INotificationService notifications,
         ISavedFileLauncher? savedFileLauncher = null, SyncExecutionCoordinator? executionCoordinator = null)
     {
         _syncService = syncService;
-        _executionCoordinator = executionCoordinator ?? new SyncExecutionCoordinator(syncService, resultWriter);
+        _executionCoordinator = executionCoordinator ?? new SyncExecutionCoordinator(
+            syncService, syncExecutor, resultWriter);
         _confirmation = confirmation;
         _notifications = notifications;
         _savedFileLauncher = savedFileLauncher ?? UnavailableSavedFileLauncher.Instance;

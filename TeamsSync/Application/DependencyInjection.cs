@@ -10,11 +10,14 @@ namespace TeamsSync.Application;
 public static class DependencyInjection
 {
     /// <summary>
-    ///     アプリケーション層のサービス(<see cref="TeamSyncService" />など)をサービスコレクションへ登録する
+    ///     同期プラン作成・同期実行など、アプリケーション層のユースケースをサービスコレクションへ登録する
     /// </summary>
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
-        services.AddSingleton<TeamSyncService>();
+        services.AddSingleton<SyncPlanService>();
+        services.AddSingleton<SyncExecutor>();
+        services.AddSingleton<ISyncPlanService>(provider => provider.GetRequiredService<SyncPlanService>());
+        services.AddSingleton<ISyncExecutor>(provider => provider.GetRequiredService<SyncExecutor>());
         services.AddSingleton<TeamsAccessService>();
         services.AddSingleton<SyncExecutionCoordinator>();
         return services;

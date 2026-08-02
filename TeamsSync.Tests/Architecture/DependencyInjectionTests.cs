@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using TeamsSync.Application;
 using TeamsSync.Application.Abstractions;
+using TeamsSync.Application.Services;
 using TeamsSync.Infrastructure;
 using TeamsSync.Presentation;
 
@@ -31,6 +32,9 @@ public sealed class DependencyInjectionTests
         Assert.NotNull(provider.GetRequiredService<IAuthenticationService>());
         Assert.NotNull(provider.GetRequiredService<ITeamsGateway>());
         Assert.NotNull(provider.GetRequiredService<IMemberListReader>());
+        Assert.IsType<SyncPlanService>(provider.GetRequiredService<ISyncPlanService>());
+        Assert.IsType<SyncExecutor>(provider.GetRequiredService<ISyncExecutor>());
+        Assert.NotNull(provider.GetRequiredService<SyncExecutionCoordinator>());
     }
 
     [Fact]

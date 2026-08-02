@@ -22,7 +22,7 @@ public sealed class SyncServiceTests
                 Member("member-membership", "member-id", "Member", "member@example.com")
             ]
         };
-        SyncPlan plan = await new TeamSyncService(graph).BuildPlanAsync(Team, ["member@example.com"],
+        SyncPlan plan = await new SyncPlanService(graph).BuildPlanAsync(Team, ["member@example.com"],
             cancellationToken: TestContext.Current.CancellationToken);
         Assert.DoesNotContain(plan.Changes, x => x.Kind == ChangeKind.Remove && x.UserId == "owner-id");
         Assert.Contains(plan.Changes, x => x.Kind == ChangeKind.Keep && x.UserId == "member-id");
@@ -42,7 +42,7 @@ public sealed class SyncServiceTests
         };
         graph.Users["new@example.com"] =
             new DirectoryUser("new-id", "New User", "new@example.com", "new@example.com");
-        SyncPlan plan = await new TeamSyncService(graph).BuildPlanAsync(Team, ["new@example.com"],
+        SyncPlan plan = await new SyncPlanService(graph).BuildPlanAsync(Team, ["new@example.com"],
             cancellationToken: TestContext.Current.CancellationToken);
         SyncChange added = Assert.Single(plan.Changes, x => x.Kind == ChangeKind.Add);
         Assert.Equal("new-id", added.UserId);
@@ -57,7 +57,7 @@ public sealed class SyncServiceTests
         graph.Users["new@example.com"] =
             new DirectoryUser("new-id", "New", "new@example.com", "new@example.com");
 
-        SyncPlan plan = await new TeamSyncService(graph).BuildPlanAsync(Team, ["new@example.com"],
+        SyncPlan plan = await new SyncPlanService(graph).BuildPlanAsync(Team, ["new@example.com"],
             SyncMode.AddOnly, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(SyncMode.AddOnly, plan.Mode);
@@ -79,7 +79,7 @@ public sealed class SyncServiceTests
             ]
         };
 
-        SyncPlan plan = await new TeamSyncService(graph).BuildPlanAsync(Team,
+        SyncPlan plan = await new SyncPlanService(graph).BuildPlanAsync(Team,
             ["first@example.com", "second@example.com", "owner@example.com"],
             SyncMode.RemoveSpecified, cancellationToken: TestContext.Current.CancellationToken);
 
@@ -89,7 +89,7 @@ public sealed class SyncServiceTests
         Assert.Equal(0, plan.AddCount);
         Assert.DoesNotContain(plan.Changes, change => change.UserId == "other-id");
 
-        await new TeamSyncService(graph).ExecuteAsync(plan,
+        await new SyncExecutor(graph).ExecuteAsync(plan,
             cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(
             [("team-1", "first-membership"), ("team-1", "second-membership")],
@@ -104,7 +104,7 @@ public sealed class SyncServiceTests
         graph.Users["outside@example.com"] =
             new DirectoryUser("outside-id", "Outside", "outside@example.com", "outside@example.com");
 
-        SyncPlan plan = await new TeamSyncService(graph).BuildPlanAsync(Team, ["outside@example.com"],
+        SyncPlan plan = await new SyncPlanService(graph).BuildPlanAsync(Team, ["outside@example.com"],
             SyncMode.RemoveSpecified, cancellationToken: TestContext.Current.CancellationToken);
 
         SyncChange change = Assert.Single(plan.Changes);
@@ -124,7 +124,7 @@ public sealed class SyncServiceTests
             [], Mode: SyncMode.RemoveSpecified);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            new TeamSyncService(graph).ExecuteAsync(plan,
+            new SyncExecutor(graph).ExecuteAsync(plan,
                 cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Empty(graph.Added);
@@ -148,7 +148,7 @@ public sealed class SyncServiceTests
             }
         });
 
-        await new TeamSyncService(graph).BuildPlanAsync(Team,
+        await new SyncPlanService(graph).BuildPlanAsync(Team,
             ["keep@example.com", "new1@example.com", "new2@example.com"],
             progress: progress, cancellationToken: TestContext.Current.CancellationToken);
 
@@ -162,7 +162,7 @@ public sealed class SyncServiceTests
         graph.Users["new@example.com"] =
             new DirectoryUser("new-id", "New", "new@example.com", "new@example.com");
 
-        SyncPlan plan = await new TeamSyncService(graph).BuildPlanAsync(Team,
+        SyncPlan plan = await new SyncPlanService(graph).BuildPlanAsync(Team,
             ["new@example.com", "NEW@example.com", "new@example.com"],
             SyncMode.AddOnly, cancellationToken: TestContext.Current.CancellationToken);
 
@@ -184,7 +184,7 @@ public sealed class SyncServiceTests
         List<int> reported = [];
         SynchronousProgress<int> progress = new(reported.Add);
 
-        await new TeamSyncService(graph).BuildPlanAsync(Team, addresses,
+        await new SyncPlanService(graph).BuildPlanAsync(Team, addresses,
             SyncMode.AddOnly, progress, TestContext.Current.CancellationToken);
 
         Assert.Equal([25, 50, 60], reported);
@@ -196,9 +196,9 @@ public sealed class SyncServiceTests
         FakeGraphService graph = new();
         graph.Users["new@example.com"] =
             new DirectoryUser("new-id", "New", "new@example.com", "new@example.com");
-        CapturingLogger<TeamSyncService> logger = new();
+        CapturingLogger<SyncPlanService> logger = new();
 
-        await new TeamSyncService(graph, logger).BuildPlanAsync(Team,
+        await new SyncPlanService(graph, logger).BuildPlanAsync(Team,
             ["new@example.com", "NEW@example.com"], SyncMode.AddOnly,
             cancellationToken: TestContext.Current.CancellationToken);
 
@@ -222,7 +222,7 @@ public sealed class SyncServiceTests
             [], Mode: SyncMode.AddOnly);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            new TeamSyncService(graph).ExecuteAsync(plan,
+            new SyncExecutor(graph).ExecuteAsync(plan,
                 cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Empty(graph.Removed);
@@ -231,7 +231,7 @@ public sealed class SyncServiceTests
     [Fact]
     public async Task BuildPlan_MarksUnknownUserAsError()
     {
-        SyncPlan plan = await new TeamSyncService(new FakeGraphService())
+        SyncPlan plan = await new SyncPlanService(new FakeGraphService())
             .BuildPlanAsync(Team, ["missing@example.com"], cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(plan.HasErrors);
         Assert.Contains(plan.Changes, x => x.Kind == ChangeKind.Error && x.Email == "missing@example.com");
@@ -243,7 +243,7 @@ public sealed class SyncServiceTests
         FakeGraphService graph = new() { Members = [Member("membership-1", "user-1", "User", "primary@example.com")] };
         graph.Users["alias@example.com"] =
             new DirectoryUser("user-1", "User", "primary@example.com", "primary@example.com");
-        SyncPlan plan = await new TeamSyncService(graph).BuildPlanAsync(Team, ["alias@example.com"],
+        SyncPlan plan = await new SyncPlanService(graph).BuildPlanAsync(Team, ["alias@example.com"],
             cancellationToken: TestContext.Current.CancellationToken);
         Assert.Contains(plan.Changes, x => x.Kind == ChangeKind.Keep && x.UserId == "user-1");
         Assert.Equal(0, plan.AddCount);
@@ -258,7 +258,7 @@ public sealed class SyncServiceTests
         graph.Users["user@example.com"] = user;
         graph.Users["alias@example.com"] = user;
 
-        SyncPlan plan = await new TeamSyncService(graph).BuildPlanAsync(
+        SyncPlan plan = await new SyncPlanService(graph).BuildPlanAsync(
             Team, ["user@example.com", "alias@example.com"], cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, plan.AddCount);
@@ -266,7 +266,7 @@ public sealed class SyncServiceTests
         Assert.Equal(ChangeKind.Add, change.Kind);
         Assert.Equal("user@example.com ／ alias@example.com", change.Email);
 
-        await new TeamSyncService(graph).ExecuteAsync(plan,
+        await new SyncExecutor(graph).ExecuteAsync(plan,
             cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal([("team-1", "USER-1")], graph.Added);
     }
@@ -279,7 +279,7 @@ public sealed class SyncServiceTests
         graph.Users["山田 太郎"] = user;
         graph.Users["taro@example.com"] = user;
 
-        SyncPlan plan = await new TeamSyncService(graph).BuildPlanAsync(
+        SyncPlan plan = await new SyncPlanService(graph).BuildPlanAsync(
             Team, ["山田 太郎", "taro@example.com"], cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, plan.AddCount);
@@ -294,7 +294,7 @@ public sealed class SyncServiceTests
         graph.Users["alias@example.com"] =
             new DirectoryUser("USER-1", "User", "primary@example.com", "primary@example.com");
 
-        SyncPlan plan = await new TeamSyncService(graph).BuildPlanAsync(
+        SyncPlan plan = await new SyncPlanService(graph).BuildPlanAsync(
             Team, ["alias@example.com"], cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(0, plan.AddCount);
@@ -306,7 +306,7 @@ public sealed class SyncServiceTests
     {
         FakeGraphService graph = new() { Members = [Member("membership-1", "user-1", "山田　太郎", "yamada@example.com")] };
 
-        SyncPlan plan = await new TeamSyncService(graph).BuildPlanAsync(
+        SyncPlan plan = await new SyncPlanService(graph).BuildPlanAsync(
             Team, ["山田太郎"], cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Contains(plan.Changes, change => change.Kind == ChangeKind.Keep && change.UserId == "user-1");
@@ -321,7 +321,7 @@ public sealed class SyncServiceTests
         graph.SearchResults["山田太郎"] =
             [new DirectoryUser("user-1", "山田 太郎", "yamada@example.com", "yamada@example.com")];
 
-        SyncPlan plan = await new TeamSyncService(graph).BuildPlanAsync(
+        SyncPlan plan = await new SyncPlanService(graph).BuildPlanAsync(
             Team, ["山田太郎"], cancellationToken: TestContext.Current.CancellationToken);
 
         SyncChange addition = Assert.Single(plan.Changes, change => change.Kind == ChangeKind.Add);
@@ -339,7 +339,7 @@ public sealed class SyncServiceTests
         graph.Users["carol@example.com"] =
             new DirectoryUser("carol-id", "Carol", "carol@example.com", "carol@example.com");
 
-        SyncPlan plan = await new TeamSyncService(graph).BuildPlanAsync(
+        SyncPlan plan = await new SyncPlanService(graph).BuildPlanAsync(
             Team, ["alice@example.com", "bob@example.com", "carol@example.com"],
             cancellationToken: TestContext.Current.CancellationToken);
 
@@ -359,7 +359,7 @@ public sealed class SyncServiceTests
             new DirectoryUser("user-2", "山田　太郎", "two@example.com", "two@example.com")
         ];
 
-        SyncPlan plan = await new TeamSyncService(graph).BuildPlanAsync(
+        SyncPlan plan = await new SyncPlanService(graph).BuildPlanAsync(
             Team, ["山田太郎"], cancellationToken: TestContext.Current.CancellationToken);
 
         SyncChange error = Assert.Single(plan.Changes, change => change.Kind == ChangeKind.Error);
@@ -371,11 +371,11 @@ public sealed class SyncServiceTests
     public async Task RevalidatePlan_ReturnsCurrentWhenMembershipAndOperationsAreUnchanged()
     {
         FakeGraphService graph = new() { Members = [Member("membership-1", "user-1", "User", "user@example.com")] };
-        TeamSyncService service = new(graph);
-        SyncPlan preview = await service.BuildPlanAsync(
+        SyncPlanService plans = new(graph);
+        SyncPlan preview = await plans.BuildPlanAsync(
             Team, ["user@example.com"], cancellationToken: TestContext.Current.CancellationToken);
 
-        SyncPlanRevalidation result = await service.RevalidatePlanAsync(
+        SyncPlanRevalidation result = await plans.RevalidatePlanAsync(
             preview, TestContext.Current.CancellationToken);
 
         Assert.True(result.IsCurrent);
@@ -387,13 +387,13 @@ public sealed class SyncServiceTests
         FakeGraphService graph = new() { Members = [Member("old-membership", "old-user", "Old", "old@example.com")] };
         graph.Users["new@example.com"] =
             new DirectoryUser("new-user", "New", "new@example.com", "new@example.com");
-        TeamSyncService service = new(graph);
-        SyncPlan preview = await service.BuildPlanAsync(
+        SyncPlanService plans = new(graph);
+        SyncPlan preview = await plans.BuildPlanAsync(
             Team, ["new@example.com"], cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(1, preview.RemoveCount);
         graph.Members = [Member("old-membership", "old-user", "Old", "old@example.com", true)];
 
-        SyncPlanRevalidation result = await service.RevalidatePlanAsync(
+        SyncPlanRevalidation result = await plans.RevalidatePlanAsync(
             preview, TestContext.Current.CancellationToken);
 
         Assert.False(result.IsCurrent);
@@ -410,7 +410,7 @@ public sealed class SyncServiceTests
             [new SyncChange(ChangeKind.Error, "", "missing@example.com", ChangeReason.UserNotFound)],
             ["missing@example.com"]);
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            new TeamSyncService(graph).ExecuteAsync(plan, cancellationToken: TestContext.Current.CancellationToken));
+            new SyncExecutor(graph).ExecuteAsync(plan, cancellationToken: TestContext.Current.CancellationToken));
         Assert.Empty(graph.Added);
         Assert.Empty(graph.Removed);
     }
@@ -426,7 +426,7 @@ public sealed class SyncServiceTests
                 "old-membership")
         ], ["new@example.com"]);
         SyncExecutionResult result =
-            await new TeamSyncService(graph).ExecuteAsync(plan,
+            await new SyncExecutor(graph).ExecuteAsync(plan,
                 cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(0, result.FailureCount);
         Assert.Equal(2, result.SuccessCount);
@@ -446,7 +446,7 @@ public sealed class SyncServiceTests
                 "old-membership")
         ], ["new@example.com"]);
 
-        SyncExecutionResult result = await new TeamSyncService(graph).ExecuteAsync(
+        SyncExecutionResult result = await new SyncExecutor(graph).ExecuteAsync(
             plan, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, result.SuccessCount);
@@ -477,13 +477,13 @@ public sealed class SyncServiceTests
             ];
             return Task.CompletedTask;
         };
-        TeamSyncService service = new(graph);
-        SyncPlan plan = await service.BuildPlanAsync(Team, ["new@example.com"],
+        SyncPlanService plans = new(graph);
+        SyncPlan plan = await plans.BuildPlanAsync(Team, ["new@example.com"],
             cancellationToken: TestContext.Current.CancellationToken);
 
-        SyncExecutionResult result = await service.ExecuteAsync(plan,
+        SyncExecutionResult result = await new SyncExecutor(graph).ExecuteAsync(plan,
             cancellationToken: TestContext.Current.CancellationToken);
-        SyncPlan remaining = await service.ReconcileAsync(plan,
+        SyncPlan remaining = await plans.ReconcileAsync(plan,
             TestContext.Current.CancellationToken);
 
         Assert.Equal(1, result.SuccessCount);
@@ -512,13 +512,13 @@ public sealed class SyncServiceTests
             ];
             return Task.FromException(new InvalidOperationException("response lost"));
         };
-        TeamSyncService service = new(graph);
-        SyncPlan plan = await service.BuildPlanAsync(Team, ["new@example.com"],
+        SyncPlanService plans = new(graph);
+        SyncPlan plan = await plans.BuildPlanAsync(Team, ["new@example.com"],
             cancellationToken: TestContext.Current.CancellationToken);
 
-        SyncExecutionResult result = await service.ExecuteAsync(plan,
+        SyncExecutionResult result = await new SyncExecutor(graph).ExecuteAsync(plan,
             cancellationToken: TestContext.Current.CancellationToken);
-        SyncPlan remaining = await service.ReconcileAsync(plan,
+        SyncPlan remaining = await plans.ReconcileAsync(plan,
             TestContext.Current.CancellationToken);
 
         Assert.Equal(1, result.FailureCount);
@@ -537,7 +537,7 @@ public sealed class SyncServiceTests
         using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
         SyncExecutionResult result =
-            await new TeamSyncService(graph).ExecuteAsync(plan, cancellationToken: cancellation.Token);
+            await new SyncExecutor(graph).ExecuteAsync(plan, cancellationToken: cancellation.Token);
         Assert.True(result.Cancelled);
         Assert.Empty(graph.Added);
     }
@@ -552,7 +552,7 @@ public sealed class SyncServiceTests
         using CancellationTokenSource cancellation = new();
 
         Task<SyncExecutionResult> execution =
-            new TeamSyncService(graph).ExecuteAsync(plan, cancellationToken: cancellation.Token);
+            new SyncExecutor(graph).ExecuteAsync(plan, cancellationToken: cancellation.Token);
         await Task.Yield();
         cancellation.Cancel();
         SyncExecutionResult result = await execution;
@@ -572,7 +572,7 @@ public sealed class SyncServiceTests
             [new SyncChange(ChangeKind.Add, "New", "new@example.com", ChangeReason.Unspecified, "new-id")],
             ["new@example.com"]);
 
-        SyncExecutionResult result = await new TeamSyncService(graph).ExecuteAsync(plan,
+        SyncExecutionResult result = await new SyncExecutor(graph).ExecuteAsync(plan,
             cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(result.Cancelled);
@@ -584,7 +584,7 @@ public sealed class SyncServiceTests
     [Fact]
     public async Task Execute_AuditEventsAreCorrelatedAndExcludeSensitiveValues()
     {
-        CapturingLogger<TeamSyncService> logger = new();
+        CapturingLogger<SyncExecutor> logger = new();
         FakeGraphService graph = new()
         {
             OnAdd = _ => Task.FromException(new InvalidOperationException(
@@ -600,7 +600,7 @@ public sealed class SyncServiceTests
         SyncAuditContext audit = new(executionId, "members.csv", new string('A', 64),
             "tenant-id", "actor-object-id");
 
-        SyncExecutionResult result = await new TeamSyncService(graph, logger).ExecuteAsync(
+        SyncExecutionResult result = await new SyncExecutor(graph, logger).ExecuteAsync(
             plan, cancellationToken: TestContext.Current.CancellationToken, auditContext: audit);
 
         Assert.Equal(1, result.FailureCount);

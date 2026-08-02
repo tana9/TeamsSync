@@ -18,7 +18,7 @@ public sealed class SyncWorkspaceViewModelTests
         FakeResultWriter writer = new() { ResultPath = @"C:\Logs\20260801_result.csv" };
         RecordingNotificationService notifications = new();
         RecordingSavedFileLauncher launcher = new();
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway), writer,
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(gateway), new SyncExecutor(gateway), writer,
             new FakeDialogs(), notifications, launcher);
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new@example.com"], "members.csv", @"C:\members.csv",
@@ -46,7 +46,7 @@ public sealed class SyncWorkspaceViewModelTests
             Members = [new TeamMember("membership", "user", "User", "user@example.com", false)]
         };
         RecordingNotificationService notifications = new();
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), new FakeDialogs(), notifications);
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["user@example.com"], "members.csv", "C:\\members.csv",
@@ -64,7 +64,7 @@ public sealed class SyncWorkspaceViewModelTests
         {
             Members = [new TeamMember("membership", "user", "User", "user@example.com", false)]
         };
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), new FakeDialogs(), new RecordingNotificationService());
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["user@example.com"], "members.csv", "C:\\members.csv",
@@ -88,7 +88,7 @@ public sealed class SyncWorkspaceViewModelTests
         {
             Members = [new TeamMember("membership", "user", "User", "user@example.com", false)]
         };
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), new FakeDialogs(), new RecordingNotificationService());
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["user@example.com"], "members.csv", "C:\\members.csv",
@@ -106,7 +106,7 @@ public sealed class SyncWorkspaceViewModelTests
     {
         RecordingNotificationService notifications = new();
         RecordingSavedFileLauncher launcher = new() { Exception = new InvalidOperationException("関連付けがありません") };
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(new FakeTeamsGateway()),
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(new FakeTeamsGateway()), new SyncExecutor(new FakeTeamsGateway()),
             new FakeResultWriter(), new FakeDialogs(), notifications, launcher)
         {
             ResultLogPath = @"C:\Logs\result.csv"
@@ -126,7 +126,7 @@ public sealed class SyncWorkspaceViewModelTests
             new DirectoryUser("new-user", "New", "new@example.com", "new@example.com");
         RecordingNotificationService notifications = new();
         FakeDialogs confirmation = new() { OnConfirm = _ => throw new InvalidOperationException("dialog failed") };
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), confirmation, notifications);
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
@@ -147,7 +147,7 @@ public sealed class SyncWorkspaceViewModelTests
             new DirectoryUser("new-user", "New", "new@example.com", "new@example.com");
         FakeResultWriter writer = new() { Exception = new IOException("disk full") };
         RecordingNotificationService notifications = new();
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway), writer,
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(gateway), new SyncExecutor(gateway), writer,
             new FakeDialogs(), notifications);
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
@@ -168,7 +168,7 @@ public sealed class SyncWorkspaceViewModelTests
         FakeTeamsGateway gateway = new();
         gateway.Users["missing@example.com"] = new DirectoryUser(
             "user-1", "User", "missing@example.com", "missing@example.com");
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         Assert.Contains("サインイン", viewModel.SyncUnavailableReason);
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
@@ -200,7 +200,7 @@ public sealed class SyncWorkspaceViewModelTests
         FakeTeamsGateway gateway = new();
         gateway.Users["missing@example.com"] = new DirectoryUser(
             "user-1", "User", "missing@example.com", "missing@example.com");
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["missing@example.com"], "members.csv", "C:\\members.csv",
@@ -223,7 +223,7 @@ public sealed class SyncWorkspaceViewModelTests
         FakeTeamsGateway gateway = new();
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         TeamInfo team = new("team-1", "開発", null);
         MemberListDocument document = new(["new@example.com"], "members.csv", "C:\\members.csv",
@@ -257,7 +257,7 @@ public sealed class SyncWorkspaceViewModelTests
                 .Where(member => member.MembershipId != membershipId).ToList();
             return Task.CompletedTask;
         };
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         viewModel.IsRemoveSpecifiedSelected = true;
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
@@ -286,7 +286,7 @@ public sealed class SyncWorkspaceViewModelTests
         FakeTeamsGateway gateway = new();
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         TeamInfo team = new("team-1", "開発", null);
         MemberListDocument document = new(["new@example.com"], "members.csv", "C:\\members.csv",
@@ -306,7 +306,7 @@ public sealed class SyncWorkspaceViewModelTests
     [Fact]
     public void SyncWorkspace_差分未確認の状態で同期モードを切り替えても通知しない()
     {
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(new FakeTeamsGateway()),
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(new FakeTeamsGateway()), new SyncExecutor(new FakeTeamsGateway()),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         List<string> notifications = new();
         viewModel.StatusChanged += (message, _) => notifications.Add(message);
@@ -322,7 +322,7 @@ public sealed class SyncWorkspaceViewModelTests
         FakeTeamsGateway gateway = new();
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         MemberListDocument document = new(["new@example.com"], "members.csv", "C:\\members.csv",
             new DateTime(2026, 7, 28), "CSV", "email");
@@ -352,7 +352,7 @@ public sealed class SyncWorkspaceViewModelTests
                 return true;
             }
         };
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), dialogs, dialogs);
         viewModel.SelectedMode = viewModel.Modes.Single(mode => mode.Mode == SyncMode.FullSync);
         TeamInfo team = new("team-1", "開発", null);
@@ -383,7 +383,7 @@ public sealed class SyncWorkspaceViewModelTests
             ]
         };
         gateway.OnRemove = (_, _, _) => Task.FromException(new InvalidOperationException("remove failed"));
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         viewModel.SelectedMode = viewModel.Modes.Single(mode => mode.Mode == SyncMode.FullSync);
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
@@ -423,7 +423,7 @@ public sealed class SyncWorkspaceViewModelTests
         };
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         viewModel.SelectedMode = viewModel.Modes.Single(mode => mode.Mode == SyncMode.FullSync);
         MemberListDocument document = new(["new@example.com", "keep@example.com"], "members.csv",
@@ -452,7 +452,7 @@ public sealed class SyncWorkspaceViewModelTests
             new DirectoryUser("new1-user", "New 1", "new1@example.com", "new1@example.com");
         gateway.Users["new2@example.com"] =
             new DirectoryUser("new2-user", "New 2", "new2@example.com", "new2@example.com");
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new1@example.com", "new2@example.com"], "members.csv", @"C:\members.csv",
@@ -481,7 +481,7 @@ public sealed class SyncWorkspaceViewModelTests
                 .Append(new TeamMember("new-membership", userId, "New User", "new@example.com", false)).ToList();
             return Task.CompletedTask;
         };
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
@@ -513,7 +513,7 @@ public sealed class SyncWorkspaceViewModelTests
             ]
         };
         gateway.OnRemove = (_, _, _) => Task.FromException(new InvalidOperationException("remove failed"));
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), new FakeDialogs(), new RecordingNotificationService());
         viewModel.SelectedMode = viewModel.Modes.Single(mode => mode.Mode == SyncMode.FullSync);
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
@@ -556,7 +556,7 @@ public sealed class SyncWorkspaceViewModelTests
         FakeTeamsGateway gateway = new();
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         MemberListDocument document = new(["new@example.com"], "members.csv", "C:\\members.csv",
             new DateTime(2026, 7, 28), "CSV", "email");
@@ -578,7 +578,7 @@ public sealed class SyncWorkspaceViewModelTests
         FakeTeamsGateway gateway = new();
         gateway.Users["new@example.com"] =
             new DirectoryUser("new-user", "New User", "new@example.com", "new@example.com");
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
@@ -608,7 +608,7 @@ public sealed class SyncWorkspaceViewModelTests
             addStarted = true;
             return Task.CompletedTask;
         };
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
@@ -643,7 +643,7 @@ public sealed class SyncWorkspaceViewModelTests
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
         };
         FakeDialogs dialogs = new();
-        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), dialogs, dialogs);
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
