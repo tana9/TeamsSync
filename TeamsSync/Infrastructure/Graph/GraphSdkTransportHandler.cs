@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 namespace TeamsSync.Infrastructure.Graph;
 
 /// <summary>SDK要求を既存の名前付きHttpClientへ転送し、診断情報と例外形式を維持する。</summary>
-internal sealed class GraphSdkTransportHandler(HttpClient transport, ILogger<GraphHttpClient> logger)
+internal sealed partial class GraphSdkTransportHandler(HttpClient transport, ILogger<GraphHttpClient> logger)
     : HttpMessageHandler
 {
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
@@ -29,15 +29,15 @@ internal sealed class GraphSdkTransportHandler(HttpClient transport, ILogger<Gra
         string returnedClientRequestId = Header(response, "client-request-id") ?? clientRequestId;
         if (expectedNotFound && status == HttpStatusCode.NotFound)
         {
-            logger.LogDebug(
-                "ユーザーの直接参照で見つからなかったため検索へ切り替えます。StatusCode={StatusCode}, RequestId={RequestId}, ClientRequestId={ClientRequestId}",
-                status, requestId, returnedClientRequestId);
+            LogFallbackToSearch(logger, status, requestId, returnedClientRequestId);
         }
-        else
+        else if (logger.IsEnabled(LogLevel.Error))
         {
-            logger.LogError(
-                "Graph API呼び出しに失敗しました。StatusCode={StatusCode}, RequestId={RequestId}, ClientRequestId={ClientRequestId}, Diagnostic={Diagnostic}",
-                status, requestId, returnedClientRequestId, GraphErrorFormatter.DiagnosticSummary(body));
+            // DiagnosticSummary(body)はJSON解析を伴うため、Errorログが無効な場合は評価しない(CA1873)。
+            // [LoggerMessage]は内部でIsEnabledを判定するが、呼び出し側の引数(DiagnosticSummaryの呼び出し)
+            // 自体はC#の評価順序上どのみ実行されてしまうため、このガードは生成メソッド化後も必要。
+            LogGraphCallFailed(logger, status, requestId, returnedClientRequestId,
+                GraphErrorFormatter.DiagnosticSummary(body));
         }
 
         response.Dispose();
@@ -75,4 +75,14 @@ internal sealed class GraphSdkTransportHandler(HttpClient transport, ILogger<Gra
 
         return clone;
     }
+
+    [LoggerMessage(EventId = 1, Level = LogLevel.Debug,
+        Message = "ユーザーの直接参照で見つからなかったため検索へ切り替えます。StatusCode={StatusCode}, RequestId={RequestId}, ClientRequestId={ClientRequestId}")]
+    private static partial void LogFallbackToSearch(ILogger logger, HttpStatusCode statusCode,
+        string? requestId, string clientRequestId);
+
+    [LoggerMessage(EventId = 2, Level = LogLevel.Error,
+        Message = "Graph API呼び出しに失敗しました。StatusCode={StatusCode}, RequestId={RequestId}, ClientRequestId={ClientRequestId}, Diagnostic={Diagnostic}")]
+    private static partial void LogGraphCallFailed(ILogger logger, HttpStatusCode statusCode,
+        string? requestId, string clientRequestId, string diagnostic);
 }
