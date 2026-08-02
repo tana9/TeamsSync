@@ -22,8 +22,8 @@ public sealed class HeightMinusOffsetConverter : IMultiValueConverter
     /// </summary>
     public object Convert(object?[] values, Type targetType, object? parameter, CultureInfo culture)
     {
-        double containerHeight = values.Length > 0 && values[0] is double d0 ? d0 : 0;
-        double actionBarHeight = values.Length > 1 && values[1] is double d1 ? d1 : 0;
+        double containerHeight = values is { Length: > 0 } && values[0] is double d0 ? d0 : 0;
+        double actionBarHeight = values is { Length: > 1 } && values[1] is double d1 ? d1 : 0;
         double reservedHeight = parameter is string s && double.TryParse(s, out double p) ? p : 0;
         return Math.Max(0, containerHeight - actionBarHeight - reservedHeight);
     }

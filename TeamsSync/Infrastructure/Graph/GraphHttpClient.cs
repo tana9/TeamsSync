@@ -28,8 +28,9 @@ public sealed partial class GraphHttpClient(
     public async Task<JsonDocument> GetAsync(string relative, bool expectedNotFound = false,
         CancellationToken cancellationToken = default)
     {
+        using HttpRequestMessage request = CreateRequest(HttpMethod.Get, relative);
         using HttpResponseMessage response = await SendOnceAsync(
-            CreateRequest(HttpMethod.Get, relative), ReadHttpClientName, expectedNotFound, cancellationToken);
+            request, ReadHttpClientName, expectedNotFound, cancellationToken);
         await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         return await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
     }
@@ -68,8 +69,9 @@ public sealed partial class GraphHttpClient(
                 .Replace("\"user_odata_bind\"", "\"user@odata.bind\"");
         }
 
+        using HttpRequestMessage request = CreateRequest(method, relative, json);
         using HttpResponseMessage response = await SendOnceAsync(
-            CreateRequest(method, relative, json), WriteHttpClientName, cancellationToken: cancellationToken);
+            request, WriteHttpClientName, cancellationToken: cancellationToken);
     }
 
     /// <summary>
@@ -83,8 +85,9 @@ public sealed partial class GraphHttpClient(
         {
             requests = requests.Select(r => new { id = r.Id, method = "GET", url = r.Url })
         });
+        using HttpRequestMessage request = CreateRequest(HttpMethod.Post, "$batch", payload);
         using HttpResponseMessage response = await SendOnceAsync(
-            CreateRequest(HttpMethod.Post, "$batch", payload), ReadHttpClientName, cancellationToken: cancellationToken);
+            request, ReadHttpClientName, cancellationToken: cancellationToken);
         await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using JsonDocument doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
         return doc.RootElement.GetProperty("responses").EnumerateArray()
