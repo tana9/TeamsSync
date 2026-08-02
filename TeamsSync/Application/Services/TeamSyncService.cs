@@ -11,7 +11,8 @@ namespace TeamsSync.Application.Services;
 
 /// <summary>
 ///     入力アドレス一覧と現メンバーを突き合わせて同期プランを作成し、そのプランに基づいて
-///     メンバーの追加・削除を実行する。
+///     メンバーの追加・削除を実行する。アドレスの解決判定自体は<see cref="AddressResolver" />に委ね、
+///     このクラスはGraph呼び出し・並列制御・進捗通知だけを担う。
 /// </summary>
 public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSyncService>? logger = null)
 {
@@ -94,7 +95,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         SemaphoreSlim concurrency, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        AddressResolution? local = TryResolveFromCurrentMembers(address, current);
+        AddressResolution? local = AddressResolver.TryResolveFromRoster(address, current);
         if (local is not null)
         {
             return new AddressResolutionAttempt(local, false);
@@ -104,54 +105,13 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         try
         {
             IReadOnlyList<DirectoryUser> candidates = await teamsGateway.FindUsersAsync(address, cancellationToken);
-            return new AddressResolutionAttempt(ResolveFromCandidates(address, candidates, current), true);
+            return new AddressResolutionAttempt(
+                AddressResolver.ResolveFromDirectory(address, candidates, current), true);
         }
         finally
         {
             concurrency.Release();
         }
-    }
-
-    /// <summary>
-    ///     メールアドレスまたは正規化した氏名で現メンバーから一致を探す。
-    ///     複数一致した場合は特定不能としてエラーにする。
-    /// </summary>
-    private static AddressResolution? TryResolveFromCurrentMembers(string address, TeamRoster current)
-    {
-        IReadOnlyList<TeamMember> existingMatches = current.FindByAddressOrName(address);
-        if (existingMatches.Count > 1)
-        {
-            return new AddressResolution(ResolutionOutcome.Error, address,
-                ErrorReason: ChangeReason.AmbiguousCurrentMember);
-        }
-
-        return existingMatches.Count == 1
-            ? new AddressResolution(ResolutionOutcome.ExistingSingle, address, existingMatches[0])
-            : null;
-    }
-
-    /// <summary>
-    ///     ディレクトリ検索の候補から一意なユーザーを特定し、既に別アドレスでメンバーかどうかを判定する。
-    /// </summary>
-    private static AddressResolution ResolveFromCandidates(string address,
-        IReadOnlyList<DirectoryUser> candidates, TeamRoster current)
-    {
-        List<DirectoryUser> exactMatches = candidates
-            .DistinctBy(user => user.Id, StringComparer.OrdinalIgnoreCase).ToList();
-        if (exactMatches.Count != 1)
-        {
-            return new AddressResolution(ResolutionOutcome.Error, address,
-                ErrorReason: exactMatches.Count > 1
-                    ? ChangeReason.AmbiguousDirectoryUser
-                    : ChangeReason.UserNotFound);
-        }
-
-        DirectoryUser user = exactMatches[0];
-        TeamMember? sameUser = current.FindByUserId(user.Id);
-        return sameUser is not null
-            ? new AddressResolution(ResolutionOutcome.SameUserDifferentAddress, address,
-                sameUser, user)
-            : new AddressResolution(ResolutionOutcome.NewUser, address, User: user);
     }
 
     /// <summary>並列処理の完了件数を一定間隔と最終件だけ通知する。</summary>
