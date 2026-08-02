@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 
 using TeamsSync.Domain.Teams;
+using TeamsSync.Presentation.ViewModels;
 
 using Wpf.Ui;
 using Wpf.Ui.Controls;
@@ -80,12 +81,7 @@ public sealed class WpfSyncConfirmationService(
         });
         panel.Children.Add(new TextBlock
         {
-            Text = $"同期モード: {plan.Mode switch
-            {
-                SyncMode.AddOnly => "追加のみ（既存メンバーを維持）",
-                SyncMode.RemoveSpecified => "指定メンバーを削除",
-                _ => "完全同期（リスト外を削除）"
-            }}",
+            Text = $"同期モード: {SyncWorkspaceTextFormatter.BuildModeLabel(plan.Mode)}",
             Margin = new Thickness(0, 4, 0, 0),
             TextWrapping = TextWrapping.Wrap
         });

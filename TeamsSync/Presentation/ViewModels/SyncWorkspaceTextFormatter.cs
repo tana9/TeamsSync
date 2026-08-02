@@ -61,6 +61,20 @@ public static class SyncWorkspaceTextFormatter
                     : "「差分を確認」を押してください";
     }
 
+    // モード選択コンボボックス(SyncWorkspaceViewModel.Modes)と最終確認ダイアログ
+    // (WpfSyncConfirmationService)の両方で同じ文言を使うため、ここへ1本化している。
+    /// <summary>同期モードの画面表示用ラベルを組み立てる。</summary>
+    public static string BuildModeLabel(SyncMode mode)
+    {
+        return mode switch
+        {
+            SyncMode.AddOnly => "追加のみ（既存メンバーを維持）",
+            SyncMode.RemoveSpecified => "指定メンバーを削除",
+            SyncMode.FullSync => "完全同期（リスト外を削除）",
+            _ => mode.ToString()
+        };
+    }
+
     /// <summary>差分確認中の進捗テキストを組み立てる。</summary>
     public static string BuildPreviewProgressText(int previewProgressValue, int previewProgressMaximum)
     {

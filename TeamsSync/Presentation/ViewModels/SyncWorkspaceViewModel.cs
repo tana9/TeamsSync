@@ -174,9 +174,9 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     /// <summary>同期モード選択コンボボックスの選択肢。</summary>
     public IReadOnlyList<SyncModeOption> Modes { get; } =
     [
-        new(SyncMode.AddOnly, "追加のみ（既存メンバーを維持）"),
-        new(SyncMode.RemoveSpecified, "指定メンバーを削除"),
-        new(SyncMode.FullSync, "完全同期（リスト外を削除）")
+        new(SyncMode.AddOnly, SyncWorkspaceTextFormatter.BuildModeLabel(SyncMode.AddOnly)),
+        new(SyncMode.RemoveSpecified, SyncWorkspaceTextFormatter.BuildModeLabel(SyncMode.RemoveSpecified)),
+        new(SyncMode.FullSync, SyncWorkspaceTextFormatter.BuildModeLabel(SyncMode.FullSync))
     ];
 
     /// <summary>差分一覧の絞り込みフィルターの選択肢。</summary>
