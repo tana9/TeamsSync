@@ -21,7 +21,7 @@ public sealed class GraphHttpResilienceTests
             NullLogger<GraphHttpClient>.Instance);
 
         InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(() => client.GetAsync(
-            "https://example.test/steal", TestContext.Current.CancellationToken));
+            "https://example.test/steal", cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains("許可されていないURL", exception.Message);
     }
@@ -36,7 +36,7 @@ public sealed class GraphHttpResilienceTests
             NullLogger<GraphHttpClient>.Instance);
 
         await Assert.ThrowsAsync<InvalidDataException>(() =>
-            client.GetAsync(url, TestContext.Current.CancellationToken));
+            client.GetAsync(url, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]

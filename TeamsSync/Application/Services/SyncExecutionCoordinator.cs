@@ -19,7 +19,7 @@ public sealed class SyncExecutionCoordinator(TeamSyncService syncService, ISyncR
         CancellationToken cancellationToken = default)
     {
         SyncExecutionResult execution = await syncService.ExecuteAsync(
-            plan, progress, cancellationToken, auditContext);
+            plan, progress, auditContext, cancellationToken);
 
         string resultLogPath = "";
         Exception? logSaveError = null;

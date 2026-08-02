@@ -25,11 +25,11 @@ public sealed partial class GraphHttpClient(
     /// <summary>
     ///     GETリクエストを送信し、レスポンスボディをJSONとして解析する。
     /// </summary>
-    public async Task<JsonDocument> GetAsync(string relative, CancellationToken cancellationToken,
-        bool expectedNotFound = false)
+    public async Task<JsonDocument> GetAsync(string relative, bool expectedNotFound = false,
+        CancellationToken cancellationToken = default)
     {
         using HttpResponseMessage response = await SendOnceAsync(
-            CreateRequest(HttpMethod.Get, relative), ReadHttpClientName, cancellationToken, expectedNotFound);
+            CreateRequest(HttpMethod.Get, relative), ReadHttpClientName, expectedNotFound, cancellationToken);
         await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         return await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
     }
@@ -44,7 +44,7 @@ public sealed partial class GraphHttpClient(
         while (next is not null)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            using JsonDocument doc = await GetAsync(next, cancellationToken);
+            using JsonDocument doc = await GetAsync(next, cancellationToken: cancellationToken);
             result.AddRange(doc.RootElement.GetProperty("value").EnumerateArray().Select(x => x.Clone()));
             next = doc.RootElement.TryGetProperty("@odata.nextLink", out JsonElement link)
                 ? link.GetString()
@@ -69,7 +69,7 @@ public sealed partial class GraphHttpClient(
         }
 
         using HttpResponseMessage response = await SendOnceAsync(
-            CreateRequest(method, relative, json), WriteHttpClientName, cancellationToken);
+            CreateRequest(method, relative, json), WriteHttpClientName, cancellationToken: cancellationToken);
     }
 
     /// <summary>
@@ -84,7 +84,7 @@ public sealed partial class GraphHttpClient(
             requests = requests.Select(r => new { id = r.Id, method = "GET", url = r.Url })
         });
         using HttpResponseMessage response = await SendOnceAsync(
-            CreateRequest(HttpMethod.Post, "$batch", payload), ReadHttpClientName, cancellationToken);
+            CreateRequest(HttpMethod.Post, "$batch", payload), ReadHttpClientName, cancellationToken: cancellationToken);
         await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using JsonDocument doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
         return doc.RootElement.GetProperty("responses").EnumerateArray()
@@ -121,7 +121,7 @@ public sealed partial class GraphHttpClient(
     ///     <see cref="GraphException" />へ変換する。
     /// </summary>
     private async Task<HttpResponseMessage> SendOnceAsync(HttpRequestMessage request,
-        string clientName, CancellationToken cancellationToken, bool expectedNotFound = false)
+        string clientName, bool expectedNotFound = false, CancellationToken cancellationToken = default)
     {
         string clientRequestId = Guid.NewGuid().ToString();
         request.Headers.TryAddWithoutValidation("client-request-id", clientRequestId);

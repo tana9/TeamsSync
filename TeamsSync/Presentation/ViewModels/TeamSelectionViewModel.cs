@@ -72,7 +72,7 @@ public partial class TeamSelectionViewModel : ObservableObject
     public async Task InitializeAsync(string currentUserId, CancellationToken cancellationToken = default)
     {
         _currentUserId = currentUserId;
-        await LoadAsync(cancellationToken);
+        await LoadAsync(cancellationToken: cancellationToken);
     }
 
     /// <summary>サインアウト時などに、選択状態・チーム一覧・キャッシュをクリアする。</summary>
@@ -161,7 +161,7 @@ public partial class TeamSelectionViewModel : ObservableObject
     ///     所有チーム一覧をGraph APIから取得し、<see cref="Teams" />へ反映する。選択中のチームが
     ///     再取得後も引き続き所有チームに含まれていれば、選択状態を維持する。
     /// </summary>
-    private async Task<bool> LoadAsync(CancellationToken cancellationToken = default, bool refresh = false)
+    private async Task<bool> LoadAsync(bool refresh = false, CancellationToken cancellationToken = default)
     {
         if (_currentUserId is null)
         {

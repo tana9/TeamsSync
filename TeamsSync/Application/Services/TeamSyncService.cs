@@ -39,8 +39,8 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
     ///     追加・削除・維持・エラーの各変更内容をまとめた同期プランを作成する。
     /// </summary>
     public async Task<SyncPlan> BuildPlanAsync(TeamInfo team, IReadOnlyList<string> addresses,
-        CancellationToken cancellationToken = default, SyncMode mode = SyncMode.FullSync,
-        IProgress<int>? progress = null)
+        SyncMode mode = SyncMode.FullSync, IProgress<int>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
         IReadOnlyList<TeamMember> current = await teamsGateway.GetTeamMembersAsync(team.Id, cancellationToken);
@@ -375,7 +375,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         CancellationToken cancellationToken = default)
     {
         SyncPlan latest = await BuildPlanAsync(
-            preview.Team, preview.InputAddresses, cancellationToken, preview.Mode);
+            preview.Team, preview.InputAddresses, preview.Mode, cancellationToken: cancellationToken);
         return new SyncPlanRevalidation(PlansAreEquivalent(preview, latest), latest);
     }
 
@@ -387,7 +387,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         CancellationToken cancellationToken = default)
     {
         return BuildPlanAsync(executedPlan.Team, executedPlan.InputAddresses,
-            cancellationToken, executedPlan.Mode);
+            executedPlan.Mode, cancellationToken: cancellationToken);
     }
 
     /// <summary>
@@ -395,8 +395,8 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
     ///     または追加のみモードで削除が含まれる場合は例外をスローする。
     /// </summary>
     public async Task<SyncExecutionResult> ExecuteAsync(SyncPlan plan,
-        IProgress<SyncProgress>? progress = null, CancellationToken cancellationToken = default,
-        SyncAuditContext? auditContext = null)
+        IProgress<SyncProgress>? progress = null, SyncAuditContext? auditContext = null,
+        CancellationToken cancellationToken = default)
     {
         ValidateExecutablePlan(plan);
         using IDisposable? auditScope = BeginAuditScope(plan, auditContext);
