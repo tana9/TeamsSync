@@ -26,8 +26,6 @@ public sealed record SyncModeOption(SyncMode Mode, string Label)
 /// <param name="ChangesOnly">追加・削除・エラーのみに絞り込むかどうか。</param>
 public sealed record ChangeFilter(string Label, ChangeKind? Kind, bool ChangesOnly = false) : INotifyPropertyChanged
 {
-    private int _count = -1;
-
     // ComboBoxはSelectedItemの表示にToString()の値をキャプチャして使うため、Countを更新して
     // CollectionViewSource.Refresh()を呼ぶだけではドロップダウン内のリストは更新されても、
     // 選択中アイテムの表示テキストだけが古いままになる。DisplayTextへINotifyPropertyChangedで
@@ -35,19 +33,19 @@ public sealed record ChangeFilter(string Label, ChangeKind? Kind, bool ChangesOn
     /// <summary>このフィルターに該当する件数(未確認の場合は-1)。</summary>
     public int Count
     {
-        get => _count;
+        get;
         set
         {
-            if (_count == value)
+            if (field == value)
             {
                 return;
             }
 
-            _count = value;
+            field = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Count)));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DisplayText)));
         }
-    }
+    } = -1;
 
     /// <summary>件数を含めたコンボボックス表示用テキスト(未確認の場合は件数なし)。</summary>
     public string DisplayText => Count >= 0 ? $"{Label} ({Count})" : Label;
