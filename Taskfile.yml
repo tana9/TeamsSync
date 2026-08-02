@@ -35,13 +35,13 @@ tasks:
 
   build:
     desc: Release構成でビルドします
-    deps: [restore]
+    deps: [ restore ]
     cmds:
       - dotnet build {{.SOLUTION}} -c Release --no-restore
 
   test:
     desc: Release構成で全テストを実行します
-    deps: [restore]
+    deps: [ restore ]
     cmds:
       - dotnet test {{.SOLUTION}} -c Release --no-restore
 
@@ -57,7 +57,7 @@ tasks:
 
   publish-single:
     desc: Windows x64向けの自己完結型シングルバイナリを作成します
-    deps: [test, clean-publish]
+    deps: [ test, clean-publish ]
     cmds:
       - >-
         dotnet publish {{.PROJECT}}

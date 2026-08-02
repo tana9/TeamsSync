@@ -1,3 +1,5 @@
+using System.Collections.Specialized;
+
 using TeamsSync.Application.Models;
 using TeamsSync.Application.Services;
 using TeamsSync.Domain.Teams;
@@ -103,10 +105,7 @@ public sealed class SyncWorkspaceViewModelTests
     public void SyncWorkspace_同期結果CSVを開けない場合は警告して例外を伝播しない()
     {
         RecordingNotificationService notifications = new();
-        RecordingSavedFileLauncher launcher = new()
-        {
-            Exception = new InvalidOperationException("関連付けがありません")
-        };
+        RecordingSavedFileLauncher launcher = new() { Exception = new InvalidOperationException("関連付けがありません") };
         SyncWorkspaceViewModel viewModel = new(new TeamSyncService(new FakeTeamsGateway()),
             new FakeResultWriter(), new FakeDialogs(), notifications, launcher)
         {
@@ -458,13 +457,13 @@ public sealed class SyncWorkspaceViewModelTests
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new1@example.com", "new2@example.com"], "members.csv", @"C:\members.csv",
                 new DateTime(2026, 8, 1), "CSV", "email"), true);
-        List<System.Collections.Specialized.NotifyCollectionChangedAction> actions = [];
+        List<NotifyCollectionChangedAction> actions = [];
         viewModel.Changes.CollectionChanged += (_, args) => actions.Add(args.Action);
 
         await viewModel.PreviewCommand.ExecuteAsync(null);
 
         Assert.Equal(2, viewModel.Changes.Count);
-        Assert.Equal([System.Collections.Specialized.NotifyCollectionChangedAction.Reset], actions);
+        Assert.Equal([NotifyCollectionChangedAction.Reset], actions);
     }
 
     [Fact]

@@ -1,5 +1,5 @@
-using TeamsSync.Domain.Teams;
 using TeamsSync.Application.Models;
+using TeamsSync.Domain.Teams;
 
 namespace TeamsSync.Presentation.ViewModels;
 

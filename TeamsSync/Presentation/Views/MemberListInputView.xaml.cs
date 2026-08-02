@@ -1,5 +1,3 @@
-using System.Windows;
-
 using TeamsSync.Presentation.ViewModels;
 
 namespace TeamsSync.Presentation.Views;
@@ -13,7 +11,7 @@ public partial class MemberListInputView
     public MemberListInputView()
     {
         InitializeComponent();
-        _viewModelSubscription = new(
+        _viewModelSubscription = new ViewModelEventSubscription<MemberFileViewModel>(
             viewModel => viewModel.InputFocusRequested += FocusInputTarget,
             viewModel => viewModel.InputFocusRequested -= FocusInputTarget);
         Loaded += (_, _) => _viewModelSubscription.Load(DataContext as MemberFileViewModel);

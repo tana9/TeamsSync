@@ -26,7 +26,11 @@ public sealed record SyncProgress(int Completed, int Total, ChangeKind Kind, str
     public int Percentage => Total == 0 ? 0 : (int)Math.Round(Completed * 100d / Total);
 }
 
-public sealed record SyncOperationResult(ChangeKind Kind, string Email, bool Succeeded, string? Error,
+public sealed record SyncOperationResult(
+    ChangeKind Kind,
+    string Email,
+    bool Succeeded,
+    string? Error,
     string DisplayName = "");
 
 public sealed record SyncExecutionResult(IReadOnlyList<SyncOperationResult> Operations, bool Cancelled)

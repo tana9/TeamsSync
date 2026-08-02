@@ -7,14 +7,27 @@ namespace TeamsSync.Infrastructure.Graph;
 internal static class GraphErrorFormatter
 {
     private const int MaximumDiagnosticMessageLength = 512;
+
     public static string Format(HttpStatusCode status, string responseBody,
         string? requestId, string clientRequestId)
     {
         (string? code, string? message) = Parse(responseBody);
         List<string> details = [$"Graph API エラー ({(int)status} {status})"];
-        if (!string.IsNullOrWhiteSpace(code)) details.Add($"コード: {code}");
-        if (!string.IsNullOrWhiteSpace(message)) details.Add($"内容: {message}");
-        if (!string.IsNullOrWhiteSpace(requestId)) details.Add($"request-id: {requestId}");
+        if (!string.IsNullOrWhiteSpace(code))
+        {
+            details.Add($"コード: {code}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(message))
+        {
+            details.Add($"内容: {message}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(requestId))
+        {
+            details.Add($"request-id: {requestId}");
+        }
+
         details.Add($"client-request-id: {clientRequestId}");
         return string.Join(Environment.NewLine, details);
     }
@@ -33,7 +46,11 @@ internal static class GraphErrorFormatter
         try
         {
             using JsonDocument document = JsonDocument.Parse(responseBody);
-            if (!document.RootElement.TryGetProperty("error", out JsonElement error)) return default;
+            if (!document.RootElement.TryGetProperty("error", out JsonElement error))
+            {
+                return default;
+            }
+
             string? code = ReadString(error, "code");
             string? message = ReadString(error, "message");
             return (code, message);

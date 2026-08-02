@@ -5,6 +5,7 @@ namespace TeamsSync.Domain.Teams;
 /// <param name="DisplayName">表示名。</param>
 /// <param name="Description">チームの説明(未設定の場合はnull)。</param>
 public sealed record TeamInfo(string Id, string DisplayName, string? Description);
+
 /// <summary>チームの現メンバー1名分の情報を表す。</summary>
 /// <param name="MembershipId">メンバーシップのオブジェクトID(削除操作に使用)。</param>
 /// <param name="UserId">ユーザーのオブジェクトID。</param>

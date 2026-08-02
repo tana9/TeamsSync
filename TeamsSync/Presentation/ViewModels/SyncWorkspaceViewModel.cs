@@ -24,12 +24,12 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 {
     private const int MaxVisibleFailedResults = 100;
     private readonly BusyOperationRunner _busyRunner;
+    private readonly BulkObservableCollection<SyncChangeRowViewModel> _changes = [];
     private readonly ISyncConfirmationService _confirmation;
-    private readonly INotificationService _notifications;
     private readonly SyncExecutionCoordinator _executionCoordinator;
+    private readonly INotificationService _notifications;
     private readonly ISavedFileLauncher _savedFileLauncher;
     private readonly TeamSyncService _syncService;
-    private readonly BulkObservableCollection<SyncChangeRowViewModel> _changes = [];
     private string? _actorObjectId;
     private MemberListDocument? _document;
     private bool _externallyBusy;
@@ -430,7 +430,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             PreviewProgressMaximum = Math.Max(1, _document.Addresses.Count);
             Progress<int> progress = new(count => PreviewProgressValue = count);
             return await _syncService.BuildPlanAsync(_team, _document.Addresses,
-                mode: SelectedMode.Mode, progress: progress);
+                SelectedMode.Mode, progress);
         });
 
         if (plan is not null)
@@ -490,24 +490,24 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     private async Task<bool> RevalidateBeforeExecuteAsync()
     {
         return await _busyRunner.RunAsync(async () =>
-        {
-            StatusChanged?.Invoke("実行直前のメンバー構成を確認しています…", false);
-            SyncPlanRevalidation revalidation = await _executionCoordinator.RevalidateAsync(_plan!);
-            // ApplyPlan既定の案内文はこの後の分岐でより具体的なメッセージに置き換えるため、
-            // 同じ内容をスクリーンリーダーへ二重に読み上げさせないようannounceStatus: falseで抑制する。
-            ApplyPlan(revalidation.LatestPlan, false);
-            if (revalidation.IsCurrent)
             {
-                return true;
-            }
+                StatusChanged?.Invoke("実行直前のメンバー構成を確認しています…", false);
+                SyncPlanRevalidation revalidation = await _executionCoordinator.RevalidateAsync(_plan!);
+                // ApplyPlan既定の案内文はこの後の分岐でより具体的なメッセージに置き換えるため、
+                // 同じ内容をスクリーンリーダーへ二重に読み上げさせないようannounceStatus: falseで抑制する。
+                ApplyPlan(revalidation.LatestPlan, false);
+                if (revalidation.IsCurrent)
+                {
+                    return true;
+                }
 
-            _notifications.ShowWarning("同期差分が変更されました",
-                "チームのメンバー構成がプレビュー後に変更されました。最新の差分を確認して、もう一度チームに反映してください。");
-            StatusChanged?.Invoke("最新の同期差分を表示しました。内容を再確認してください", true);
-            return false;
-        }, ex => new BusyOperationRunner.SpecificExceptionResult(
-            "再検証に失敗しました。通知の「詳細をコピー」から内容を確認できます"),
-            manageBusyState: false);
+                _notifications.ShowWarning("同期差分が変更されました",
+                    "チームのメンバー構成がプレビュー後に変更されました。最新の差分を確認して、もう一度チームに反映してください。");
+                StatusChanged?.Invoke("最新の同期差分を表示しました。内容を再確認してください", true);
+                return false;
+            }, ex => new BusyOperationRunner.SpecificExceptionResult(
+                "再検証に失敗しました。通知の「詳細をコピー」から内容を確認できます"),
+            false);
     }
 
     /// <summary>
@@ -635,15 +635,25 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         }
     }
 
-    private bool CanRetryRemaining() => CanRetryResult && CanPreview();
+    private bool CanRetryRemaining()
+    {
+        return CanRetryResult && CanPreview();
+    }
 
     /// <summary>同期結果とログ保存を1つのSnackbarで通知し、保存成功時はCSVを開く操作を付ける。</summary>
     private void ShowResultNotification(bool warning, string title, string message)
     {
         if (!HasResultLog)
         {
-            if (warning) _notifications.ShowWarning(title, message);
-            else _notifications.ShowSuccess(title, message);
+            if (warning)
+            {
+                _notifications.ShowWarning(title, message);
+            }
+            else
+            {
+                _notifications.ShowSuccess(title, message);
+            }
+
             return;
         }
 

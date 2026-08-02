@@ -198,7 +198,8 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildSyncUnavailableReason_プランにエラーがある場合は未解決ユーザーの修正を促す()
     {
-        SyncPlan plan = new(Team, [new SyncChange(ChangeKind.Error, "不明", "unknown@example.com", ChangeReason.UserNotFound)],
+        SyncPlan plan = new(Team,
+            [new SyncChange(ChangeKind.Error, "不明", "unknown@example.com", ChangeReason.UserNotFound)],
             ["unknown@example.com"]);
 
         string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, Team,
@@ -210,7 +211,8 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildSyncUnavailableReason_変更が0件の場合は実行する変更がない旨を返す()
     {
-        SyncPlan plan = new(Team, [new SyncChange(ChangeKind.Keep, "既存", "keep@example.com", ChangeReason.AlreadyMember)],
+        SyncPlan plan = new(Team,
+            [new SyncChange(ChangeKind.Keep, "既存", "keep@example.com", ChangeReason.AlreadyMember)],
             ["keep@example.com"]);
 
         string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, Team,
@@ -306,7 +308,8 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildPlan_指定削除モードでは指定した一般メンバーを削除する旨のメッセージになる()
     {
-        SyncPlan plan = new(Team, [new SyncChange(ChangeKind.Remove, "削除太郎", "remove@example.com", ChangeReason.RemoveSpecified)],
+        SyncPlan plan = new(Team,
+            [new SyncChange(ChangeKind.Remove, "削除太郎", "remove@example.com", ChangeReason.RemoveSpecified)],
             [], Mode: SyncMode.RemoveSpecified);
 
         PlanPresentation presentation = SyncWorkspaceTextFormatter.BuildPlan(plan);
@@ -319,7 +322,8 @@ public sealed class SyncWorkspaceTextFormatterTests
     [InlineData(SyncMode.AddOnly)]
     public void BuildPlan_指定削除以外のモードではリストにない一般メンバーを削除する旨のメッセージになる(SyncMode mode)
     {
-        SyncPlan plan = new(Team, [new SyncChange(ChangeKind.Remove, "削除太郎", "remove@example.com", ChangeReason.RemoveNotInInput)],
+        SyncPlan plan = new(Team,
+            [new SyncChange(ChangeKind.Remove, "削除太郎", "remove@example.com", ChangeReason.RemoveNotInInput)],
             [], Mode: mode);
 
         PlanPresentation presentation = SyncWorkspaceTextFormatter.BuildPlan(plan);

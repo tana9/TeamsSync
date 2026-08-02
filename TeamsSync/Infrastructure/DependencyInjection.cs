@@ -64,7 +64,6 @@ public static class DependencyInjection
             client.BaseAddress = new Uri("https://graph.microsoft.com/v1.0/");
             client.Timeout = Timeout.InfiniteTimeSpan;
         }
-
     }
 
     // DisableForUnsafeHttpMethods()はPOST/PUT/DELETE/PATCH/CONNECTについて、429だけでなく

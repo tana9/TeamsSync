@@ -115,44 +115,6 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         }
     }
 
-    /// <summary>並列処理の完了件数を一定間隔と最終件だけ通知する。</summary>
-    private sealed class BatchedProgressReporter
-    {
-        private readonly object _gate = new();
-        private readonly int _interval;
-        private readonly IProgress<int>? _progress;
-        private readonly int _total;
-        private int _completed;
-        private int _nextReport;
-
-        public BatchedProgressReporter(IProgress<int>? progress, int total, int interval)
-        {
-            _progress = progress;
-            _total = total;
-            _interval = interval;
-            _nextReport = interval;
-        }
-
-        public void Advance(int count)
-        {
-            lock (_gate)
-            {
-                _completed += count;
-                if (_completed < _total && _completed < _nextReport)
-                {
-                    return;
-                }
-
-                while (_nextReport <= _completed)
-                {
-                    _nextReport += _interval;
-                }
-
-                _progress?.Report(_completed);
-            }
-        }
-    }
-
     /// <summary>
     ///     プレビュー済みのプランが最新の状態と一致しているかどうかを再検証する。
     ///     実行までの間にメンバーシップが変化していた場合は最新のプランを返す。
@@ -299,10 +261,50 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
             Math.Max(0, totalOperations - results.Count));
     }
 
+    /// <summary>並列処理の完了件数を一定間隔と最終件だけ通知する。</summary>
+    private sealed class BatchedProgressReporter
+    {
+        private readonly object _gate = new();
+        private readonly int _interval;
+        private readonly IProgress<int>? _progress;
+        private readonly int _total;
+        private int _completed;
+        private int _nextReport;
+
+        public BatchedProgressReporter(IProgress<int>? progress, int total, int interval)
+        {
+            _progress = progress;
+            _total = total;
+            _interval = interval;
+            _nextReport = interval;
+        }
+
+        public void Advance(int count)
+        {
+            lock (_gate)
+            {
+                _completed += count;
+                if (_completed < _total && _completed < _nextReport)
+                {
+                    return;
+                }
+
+                while (_nextReport <= _completed)
+                {
+                    _nextReport += _interval;
+                }
+
+                _progress?.Report(_completed);
+            }
+        }
+    }
+
     private sealed record AddressResolutionAttempt(AddressResolution Resolution, bool DirectorySearched);
 
     private sealed record AddressResolutionGroup(string Address, AddressResolutionAttempt Attempt);
 
     private sealed record AddressResolutionBatch(
-        AddressResolution[] Resolutions, int UniqueInputCount, int DirectorySearchCount);
+        AddressResolution[] Resolutions,
+        int UniqueInputCount,
+        int DirectorySearchCount);
 }

@@ -5,7 +5,6 @@ using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
-using TeamsSync.Application.Abstractions;
 using TeamsSync.Application.Services;
 using TeamsSync.Domain.Teams;
 using TeamsSync.Presentation.Services;
@@ -144,7 +143,7 @@ public partial class TeamSelectionViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanRefresh))]
     private async Task RefreshAsync()
     {
-        if (await LoadAsync(refresh: true))
+        if (await LoadAsync(true))
         {
             _dialogs.ShowSuccess("チーム一覧を更新しました", Teams.Count == 0
                 ? "所有しているチームが見つかりません"

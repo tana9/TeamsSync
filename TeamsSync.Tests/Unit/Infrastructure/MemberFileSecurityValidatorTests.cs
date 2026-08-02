@@ -22,11 +22,18 @@ public sealed class MemberFileSecurityValidatorTests
     public void 単一エントリーサイズは上限まで許可して超過を拒否する()
     {
         MemberFileSecurityValidator.ValidateArchiveMetadata(
-            [new(MemberFileSecurityValidator.MaximumArchiveEntryBytes, MemberFileSecurityValidator.MaximumArchiveEntryBytes)]);
+        [
+            new MemberFileSecurityValidator.ArchiveEntryMetadata(MemberFileSecurityValidator.MaximumArchiveEntryBytes,
+                MemberFileSecurityValidator.MaximumArchiveEntryBytes)
+        ]);
 
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
             MemberFileSecurityValidator.ValidateArchiveMetadata(
-                [new(MemberFileSecurityValidator.MaximumArchiveEntryBytes + 1, MemberFileSecurityValidator.MaximumArchiveEntryBytes + 1)]));
+            [
+                new MemberFileSecurityValidator.ArchiveEntryMetadata(
+                    MemberFileSecurityValidator.MaximumArchiveEntryBytes + 1,
+                    MemberFileSecurityValidator.MaximumArchiveEntryBytes + 1)
+            ]));
 
         Assert.Contains("単一ファイル", exception.Message);
     }
@@ -35,11 +42,16 @@ public sealed class MemberFileSecurityValidatorTests
     public void 圧縮率は上限まで許可して超過を拒否する()
     {
         MemberFileSecurityValidator.ValidateArchiveMetadata(
-            [new(MemberFileSecurityValidator.MaximumCompressionRatio, 1)]);
+        [
+            new MemberFileSecurityValidator.ArchiveEntryMetadata(MemberFileSecurityValidator.MaximumCompressionRatio, 1)
+        ]);
 
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
             MemberFileSecurityValidator.ValidateArchiveMetadata(
-                [new(MemberFileSecurityValidator.MaximumCompressionRatio + 1, 1)]));
+            [
+                new MemberFileSecurityValidator.ArchiveEntryMetadata(
+                    MemberFileSecurityValidator.MaximumCompressionRatio + 1, 1)
+            ]));
 
         Assert.Contains("圧縮率", exception.Message);
     }
@@ -50,11 +62,19 @@ public sealed class MemberFileSecurityValidatorTests
         long fortyMb = 40L * 1024 * 1024;
         long twentyMb = 20L * 1024 * 1024;
         MemberFileSecurityValidator.ValidateArchiveMetadata(
-            [new(fortyMb, fortyMb), new(fortyMb, fortyMb), new(twentyMb, twentyMb)]);
+        [
+            new MemberFileSecurityValidator.ArchiveEntryMetadata(fortyMb, fortyMb),
+            new MemberFileSecurityValidator.ArchiveEntryMetadata(fortyMb, fortyMb),
+            new MemberFileSecurityValidator.ArchiveEntryMetadata(twentyMb, twentyMb)
+        ]);
 
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
             MemberFileSecurityValidator.ValidateArchiveMetadata(
-                [new(fortyMb, fortyMb), new(fortyMb, fortyMb), new(twentyMb + 1, twentyMb + 1)]));
+            [
+                new MemberFileSecurityValidator.ArchiveEntryMetadata(fortyMb, fortyMb),
+                new MemberFileSecurityValidator.ArchiveEntryMetadata(fortyMb, fortyMb),
+                new MemberFileSecurityValidator.ArchiveEntryMetadata(twentyMb + 1, twentyMb + 1)
+            ]));
 
         Assert.Contains("展開後サイズ", exception.Message);
     }

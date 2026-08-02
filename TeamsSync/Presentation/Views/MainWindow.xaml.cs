@@ -65,8 +65,16 @@ public partial class MainWindow
 
     internal static EscapeAction DecideEscapeAction(bool dialogActive, bool syncing, bool snackbarShown)
     {
-        if (dialogActive) return EscapeAction.DeferToDialog;
-        if (syncing) return EscapeAction.DeferToSyncCancellation;
+        if (dialogActive)
+        {
+            return EscapeAction.DeferToDialog;
+        }
+
+        if (syncing)
+        {
+            return EscapeAction.DeferToSyncCancellation;
+        }
+
         return snackbarShown ? EscapeAction.DismissSnackbar : EscapeAction.Unhandled;
     }
 

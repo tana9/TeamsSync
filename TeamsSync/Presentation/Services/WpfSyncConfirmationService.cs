@@ -16,6 +16,7 @@ public sealed class WpfSyncConfirmationService(
     IContentDialogService contentDialogs) : ISyncConfirmationService
 {
     private const int VisibleRemovalTargetCount = 10;
+
     /// <summary>
     ///     対象チーム・件数内訳・入力元を表示する確認ダイアログを表示する。
     /// </summary>

@@ -18,14 +18,14 @@ public partial class MemberFileViewModel : ObservableObject
 {
     private readonly IFilePickerService _filePicker;
     private readonly IMemberInputConfirmationService _inputConfirmation;
+    private readonly RestartableCancellation _loadCancellation = new();
     private readonly INotificationService _notifications;
+    private readonly RestartableCancellation _parseCancellation = new();
     private readonly IUserPreferences _preferences;
     private readonly IMemberListReader _reader;
     private readonly IMemberTextParser _textParser;
     private bool _enabled = true;
     private MemberListDocument? _fileDocument;
-    private readonly RestartableCancellation _loadCancellation = new();
-    private readonly RestartableCancellation _parseCancellation = new();
 
     /// <summary>コンストラクター。</summary>
     public MemberFileViewModel(IMemberListReader reader, IMemberTextParser textParser,

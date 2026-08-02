@@ -62,11 +62,12 @@ public sealed class DemoTeamsGateway : ITeamsGateway
         new("long-team", "非常に長いチーム名を使った高DPI・折り返しレイアウト確認用チーム", "長文確認用")
     ];
 
+    private bool _throttleHandled;
+
     public string? FailingUserId { get; set; }
     public TimeSpan OperationDelay { get; set; }
     public string? ThrottledIdentifier { get; set; }
     public string? FailingSearchIdentifier { get; set; }
-    private bool _throttleHandled;
 
     public Task<(string Id, string DisplayName, string UserPrincipalName)> GetMeAsync(
         CancellationToken cancellationToken = default)
@@ -126,6 +127,7 @@ public sealed class DemoTeamsGateway : ITeamsGateway
         {
             await Task.Delay(OperationDelay, cancellationToken);
         }
+
         if (string.Equals(FailingUserId, userId, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException("Harnessで再現したメンバー追加エラーです。");
@@ -142,7 +144,6 @@ public sealed class DemoTeamsGateway : ITeamsGateway
                     user.UserPrincipalName, false));
             }
         }
-
     }
 
     public Task RemoveMemberAsync(string teamId, string membershipId,

@@ -169,8 +169,10 @@ public sealed class TeamModelsTests
     public void SyncPlan_WithoutChanges_指定したユーザーIDの削除をExcludedへ変更する()
     {
         SyncPlan plan = new(Team,
-            [new SyncChange(ChangeKind.Remove, "削除太郎", "remove@example.com", ChangeReason.RemoveNotInInput, "u1",
-                "m1")], []);
+        [
+            new SyncChange(ChangeKind.Remove, "削除太郎", "remove@example.com", ChangeReason.RemoveNotInInput, "u1",
+                "m1")
+        ], []);
 
         SyncPlan excluded = plan.WithoutChanges(["u1"]);
 
@@ -242,10 +244,10 @@ public sealed class TeamModelsTests
     [Fact]
     public void SyncPlan_WithoutChanges_CurrentMemberCountとMembershipSnapshotは変化しない()
     {
-        IReadOnlyList<TeamMembershipSnapshot> snapshot = [new TeamMembershipSnapshot("m1", "u1", false)];
+        IReadOnlyList<TeamMembershipSnapshot> snapshot = [new("m1", "u1", false)];
         SyncPlan plan = new(Team,
             [new SyncChange(ChangeKind.Add, "追加太郎", "add@example.com", ChangeReason.AddToTeam, "u2")], [],
-            CurrentMemberCount: 5, MembershipSnapshot: snapshot);
+            5, snapshot);
 
         SyncPlan excluded = plan.WithoutChanges(["u2"]);
 
@@ -279,10 +281,10 @@ public sealed class TeamModelsTests
         SyncPlan preview = new(Team,
             [new SyncChange(ChangeKind.Keep, "A", "a@example.com", ChangeReason.AlreadyMember, "u1")], []);
         SyncPlan latest = new(Team,
-            [
-                new SyncChange(ChangeKind.Keep, "A", "a@example.com", ChangeReason.AlreadyMemberDifferentIdentifier,
-                    "u1")
-            ], []);
+        [
+            new SyncChange(ChangeKind.Keep, "A", "a@example.com", ChangeReason.AlreadyMemberDifferentIdentifier,
+                "u1")
+        ], []);
 
         Assert.True(preview.IsEquivalentTo(latest));
     }

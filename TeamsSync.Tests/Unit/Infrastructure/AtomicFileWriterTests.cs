@@ -1,13 +1,21 @@
 using System.Text;
+
 using TeamsSync.Infrastructure.Files;
 
 namespace TeamsSync.Tests.Unit.Infrastructure;
 
 public sealed class AtomicFileWriterTests : IDisposable
 {
-    private readonly string _directory = Path.Combine(Path.GetTempPath(), "TeamsSync.Tests", Guid.NewGuid().ToString("N"));
+    private readonly string _directory =
+        Path.Combine(Path.GetTempPath(), "TeamsSync.Tests", Guid.NewGuid().ToString("N"));
 
-    public void Dispose() { if (Directory.Exists(_directory)) Directory.Delete(_directory, true); }
+    public void Dispose()
+    {
+        if (Directory.Exists(_directory))
+        {
+            Directory.Delete(_directory, true);
+        }
+    }
 
     [Fact]
     public void 書込失敗時は既存ファイルを維持して一時ファイルを残さない()

@@ -9,7 +9,8 @@ public sealed class TeamsAccessService(ITeamsGateway teamsGateway)
 {
     public async Task<CurrentUser> GetCurrentUserAsync(CancellationToken cancellationToken = default)
     {
-        var user = await teamsGateway.GetMeAsync(cancellationToken);
+        (string Id, string DisplayName, string UserPrincipalName) user =
+            await teamsGateway.GetMeAsync(cancellationToken);
         return new CurrentUser(user.Id, user.DisplayName, user.UserPrincipalName);
     }
 

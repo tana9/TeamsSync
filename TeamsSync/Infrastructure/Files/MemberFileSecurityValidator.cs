@@ -88,15 +88,25 @@ internal static class MemberFileSecurityValidator
     internal static void ValidateArchiveMetadata(IReadOnlyList<ArchiveEntryMetadata> entries)
     {
         if (entries.Count > MaximumArchiveEntries)
+        {
             throw new InvalidDataException($"ExcelのZIPエントリー数は{MaximumArchiveEntries:N0}件までです。");
+        }
+
         long expandedBytes = 0;
         foreach (ArchiveEntryMetadata entry in entries)
         {
             if (entry.ExpandedLength > MaximumArchiveEntryBytes)
+            {
                 throw new InvalidDataException($"Excel内の単一ファイルは{MaximumArchiveEntryBytes / 1024 / 1024:N0}MBまでです。");
+            }
+
             if (entry.ExpandedLength > 0 && (entry.CompressedLength == 0 ||
-                entry.ExpandedLength / (double)entry.CompressedLength > MaximumCompressionRatio))
+                                             entry.ExpandedLength / (double)entry.CompressedLength >
+                                             MaximumCompressionRatio))
+            {
                 throw new InvalidDataException("Excel内に圧縮率が異常に高いファイルが含まれています。");
+            }
+
             if (entry.ExpandedLength > MaximumExpandedArchiveBytes - expandedBytes)
             {
                 throw new InvalidDataException(
@@ -107,11 +117,11 @@ internal static class MemberFileSecurityValidator
         }
     }
 
-    internal readonly record struct ArchiveEntryMetadata(long ExpandedLength, long CompressedLength);
-
     /// <summary>ファイル内容のSHA-256ハッシュを16進文字列で計算する。</summary>
     public static string ComputeSha256(Stream stream)
     {
         return Convert.ToHexString(SHA256.HashData(stream));
     }
+
+    internal readonly record struct ArchiveEntryMetadata(long ExpandedLength, long CompressedLength);
 }

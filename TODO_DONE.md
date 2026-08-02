@@ -1,15 +1,18 @@
 # TODO 完了済み
 
-`TODO.md`から、全項目が完了した(チェックボックスが全て`[x]`の)セクションをここへ移動した履歴。
-新しい完了項目は`TODO.md`側で管理し、セクション内が全て完了した時点でここへ移動する。
+`TODO.md`から、全項目が完了した (チェックボックスが全て`[x]`の)セクションをここへ移動した履歴。 新しい完了項目は`TODO.md`
+側で管理し、セクション内が全て完了した時点でここへ移動する。
 
 ### 同期判定の業務ルールをDomain Modelへ集約する
 
-- [x] `TeamSyncService`の`ClassifyResolutions`、`ClassifyExistingMember`、`ComputeRemovals`から、Graphアクセスに依存しない同期差分の判定をDomain層の`SyncPlanFactory`へ移す
-- [x] 現在メンバーのメールアドレス・正規化氏名・ユーザーIDによる検索と、メンバーシップスナップショット生成を`TeamRoster`というDomain Modelへ集約する
+- [x] `TeamSyncService`の`ClassifyResolutions`、`ClassifyExistingMember`、`ComputeRemovals`
+  から、Graphアクセスに依存しない同期差分の判定をDomain層の`SyncPlanFactory`へ移す
+- [x] 現在メンバーのメールアドレス・正規化氏名・ユーザーIDによる検索と、メンバーシップスナップショット生成を`TeamRoster`
+  というDomain Modelへ集約する
 - [x] `ValidateExecutablePlan`のモード別実行可否判定を`SyncPlan.EnsureExecutable`として表現する
 - [x] `PlansAreEquivalent`の同期プラン同値性判定を`SyncPlan.IsEquivalentTo`へ移し、再検証のオーケストレーションだけをApplication層へ残す
-- [x] 所有者保護、追加のみ、指定削除、完全同期、曖昧・未解決ユーザー、重複入力、プラン同値性の既存挙動をDomain層の単体テスト(`TeamRosterTests`、`SyncPlanFactoryTests`、`TeamModelsTests`)で固定する
+- [x] 所有者保護、追加のみ、指定削除、完全同期、曖昧・未解決ユーザー、重複入力、プラン同値性の既存挙動をDomain層の単体テスト
+  (`TeamRosterTests`、`SyncPlanFactoryTests`、`TeamModelsTests`)で固定する
 
 完了条件: Graph通信、並列制御、進捗通知、ログをApplication/Infrastructure層に維持しながら、同期差分・実行可否・プラン同値性の業務ルールがDomain層だけでテストできる。
 
@@ -46,7 +49,8 @@
 
 - [x] 結果CSVのファイル名へミリ秒と`ExecutionId`を含め、同一秒・同一チームの連続実行でも既存ログを上書きしない
 - [x] `FileMode.CreateNew`でファイル名衝突を検出し、衝突時は連番付きの一意な別名で保存する
-- [x] 結果CSVの既定保存先を`AppContext.BaseDirectory`から、一般ユーザーが書き込める`%LocalAppData%\TeamsSync\Logs`配下へ移し、JSON監査ログと保存場所を統一する
+- [x] 結果CSVの既定保存先を`AppContext.BaseDirectory`から、一般ユーザーが書き込める`%LocalAppData%\TeamsSync\Logs`
+  配下へ移し、JSON監査ログと保存場所を統一する
 - [x] 同一実行ID・同名チームの連続保存、既存ファイルとの衝突、保存先作成を自動テストする（書き込み失敗時に同期結果を維持して警告するViewModelテストも確認）
 - [x] 同期完了SnackbarへCSVを開くアクションを追加し、通知が消えた後も画面下部の同期結果から該当CSVを開けるようにする
 
@@ -231,10 +235,16 @@
 
 ### 最終確認と実行結果を画面内で確実に確認できるようにする
 
-- [x] 固定幅の最終確認ダイアログを、高DPI・長いチーム名・長い入力概要でも欠けない可変レイアウトとスクロール構造にする（`WpfSyncConfirmationService.ConfirmSyncAsync`を`Width=440`固定から`MinWidth`+折り返し+`ScrollViewer`(MaxHeight=420)へ変更）
-- [x] 最終確認で対象チーム、同期モード、追加・削除件数を情報の優先順に分け、削除対象を最も目立たせる（対象チーム→モード→削除件数(枠線+警告色+アイコン)→追加件数→変更なし/所有者保護→入力元の順に構成）
-- [x] Snackbarだけに依存せず、成功・失敗・中止・処理済み件数・未反映件数を画面内に残る結果領域へ表示する（`SyncActionBarView.xaml`に常駐の結果パネルを追加し、`SyncWorkspaceViewModel`の`ResultSummaryText`/`ResultRemainingText`等で表示）
-- [x] 失敗した操作を画面で絞り込み、原因と次に行う操作を確認できるようにする（`SyncWorkspaceViewModel.FailedResults`に失敗項目のみを保持し、結果パネルに原因(Error)と次に行うことの案内を表示）
+- [x] 固定幅の最終確認ダイアログを、高DPI・長いチーム名・長い入力概要でも欠けない可変レイアウトとスクロール構造にする（
+  `WpfSyncConfirmationService.ConfirmSyncAsync`を`Width=440`固定から`MinWidth`+折り返し+`ScrollViewer`(MaxHeight=420)
+  へ変更）
+- [x] 最終確認で対象チーム、同期モード、追加・削除件数を情報の優先順に分け、削除対象を最も目立たせる（対象チーム→モード→削除件数
+  (枠線+警告色+アイコン)→追加件数→変更なし/所有者保護→入力元の順に構成）
+- [x] Snackbarだけに依存せず、成功・失敗・中止・処理済み件数・未反映件数を画面内に残る結果領域へ表示する（
+  `SyncActionBarView.xaml`に常駐の結果パネルを追加し、`SyncWorkspaceViewModel`の`ResultSummaryText`/`ResultRemainingText`
+  等で表示）
+- [x] 失敗した操作を画面で絞り込み、原因と次に行う操作を確認できるようにする（`SyncWorkspaceViewModel.FailedResults`
+  に失敗項目のみを保持し、結果パネルに原因 (Error)と次に行うことの案内を表示）
 - [x] マニュアルの「結果は画面に残り続けます」という記述を、実際の表示仕様と一致させる
 
 完了条件: 一時通知を見逃しても、同期結果と次の安全な操作を画面から確認でき、200%表示でも最終確認を完了できる。
@@ -300,8 +310,10 @@
 
 ### エラーダイアログのTextBoxでスクロールバーが表示されない不具合を修正する
 
-- [x] `MemberListInputView.xaml`の貼り付け欄で、wpf-uiの`DefaultTextBoxScrollViewerStyle`にスクロールバー要素がなく`VerticalScrollBarVisibility`が機能しない問題を発見
-- [x] `App.xaml`で`DefaultTextBoxScrollViewerStyle`をグローバルに標準ScrollBar付きテンプレートへ上書きし、貼り付け欄・`WpfNotificationService.ShowError`のエラーダイアログの両方をまとめて修正
+- [x] `MemberListInputView.xaml`の貼り付け欄で、wpf-uiの`DefaultTextBoxScrollViewerStyle`にスクロールバー要素がなく
+  `VerticalScrollBarVisibility`が機能しない問題を発見
+- [x] `App.xaml`で`DefaultTextBoxScrollViewerStyle`をグローバルに標準ScrollBar付きテンプレートへ上書きし、貼り付け欄・
+  `WpfNotificationService.ShowError`のエラーダイアログの両方をまとめて修正
 
 完了条件: 長いGraph APIエラーメッセージを表示した際、`ContentDialog`内でスクロール操作が可能であることが視覚的にも分かる。
 
@@ -316,14 +328,17 @@
 
 ### コードの構造とコメントを整理する
 
-- [x] `GraphTeamsGateway`(318行)のHTTP通信インフラを新設の`GraphHttpClient`(132行)へ分離し、`GraphTeamsGateway`はGraph固有のドメインロジック(197行)に専念する構成にした
-- [x] `SyncWorkspaceViewModel.ExecuteSyncAsync`(103行)を`RevalidateBeforeExecuteAsync`/`RunSyncAndReconcileAsync`/`ReportSyncProgress`/`HandleSyncCancelled`/`ReconcileAfterSyncAsync`へ分割した
+- [x] `GraphTeamsGateway`(318行)のHTTP通信インフラを新設の`GraphHttpClient`(132行)へ分離し、`GraphTeamsGateway`
+  はGraph固有のドメインロジック (197行)に専念する構成にした
+- [x] `SyncWorkspaceViewModel.ExecuteSyncAsync`(103行)を`RevalidateBeforeExecuteAsync`/`RunSyncAndReconcileAsync`/
+  `ReportSyncProgress`/`HandleSyncCancelled`/`ReconcileAfterSyncAsync`へ分割した
 - [x] `ChangeFilter`のカスタム`Equals`/`GetHashCode`(`SyncWorkspaceViewModel.cs`)に、`Count`を比較対象から除外する理由のコメントを追加した
-- [x] `GraphTeamsGateway.SearchUsersAsync`の3段階フォールバック検索(完全一致→表示名検索→前方一致)に、なぜこの順序かのコメントを追加した
+- [x] `GraphTeamsGateway.SearchUsersAsync`の3段階フォールバック検索 (完全一致→表示名検索→前方一致)に、なぜこの順序かのコメントを追加した
 
 完了条件: 主要クラスが単一責務に近づき、非自明な設計判断にWHYコメントが残っている。
 
-パフォーマンスに関する指摘(DataGrid仮想化、`GetPagedAsync`のページごとの`Clone`蓄積)は本項目のスコープ外。DataGrid仮想化は`TODO.md`の「継続的な確認」に記録済み。
+パフォーマンスに関する指摘 (DataGrid仮想化、`GetPagedAsync`のページごとの`Clone`蓄積)は本項目のスコープ外。DataGrid仮想化は
+`TODO.md`の「継続的な確認」に記録済み。
 
 ### ViewModelとユーザー操作サービスの責務を分割する
 
@@ -334,15 +349,41 @@
 
 完了条件: 各ViewModelを独立してテストでき、画面変更が同期ロジックへ波及しにくい構成になる。
 
-### 直近のUI/UX変更(バッジ全廃・スクロール分離)のレビュー指摘を解消する
+### 直近のUI/UX変更 (バッジ全廃・スクロール分離)のレビュー指摘を解消する
 
-- [x] `HeightMinusOffsetConverter`のオフセットが固定値(300)で、`SyncActionBarView`の結果パネル(失敗した操作一覧を含む)による高さ変動を考慮していない。同期失敗が複数件あると`MainWindow.xaml`上段スクロール領域のMaxHeightが実態と合わず、下段の同期差分カードやアクションバーがはみ出るリスクがある。`SyncActionBarView`の実測高さを動的に差し引く方式へ修正する(`HeightMinusOffsetConverter`を`IMultiValueConverter`化し、`MainWindow.xaml`で`SyncActionBarView`に`x:Name="SyncActionBar"`を付与、`ContentGrid.ActualHeight`と`SyncActionBar.ActualHeight`をマルチバインディングし、下段カードの最低保証分(固定値228=MinHeight208+マージン)だけ`ConverterParameter`として残した。実機で通常サイズ(856px)・縮小(850x650、幅800px)の両方でレイアウトが崩れないこと、下段カード・アクションバーが常に表示されることを確認済み)
-- [x] `MemberListInputView.xaml`のファイル/テキスト貼り付けタブが`Height="140"`固定で、`MinWidth="800"`まで縮小すると説明文が折り返して2行になり140pxを超えてクリップされる。`Height`ではなく`MinHeight`に変更する(タブ切り替え時の高さ統一は維持しつつ、内容超過時は自動的に伸びるようにする)(両タブとも`MinHeight="140"`へ変更。実機で幅800pxまで縮小し、ファイルタブの説明文が2行に折り返してもクリップされず表示されることを確認済み)
-- [x] `HeaderView.xaml`の「サインインが必要です」と`SyncActionBarView`の`StatusText`(初期値「サインインしてください」)が両方`AutomationProperties.LiveSetting="Polite"`で、サインアウト時などに読み上げが重複する可能性がある。`HeaderView`側のLiveSettingを外す(削除済み。当該`TextBlock`は`AutomationProperties.Name`未設定かつ既定で非フォーカス対象のため、Tab移動時の読み上げには影響しないことを確認)
-- [x] `TODO.md`の「未完了・現在・完了のステップを視覚的かつ読み上げ可能に示す」項目が「各カード見出しに`ui:Badge`で手順状態を表示」と書かれたままだが、バッジは全廃済み。記述を実態に合わせて修正する（107行目の説明文を、各手順が「現在の操作」の間だけブロッカー箇所直近に赤いエラーメッセージを表示し`AutomationProperties.LiveSetting="Polite"`で読み上げ可能にする、という現状の実装に書き直した）
-- [x] `WorkflowStepState.cs`と`MainWindowViewModel.cs`(手順表示の更新コメント)に「バッジ」「次に行う操作の案内文」への言及が残っているが、いずれも廃止済み。現状の役割(各カード直下のブロッカーメッセージ表示条件)に合わせてコメントを書き直す（両ファイルのコメントを、各カード直下のブロッカーメッセージの表示条件を計算するための状態、という説明に修正した）
-- [x] `MainWindowViewModel.Step4State`がXAMLのどこからも参照されておらず、テストでのみ使われる実質デッドコードになっている。UIで使う予定がなければ削除し(関連テストも整理)、将来同期差分カードに状態表示を追加する予定があるならその旨をコメントで明記する（未使用の計算プロパティは将来のリファクタリングで見落とされやすいため削除を選択。`Step4State`プロパティと`NotifyWorkflowSteps`内の対応する`OnPropertyChanged`呼び出しを削除し、`PresentationViewModelTests.cs`から`Step4State`のアサーション3件のみを除去。Step1〜3の連動遷移を検証する本体は維持し、テスト件数は134件のまま変化なし）
-- [x] `SyncWorkspaceViewModel`(576行)の責務肥大化が再発している。同期実行ロジックに加え、結果パネル用の文言組み立て(`ResultSummaryText`/`ResultRemainingText`/`EmptyStateMessage`/フィルター件数管理など)が同居している。表示用テキスト生成を別クラスへ切り出す(`ChangeFilter`/`SyncModeOption`/`SyncChangeRowViewModel`/`SyncResultRowViewModel`を`SyncWorkspaceModels.cs`へ、`ResultSummaryText`/`ResultRemainingText`/`InputSummary`/`InputPreview`/`IsNameColumn`/`EmptyStateMessage`/`PreviewProgressText`/`SyncUnavailableReason`/フィルター件数計算を状態を持たない`SyncWorkspaceTextFormatter`のstaticメソッドへ切り出し、`SyncWorkspaceViewModel`側は既存のpublicプロパティ名のまま薄い委譲プロパティとして残した。XAMLのバインディングパスは無変更。`SyncWorkspaceViewModel.cs`は293行まで縮小)
+- [x] `HeightMinusOffsetConverter`のオフセットが固定値 (300)で、`SyncActionBarView`の結果パネル (失敗した操作一覧を含む)
+  による高さ変動を考慮していない。同期失敗が複数件あると`MainWindow.xaml`
+  上段スクロール領域のMaxHeightが実態と合わず、下段の同期差分カードやアクションバーがはみ出るリスクがある。
+  `SyncActionBarView`の実測高さを動的に差し引く方式へ修正する (`HeightMinusOffsetConverter`を`IMultiValueConverter`化し、
+  `MainWindow.xaml`で`SyncActionBarView`に`x:Name="SyncActionBar"`を付与、`ContentGrid.ActualHeight`と
+  `SyncActionBar.ActualHeight`をマルチバインディングし、下段カードの最低保証分 (固定値228=MinHeight208+マージン)だけ
+  `ConverterParameter`として残した。実機で通常サイズ (856px)・縮小 (850x650、幅800px)
+  の両方でレイアウトが崩れないこと、下段カード・アクションバーが常に表示されることを確認済み)
+- [x] `MemberListInputView.xaml`のファイル/テキスト貼り付けタブが`Height="140"`固定で、`MinWidth="800"`
+  まで縮小すると説明文が折り返して2行になり140pxを超えてクリップされる。`Height`ではなく`MinHeight`に変更する
+  (タブ切り替え時の高さ統一は維持しつつ、内容超過時は自動的に伸びるようにする)(両タブとも`MinHeight="140"`
+  へ変更。実機で幅800pxまで縮小し、ファイルタブの説明文が2行に折り返してもクリップされず表示されることを確認済み)
+- [x] `HeaderView.xaml`の「サインインが必要です」と`SyncActionBarView`の`StatusText`(初期値「サインインしてください」)が両方
+  `AutomationProperties.LiveSetting="Polite"`で、サインアウト時などに読み上げが重複する可能性がある。`HeaderView`
+  側のLiveSettingを外す (削除済み。当該`TextBlock`は`AutomationProperties.Name`
+  未設定かつ既定で非フォーカス対象のため、Tab移動時の読み上げには影響しないことを確認)
+- [x] `TODO.md`の「未完了・現在・完了のステップを視覚的かつ読み上げ可能に示す」項目が「各カード見出しに`ui:Badge`
+  で手順状態を表示」と書かれたままだが、バッジは全廃済み。記述を実態に合わせて修正する（107行目の説明文を、各手順が「現在の操作」の間だけブロッカー箇所直近に赤いエラーメッセージを表示し
+  `AutomationProperties.LiveSetting="Polite"`で読み上げ可能にする、という現状の実装に書き直した）
+- [x] `WorkflowStepState.cs`と`MainWindowViewModel.cs`(手順表示の更新コメント)
+  に「バッジ」「次に行う操作の案内文」への言及が残っているが、いずれも廃止済み。現状の役割
+  (各カード直下のブロッカーメッセージ表示条件)に合わせてコメントを書き直す（両ファイルのコメントを、各カード直下のブロッカーメッセージの表示条件を計算するための状態、という説明に修正した）
+- [x] `MainWindowViewModel.Step4State`がXAMLのどこからも参照されておらず、テストでのみ使われる実質デッドコードになっている。UIで使う予定がなければ削除し
+  (関連テストも整理)、将来同期差分カードに状態表示を追加する予定があるならその旨をコメントで明記する（未使用の計算プロパティは将来のリファクタリングで見落とされやすいため削除を選択。
+  `Step4State`プロパティと`NotifyWorkflowSteps`内の対応する`OnPropertyChanged`呼び出しを削除し、
+  `PresentationViewModelTests.cs`から`Step4State`のアサーション3件のみを除去。Step1〜3の連動遷移を検証する本体は維持し、テスト件数は134件のまま変化なし）
+- [x] `SyncWorkspaceViewModel`(576行)の責務肥大化が再発している。同期実行ロジックに加え、結果パネル用の文言組み立て
+  (`ResultSummaryText`/`ResultRemainingText`/`EmptyStateMessage`/フィルター件数管理など)が同居している。表示用テキスト生成を別クラスへ切り出す
+  (`ChangeFilter`/`SyncModeOption`/`SyncChangeRowViewModel`/`SyncResultRowViewModel`を`SyncWorkspaceModels.cs`へ、
+  `ResultSummaryText`/`ResultRemainingText`/`InputSummary`/`InputPreview`/`IsNameColumn`/`EmptyStateMessage`/
+  `PreviewProgressText`/`SyncUnavailableReason`/フィルター件数計算を状態を持たない`SyncWorkspaceTextFormatter`
+  のstaticメソッドへ切り出し、`SyncWorkspaceViewModel`側は既存のpublicプロパティ名のまま薄い委譲プロパティとして残した。XAMLのバインディングパスは無変更。
+  `SyncWorkspaceViewModel.cs`は293行まで縮小)
 
 完了条件: 上記7件の指摘がすべて解消され、既存テストと新規テストが成功する。
 
@@ -351,28 +392,47 @@
 - [x] `GraphTeamsGateway.cs`の`Array.Empty<string>()`をコレクション式`[]`へ統一する
 - [x] 各所に残る`new List<T>()`(7箇所)を、対象型を明示したコレクション式`[]`へ統一する
 - [x] `SignInViewModel`の`IsSignedIn`から`IsNotSignedIn`への通知に`[NotifyPropertyChangedFor]`を採用し、
-      `IsSignedIn`/`IsBusy`によるコマンド状態更新には`[NotifyCanExecuteChangedFor]`を採用する。
-      非observableな`_externallyBusy`の変更時だけは、影響を受ける`SignOutCommand`を手動通知する
+  `IsSignedIn`/`IsBusy`によるコマンド状態更新には`[NotifyCanExecuteChangedFor]`を採用する。 非observableな
+  `_externallyBusy`の変更時だけは、影響を受ける`SignOutCommand`を手動通知する
 
 完了条件: 軽微なC#イディオムの取りこぼしが解消され、`[NotifyPropertyChangedFor]`/`[NotifyCanExecuteChangedFor]`の
 採用可否を単純な転送箇所について意図的に判断した状態になっている。
 
 ### 各クラスの責務を単一責任原則へ近づける
 
-- [x] `WpfSyncConfirmationService`の`ConfirmSyncAsync`(同期最終確認)と`ConfirmReplaceMemberInputAsync`(入力置き換え確認)を責務ごとに別クラスへ分離し、doc commentが実際の責務と一致するようにする(`WpfSyncConfirmationService`は同期最終確認専用に、`WpfMemberInputConfirmationService`を新設。共通のタイトル組み立て・フォーカス復元処理は`ConfirmationDialogHelper`へ切り出した)
-- [x] `MemberFileViewModel.ImportCurrentMembersAsync`(Teamsからのメンバー取得)を、ファイル/貼り付け入力管理とは別のクラスへ切り出す(`TeamMemberImportViewModel`を新設し`MemberFileViewModel.Import`として公開。入力欄側の実行可否・既存入力有無はコンストラクター引数のFuncで注入し、取り込み成功時は`Imported`イベント経由で`MemberFileViewModel`側の入力欄状態へ反映する構成にした。XAMLバインディングと関連テストを`Import.`プレフィックス付きへ更新)
-- [x] `GraphTeamsGateway`の所有権キャッシュ、バッチ再試行・スロットリング、レスポンス解析、ユーザー検索フォールバックを責務ごとに分離する(`TeamOwnershipCache`/`TeamMembersBatchFetcher`/`GraphResponseParser`/`GraphUserSearchService`を新設し、`GraphTeamsGateway`はこれらを組み合わせるオーケストレーターとして残した。公開APIは無変更で、Graph通信の既存テストが全て通ることを確認)
-- [x] `MemberListReader`のファイル形式パース(CSV/Excel)と、zip-bomb対策・サイズ制限・エンコーディング検出などのセキュリティ検証を分離する(`MemberFileSecurityValidator`(サイズ・行数・列数上限、Zip展開後サイズ、SHA-256)と`CsvEncodingDetector`(文字コード判定)を新設。`MemberListReader`はCSV/Excelのパースに専念する構成にした。公開定数`MaximumFileSizeBytes`等は既存テストとの互換のため委譲定数として維持。セキュリティ関連テストが全て通ることを確認)
-- [x] `SyncWorkspaceTextFormatter`と`SyncWorkspacePresentation`の境界(同じVMの表示文字列生成が2クラスに分かれている)を見直し、統合または明確な分担基準を定める(境界に実質的な意味がなかったため`SyncWorkspacePresentation`を`SyncWorkspaceTextFormatter`へ統合し、ファイルを削除)
-- [x] `WpfUserInteractionHost`のような1メソッドのみの薄いラッパーを、呼び出し元へ統合できないか検討する(`MainWindow`のコンストラクターへ`IContentDialogService`/`ISnackbarService`を直接注入する形に変更し、`IUserInteractionHost`/`WpfUserInteractionHost`を削除)
+- [x] `WpfSyncConfirmationService`の`ConfirmSyncAsync`(同期最終確認)と`ConfirmReplaceMemberInputAsync`(入力置き換え確認)
+  を責務ごとに別クラスへ分離し、doc commentが実際の責務と一致するようにする (`WpfSyncConfirmationService`は同期最終確認専用に、
+  `WpfMemberInputConfirmationService`を新設。共通のタイトル組み立て・フォーカス復元処理は`ConfirmationDialogHelper`
+  へ切り出した)
+- [x] `MemberFileViewModel.ImportCurrentMembersAsync`(Teamsからのメンバー取得)を、ファイル/貼り付け入力管理とは別のクラスへ切り出す
+  (`TeamMemberImportViewModel`を新設し`MemberFileViewModel.Import`として公開。入力欄側の実行可否・既存入力有無はコンストラクター引数のFuncで注入し、取り込み成功時は
+  `Imported`イベント経由で`MemberFileViewModel`側の入力欄状態へ反映する構成にした。XAMLバインディングと関連テストを
+  `Import.`プレフィックス付きへ更新)
+- [x] `GraphTeamsGateway`の所有権キャッシュ、バッチ再試行・スロットリング、レスポンス解析、ユーザー検索フォールバックを責務ごとに分離する
+  (`TeamOwnershipCache`/`TeamMembersBatchFetcher`/`GraphResponseParser`/`GraphUserSearchService`を新設し、
+  `GraphTeamsGateway`
+  はこれらを組み合わせるオーケストレーターとして残した。公開APIは無変更で、Graph通信の既存テストが全て通ることを確認)
+- [x] `MemberListReader`のファイル形式パース (CSV/Excel)と、zip-bomb対策・サイズ制限・エンコーディング検出などのセキュリティ検証を分離する
+  (`MemberFileSecurityValidator`(サイズ・行数・列数上限、Zip展開後サイズ、SHA-256)と`CsvEncodingDetector`(文字コード判定)
+  を新設。`MemberListReader`はCSV/Excelのパースに専念する構成にした。公開定数`MaximumFileSizeBytes`
+  等は既存テストとの互換のため委譲定数として維持。セキュリティ関連テストが全て通ることを確認)
+- [x] `SyncWorkspaceTextFormatter`と`SyncWorkspacePresentation`の境界 (同じVMの表示文字列生成が2クラスに分かれている)
+  を見直し、統合または明確な分担基準を定める (境界に実質的な意味がなかったため`SyncWorkspacePresentation`を
+  `SyncWorkspaceTextFormatter`へ統合し、ファイルを削除)
+- [x] `WpfUserInteractionHost`のような1メソッドのみの薄いラッパーを、呼び出し元へ統合できないか検討する (`MainWindow`
+  のコンストラクターへ`IContentDialogService`/`ISnackbarService`を直接注入する形に変更し、`IUserInteractionHost`/
+  `WpfUserInteractionHost`を削除)
 
 完了条件: 上記クラスがそれぞれ単一の責務に対応し、doc commentが実際の責務と一致している。
 
 ### 所有チーム一覧取得の堅牢性を高める
 
-- [x] `GraphTeamsGateway.GetOwnedTeamsAsync`のバッチフォールバック(`FetchMembersIndividuallyAsync`)が失敗した場合、`Task.WhenAll`を通じて例外が伝播し所有チーム一覧の取得全体が失敗する現状を修正した(コードレビューで指摘、2026-08-02)
-- [x] 個別取得でも`GraphException`が発生するチームは`TryFetchMembersIndividuallyAsync`が`null`を返し、所有者判定falseとして一覧から除外する形にした。他の正常なチームの判定は継続し、警告ログ(TeamId・StatusCode)を残す
-- [x] 個別フォールバックも失敗するケースの自動テストを追加した(`GetOwnedTeams_バッチと個別取得の両方が失敗したチームは除外し他のチームの判定を継続する`)
+- [x] `GraphTeamsGateway.GetOwnedTeamsAsync`のバッチフォールバック (`FetchMembersIndividuallyAsync`)が失敗した場合、
+  `Task.WhenAll`を通じて例外が伝播し所有チーム一覧の取得全体が失敗する現状を修正した (コードレビューで指摘、2026-08-02)
+- [x] 個別取得でも`GraphException`が発生するチームは`TryFetchMembersIndividuallyAsync`が`null`
+  を返し、所有者判定falseとして一覧から除外する形にした。他の正常なチームの判定は継続し、警告ログ (TeamId・StatusCode)を残す
+- [x] 個別フォールバックも失敗するケースの自動テストを追加した
+  (`GetOwnedTeams_バッチと個別取得の両方が失敗したチームは除外し他のチームの判定を継続する`)
 
 完了条件: 一部のチームでメンバー取得が恒常的に失敗しても、他の所有チームは通常どおり一覧に表示される。
 
@@ -380,8 +440,10 @@
 
 ### GetPagedAsyncのページング効率を改善する
 
-- [x] `GetOwnedTeamsAsync`が呼ぶ`me/joinedTeams`に`$top=999`を付けたが、実機で「Query option 'Top' is not allowed」(400)を確認したため撤回し、既定ページサイズでの`@odata.nextLink`ページングに戻した
-- [x] `GetPagedAsync`を`IAsyncEnumerable<JsonElement>`化して試したが、既存の呼び出し元4箇所は全件必要なロジックで早期終了の恩恵がなく、複雑性が増えるだけだったため`Task<List<JsonElement>>`へ戻した
+- [x] `GetOwnedTeamsAsync`が呼ぶ`me/joinedTeams`に`$top=999`を付けたが、実機で「Query option 'Top' is not allowed」 (400)
+  を確認したため撤回し、既定ページサイズでの`@odata.nextLink`ページングに戻した
+- [x] `GetPagedAsync`を`IAsyncEnumerable<JsonElement>`化して試したが、既存の呼び出し元4箇所は全件必要なロジックで早期終了の恩恵がなく、複雑性が増えるだけだったため
+  `Task<List<JsonElement>>`へ戻した
 
 完了条件: ページングが必要なエンドポイントで、既定ページサイズに起因する余分なHTTPリクエストが発生しない。
 
@@ -421,33 +483,54 @@
 
 ### キャンセル可能な単発処理の定型コードを共通化する
 
-- [x] `MemberFileViewModel.Load`、`MemberFileViewModel.ApplyPastedTextInputAsync`、`TeamMemberImportViewModel.ImportCurrentMembersAsync`の3箇所に、「直前の`CancellationTokenSource`をキャンセル・破棄してから新しいものに差し替え、完了時に自分がまだ最新なら破棄してnullへ戻す」というほぼ同一の定型コードが重複していた(コードレビューで指摘、2026-08-02)
-- [x] 共通ヘルパー`RestartableCancellation`(`Presentation/ViewModels/RestartableCancellation.cs`)へ切り出した。フラグの設定・`NotifyCanExecuteChanged`の呼び出しタイミングは各箇所そのまま維持し、`CancellationTokenSource`のBegin/End/Cancelの定型処理だけを置き換えた
+- [x] `MemberFileViewModel.Load`、`MemberFileViewModel.ApplyPastedTextInputAsync`、
+  `TeamMemberImportViewModel.ImportCurrentMembersAsync`の3箇所に、「直前の`CancellationTokenSource`
+  をキャンセル・破棄してから新しいものに差し替え、完了時に自分がまだ最新なら破棄してnullへ戻す」というほぼ同一の定型コードが重複していた
+  (コードレビューで指摘、2026-08-02)
+- [x] 共通ヘルパー`RestartableCancellation`(`Presentation/ViewModels/RestartableCancellation.cs`)へ切り出した。フラグの設定・
+  `NotifyCanExecuteChanged`の呼び出しタイミングは各箇所そのまま維持し、`CancellationTokenSource`
+  のBegin/End/Cancelの定型処理だけを置き換えた
 - [x] 置き換え後、既存のロード/解析/取り込みキャンセルの単体テストを含む全273件がそのまま成功することを確認した
 
-完了条件: 3箇所のキャンセル管理コードが共通化され、かつ既存の挙動(キャンセル・差し替え・エラー処理)が変わらない。
+完了条件: 3箇所のキャンセル管理コードが共通化され、かつ既存の挙動 (キャンセル・差し替え・エラー処理)が変わらない。
 
 ### 終了時の未処理例外に備える
 
-- [x] `MainWindow.xaml.cs`の`OnClosing`(async void)内`CancelAndWaitAsync()`をtry/catchで保護した(コードレビューで指摘、2026-08-02)。例外発生時は`ILogger<MainWindow>`へ記録したうえで、`finally`で必ず`Close()`する(利用者の「閉じる」操作を無言で無効化しない)
-- [x] `App.xaml.cs`に`Application.DispatcherUnhandledException`ハンドラーを追加し、UIスレッドの未処理例外を`LogCritical`で記録するようにした。既存の挙動(未処理のままならプロセスが終了する)は変えていない(`e.Handled`は設定せず、任意の例外を握りつぶして実行継続する意図ではないため)
-- [x] ビルド・全テスト(280件)が成功することを確認した。`OnClosing`自体はWPFウィンドウのライフサイクルに依存するため直接の単体テストは追加していない(既存の`MainWindowEscapeTests`と同様、他のWPFグルーコードもコードレビューでの目視確認に留めている)
+- [x] `MainWindow.xaml.cs`の`OnClosing`(async void)内`CancelAndWaitAsync()`をtry/catchで保護した
+  (コードレビューで指摘、2026-08-02)。例外発生時は`ILogger<MainWindow>`へ記録したうえで、`finally`で必ず`Close()`する
+  (利用者の「閉じる」操作を無言で無効化しない)
+- [x] `App.xaml.cs`に`Application.DispatcherUnhandledException`ハンドラーを追加し、UIスレッドの未処理例外を`LogCritical`
+  で記録するようにした。既存の挙動 (未処理のままならプロセスが終了する)は変えていない (`e.Handled`
+  は設定せず、任意の例外を握りつぶして実行継続する意図ではないため)
+- [x] ビルド・全テスト (280件)が成功することを確認した。`OnClosing`自体はWPFウィンドウのライフサイクルに依存するため直接の単体テストは追加していない
+  (既存の`MainWindowEscapeTests`と同様、他のWPFグルーコードもコードレビューでの目視確認に留めている)
 
 完了条件: 終了処理中に例外が発生しても、ログを残さずに無言でクラッシュしない。
 
 ### 起動時エラー表示をWPFリソース依存の有無で段階分けする
 
-- [x] `App.xaml.cs`の`OnStartup`が、起動失敗時にアプリ内で唯一ネイティブ`MessageBox`(WPF-UIのFluentテーマ非適用)を使っていた点を見直した(コードレビューで指摘、2026-08-02)
-- [x] 起動処理を2段階に分割した。①`BuildHostAsync`(設定読込・DI構築、WPFリソース非依存)の失敗はWPF-UIのテーマ付き`Wpf.Ui.Controls.MessageBox`(`ContentDialogHost`を必要とせず単独ウィンドウとして表示可能)で報告。②`MainWindow.Show()`(XAML/リソース読込を伴う)の失敗は、テーマ描画自体が壊れている可能性があるため従来どおりネイティブ`MessageBox`で報告する「最後の砦」のまま維持した
-- [x] `appsettings.json`埋め込みリソース欠落のような原因が既知の起動失敗を`StartupConfigurationException`として区別し、より具体的な案内を表示できるようにした。他の箇所(`BusyOperationRunner`等)への例外表示の一元化は、起動時と実行時で扱う例外の種類が重複しないため見送った
-- [x] ビルド・全テスト(280件)が成功することを確認した
-- [x] セルフレビューで3点追加修正: `BuildHostAsync`で`host.StartAsync()`失敗時に`host`が破棄されず残る資源リークを修正(`AppHostShutdown.StopAndDisposeAsync`で確実に破棄)、2箇所に重複していた診断ログヒント組み立てを`BuildDiagnosticHint`へ集約、起動失敗の3経路で`ShutdownMode = OnExplicitShutdown`を設定し、既定の`OnLastWindowClose`による暗黙シャットダウン(終了コード0)と明示的な`Shutdown(-1)`の競合を回避
+- [x] `App.xaml.cs`の`OnStartup`が、起動失敗時にアプリ内で唯一ネイティブ`MessageBox`(WPF-UIのFluentテーマ非適用)
+  を使っていた点を見直した (コードレビューで指摘、2026-08-02)
+- [x] 起動処理を2段階に分割した。①`BuildHostAsync`(設定読込・DI構築、WPFリソース非依存)の失敗はWPF-UIのテーマ付き
+  `Wpf.Ui.Controls.MessageBox`(`ContentDialogHost`を必要とせず単独ウィンドウとして表示可能)で報告。②`MainWindow.Show()`
+  (XAML/リソース読込を伴う)の失敗は、テーマ描画自体が壊れている可能性があるため従来どおりネイティブ`MessageBox`
+  で報告する「最後の砦」のまま維持した
+- [x] `appsettings.json`埋め込みリソース欠落のような原因が既知の起動失敗を`StartupConfigurationException`
+  として区別し、より具体的な案内を表示できるようにした。他の箇所 (`BusyOperationRunner`等)
+  への例外表示の一元化は、起動時と実行時で扱う例外の種類が重複しないため見送った
+- [x] ビルド・全テスト (280件)が成功することを確認した
+- [x] セルフレビューで3点追加修正: `BuildHostAsync`で`host.StartAsync()`失敗時に`host`が破棄されず残る資源リークを修正
+  (`AppHostShutdown.StopAndDisposeAsync`で確実に破棄)、2箇所に重複していた診断ログヒント組み立てを`BuildDiagnosticHint`
+  へ集約、起動失敗の3経路で`ShutdownMode = OnExplicitShutdown`を設定し、既定の`OnLastWindowClose`による暗黙シャットダウン
+  (終了コード0)と明示的な`Shutdown(-1)`の競合を回避
 
-完了条件: 起動失敗時、WPFリソースに依存できる場面ではアプリのテーマと一貫したダイアログで報告し、依存できない場面(リソース破損等)では最後までネイティブダイアログで報告できる。
+完了条件: 起動失敗時、WPFリソースに依存できる場面ではアプリのテーマと一貫したダイアログで報告し、依存できない場面
+(リソース破損等)では最後までネイティブダイアログで報告できる。
 
 ### Viewのイベント購読ライフサイクルを修正する
 
-- [x] `SyncDiffCardContent`、`MemberListInputView`、`TeamSelectionCardContent`のViewModelイベントを`Loaded`で購読し、`Unloaded`で解除する対称的な実装へ統一する
+- [x] `SyncDiffCardContent`、`MemberListInputView`、`TeamSelectionCardContent`のViewModelイベントを`Loaded`で購読し、
+  `Unloaded`で解除する対称的な実装へ統一する
 - [x] 同じ`DataContext`のままViewがアンロード、再ロードされた場合にも、差分・入力・チーム選択へのフォーカス要求が1回だけ処理されることを確認する
 - [x] `DataContextChanged`と`Loaded`が連続してもイベントが二重購読されないようにする
 
@@ -481,8 +564,12 @@
 
 ### appsettings.jsonのClientId公開範囲を確認する
 
-- [x] `TeamsSync/appsettings.json`にプレースホルダーではなく実際のEntra ClientIdがコミットされている点を確認した(コードレビューで指摘、2026-08-02)。パブリッククライアントのClientId自体は秘密情報ではないが、意図しない公開だったため除外する方針とした
-- [x] `.gitignore`へ`TeamsSync/appsettings.json`を追加し、gitの追跡対象から除外した(調査時点で既に対応済みだったことを確認)
-- [x] `main`/GitHub(origin)のどのコミットにも実ClientIdを含む履歴が存在しないことを確認した。過去のsquash前の履歴を指すローカルバックアップタグ(`backup-before-squash-20260730-200421`、GitHubへは未push)だけが残っていたため削除し、`git gc --prune=now`で該当オブジェクトを完全に刈り取った
+- [x] `TeamsSync/appsettings.json`にプレースホルダーではなく実際のEntra ClientIdがコミットされている点を確認した
+  (コードレビューで指摘、2026-08-02)。パブリッククライアントのClientId自体は秘密情報ではないが、意図しない公開だったため除外する方針とした
+- [x] `.gitignore`へ`TeamsSync/appsettings.json`を追加し、gitの追跡対象から除外した
+  (調査時点で既に対応済みだったことを確認)
+- [x] `main`/GitHub (origin)のどのコミットにも実ClientIdを含む履歴が存在しないことを確認した。過去のsquash前の履歴を指すローカルバックアップタグ
+  (`backup-before-squash-20260730-200421`、GitHubへは未push)だけが残っていたため削除し、`git gc --prune=now`
+  で該当オブジェクトを完全に刈り取った
 
 完了条件: リポジトリに含まれるClientIdが公開して問題ない値であることが確認済み、または方針がドキュメント化されている。

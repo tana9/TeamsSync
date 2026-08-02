@@ -113,7 +113,7 @@ internal sealed class TeamMembersBatchFetcher(GraphHttpClient http, ILogger logg
             return null;
         }
 
-        foreach (var text in from header in headers.EnumerateObject()
+        foreach (string? text in from header in headers.EnumerateObject()
                  where string.Equals(header.Name, "Retry-After", StringComparison.OrdinalIgnoreCase)
                  select header.Value.ValueKind switch
                  {

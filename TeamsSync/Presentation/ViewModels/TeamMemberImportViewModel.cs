@@ -14,11 +14,11 @@ public partial class TeamMemberImportViewModel : ObservableObject
 {
     private readonly Func<bool> _canImport;
     private readonly Func<bool> _hasExistingInput;
+    private readonly RestartableCancellation _importCancellation = new();
     private readonly IMemberInputConfirmationService _inputConfirmation;
     private readonly INotificationService _notifications;
     private readonly TeamsAccessService _teamsAccess;
     private readonly IMemberTextParser _textParser;
-    private readonly RestartableCancellation _importCancellation = new();
     private TeamInfo? _selectedTeam;
 
     /// <summary>
@@ -186,5 +186,4 @@ public partial class TeamMemberImportViewModel : ObservableObject
     {
         return IsImportingMembers && _importCancellation.IsActive;
     }
-
 }

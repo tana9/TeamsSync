@@ -291,7 +291,7 @@ public sealed class GraphTeamsGatewayTests
         // team-1は所有者判定を諦めて一覧から除外されるが、例外は伝播せずteam-2の判定は継続される。
         Assert.Equal(["Bravo"], owned.Select(team => team.DisplayName));
         Assert.Contains(gatewayLogger.Entries, entry => entry.Level == LogLevel.Warning &&
-                                                         entry.Message.Contains("個別のメンバー取得にも失敗"));
+                                                        entry.Message.Contains("個別のメンバー取得にも失敗"));
     }
 
     [Fact]

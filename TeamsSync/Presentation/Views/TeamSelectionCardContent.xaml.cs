@@ -1,4 +1,3 @@
-using System.Windows;
 using System.Windows.Input;
 
 using TeamsSync.Presentation.ViewModels;
@@ -14,7 +13,7 @@ public partial class TeamSelectionCardContent
     public TeamSelectionCardContent()
     {
         InitializeComponent();
-        _viewModelSubscription = new(
+        _viewModelSubscription = new ViewModelEventSubscription<TeamSelectionViewModel>(
             viewModel => viewModel.SelectionFocusRequested += FocusTeamSelection,
             viewModel => viewModel.SelectionFocusRequested -= FocusTeamSelection);
         Loaded += (_, _) => _viewModelSubscription.Load(DataContext as TeamSelectionViewModel);

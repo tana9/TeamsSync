@@ -58,8 +58,8 @@ public sealed class AddressResolverTests
     {
         DirectoryUser[] candidates =
         [
-            new DirectoryUser("u1", "山田 太郎", "one@example.com", "one@example.com"),
-            new DirectoryUser("u2", "山田　太郎", "two@example.com", "two@example.com")
+            new("u1", "山田 太郎", "one@example.com", "one@example.com"),
+            new("u2", "山田　太郎", "two@example.com", "two@example.com")
         ];
 
         AddressResolution resolution = AddressResolver.ResolveFromDirectory(
@@ -74,8 +74,8 @@ public sealed class AddressResolverTests
     {
         DirectoryUser[] candidates =
         [
-            new DirectoryUser("u1", "New", "new@example.com", "new@example.com"),
-            new DirectoryUser("u1", "New", "new@example.com", "new@example.com")
+            new("u1", "New", "new@example.com", "new@example.com"),
+            new("u1", "New", "new@example.com", "new@example.com")
         ];
 
         AddressResolution resolution = AddressResolver.ResolveFromDirectory(

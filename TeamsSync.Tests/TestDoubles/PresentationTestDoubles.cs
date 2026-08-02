@@ -219,7 +219,6 @@ internal sealed class FakeResultWriter : ISyncResultWriter
 
         return ResultPath;
     }
-
 }
 
 internal sealed class RecordingSavedFileLauncher : ISavedFileLauncher
@@ -229,7 +228,11 @@ internal sealed class RecordingSavedFileLauncher : ISavedFileLauncher
 
     public void Open(string path)
     {
-        if (Exception is not null) throw Exception;
+        if (Exception is not null)
+        {
+            throw Exception;
+        }
+
         OpenedPath = path;
     }
 }
@@ -364,8 +367,6 @@ internal sealed class FakeDialogs : IFilePickerService, ISyncConfirmationService
 
 internal sealed class FakeTeamsGateway : ITeamsGateway
 {
-    public static implicit operator TeamsAccessService(FakeTeamsGateway gateway) => new(gateway);
-
     public IReadOnlyList<TeamInfo> OwnedTeams { get; set; } = [];
     public IReadOnlyList<TeamMember> Members { get; set; } = [];
     public Dictionary<string, DirectoryUser> Users { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -412,5 +413,10 @@ internal sealed class FakeTeamsGateway : ITeamsGateway
     {
         Removed.Add((teamId, membershipId));
         return OnRemove?.Invoke(teamId, membershipId, cancellationToken) ?? Task.CompletedTask;
+    }
+
+    public static implicit operator TeamsAccessService(FakeTeamsGateway gateway)
+    {
+        return new TeamsAccessService(gateway);
     }
 }

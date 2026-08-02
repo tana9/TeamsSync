@@ -8,7 +8,6 @@ using CsvHelper.Configuration;
 
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Application.Models;
-using TeamsSync.Domain.Teams;
 
 namespace TeamsSync.Infrastructure.Files;
 
@@ -196,7 +195,8 @@ public sealed class MemberListReader : IMemberListReader
             return (addressIndex, false);
         }
 
-        int fallbackIndex = normalized.FindIndex(header => HeaderNames.Contains(header, StringComparer.OrdinalIgnoreCase));
+        int fallbackIndex =
+            normalized.FindIndex(header => HeaderNames.Contains(header, StringComparer.OrdinalIgnoreCase));
         return (fallbackIndex, fallbackIndex >= 0);
     }
 

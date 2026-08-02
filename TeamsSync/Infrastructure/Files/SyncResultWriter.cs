@@ -18,6 +18,7 @@ public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultW
 {
     // OWASPが推奨するCSVインジェクション対策として、数式の開始として解釈され得る文字。
     private static readonly char[] FormulaTriggerChars = ['=', '+', '-', '@'];
+
     private readonly string _logDirectory = logDirectory ?? Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TeamsSync", "Logs");
 
@@ -112,7 +113,10 @@ public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultW
         {
             string fileName = suffix == 1 ? $"{stem}.csv" : $"{stem}_{suffix}.csv";
             string path = Path.Combine(_logDirectory, fileName);
-            if (!File.Exists(path)) return path;
+            if (!File.Exists(path))
+            {
+                return path;
+            }
         }
     }
 

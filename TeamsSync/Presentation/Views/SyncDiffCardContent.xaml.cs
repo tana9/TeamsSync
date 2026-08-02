@@ -1,4 +1,3 @@
-using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 
@@ -16,7 +15,7 @@ public partial class SyncDiffCardContent
     public SyncDiffCardContent()
     {
         InitializeComponent();
-        _viewModelSubscription = new(
+        _viewModelSubscription = new ViewModelEventSubscription<SyncWorkspaceViewModel>(
             viewModel => viewModel.DiffFocusRequested += FocusSummaryOrFirstError,
             viewModel => viewModel.DiffFocusRequested -= FocusSummaryOrFirstError);
         Loaded += (_, _) => _viewModelSubscription.Load(DataContext as SyncWorkspaceViewModel);

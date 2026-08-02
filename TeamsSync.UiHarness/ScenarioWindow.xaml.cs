@@ -89,8 +89,10 @@ public partial class ScenarioWindow
                 Task execution = _viewModel.SyncWorkspace.ExecuteSyncCommand.ExecuteAsync(null);
                 if (scenario.CancelDuringExecution)
                 {
-                    for (int attempt = 0; attempt < 600 && !execution.IsCompleted &&
-                         !_viewModel.SyncWorkspace.IsSyncing; attempt++)
+                    for (int attempt = 0;
+                         attempt < 600 && !execution.IsCompleted &&
+                         !_viewModel.SyncWorkspace.IsSyncing;
+                         attempt++)
                     {
                         await Task.Delay(100);
                     }

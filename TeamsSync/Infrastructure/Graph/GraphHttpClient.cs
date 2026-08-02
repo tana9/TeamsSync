@@ -183,12 +183,14 @@ public sealed partial class GraphHttpClient(
     }
 
     [LoggerMessage(EventId = 1, Level = LogLevel.Debug,
-        Message = "ユーザーの直接参照で見つからなかったため検索へ切り替えます。StatusCode={StatusCode}, RequestId={RequestId}, ClientRequestId={ClientRequestId}")]
+        Message =
+            "ユーザーの直接参照で見つからなかったため検索へ切り替えます。StatusCode={StatusCode}, RequestId={RequestId}, ClientRequestId={ClientRequestId}")]
     private static partial void LogFallbackToSearch(ILogger logger, HttpStatusCode statusCode,
         string? requestId, string clientRequestId);
 
     [LoggerMessage(EventId = 2, Level = LogLevel.Error,
-        Message = "Graph API呼び出しに失敗しました。StatusCode={StatusCode}, RequestId={RequestId}, ClientRequestId={ClientRequestId}, Diagnostic={Diagnostic}")]
+        Message =
+            "Graph API呼び出しに失敗しました。StatusCode={StatusCode}, RequestId={RequestId}, ClientRequestId={ClientRequestId}, Diagnostic={Diagnostic}")]
     private static partial void LogGraphCallFailed(ILogger logger, HttpStatusCode statusCode,
         string? requestId, string clientRequestId, string diagnostic);
 }

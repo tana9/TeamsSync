@@ -1,5 +1,4 @@
 using TeamsSync.Application.Models;
-using TeamsSync.Domain.Teams;
 using TeamsSync.Infrastructure.Files;
 
 namespace TeamsSync.Tests.Unit.Application;

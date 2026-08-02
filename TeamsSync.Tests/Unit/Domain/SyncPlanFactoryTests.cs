@@ -23,7 +23,7 @@ public sealed class SyncPlanFactoryTests
         TeamMember owner = Member("owner-membership", "owner-id", "Owner", "owner@example.com", true);
         TeamRoster roster = new([owner]);
         AddressResolution[] resolutions =
-            [new AddressResolution(ResolutionOutcome.ExistingSingle, "owner@example.com", owner)];
+            [new(ResolutionOutcome.ExistingSingle, "owner@example.com", owner)];
 
         SyncPlan plan = SyncPlanFactory.Create(Team, roster, resolutions, SyncMode.FullSync, ["owner@example.com"]);
 
@@ -50,7 +50,7 @@ public sealed class SyncPlanFactoryTests
         TeamMember existing = Member("m1", "u1", "Existing", "existing@example.com");
         TeamRoster roster = new([existing]);
         AddressResolution[] resolutions =
-            [new AddressResolution(ResolutionOutcome.ExistingSingle, "existing@example.com", existing)];
+            [new(ResolutionOutcome.ExistingSingle, "existing@example.com", existing)];
 
         SyncPlan plan = SyncPlanFactory.Create(Team, roster, resolutions, SyncMode.RemoveSpecified,
             ["existing@example.com"]);
@@ -64,7 +64,7 @@ public sealed class SyncPlanFactoryTests
     public void Create_指定削除モードで現在メンバーでない新規ユーザーは未所属として扱う()
     {
         DirectoryUser user = new("u1", "New", "new@example.com", "new@example.com");
-        AddressResolution[] resolutions = [new AddressResolution(ResolutionOutcome.NewUser, "new@example.com", User: user)];
+        AddressResolution[] resolutions = [new(ResolutionOutcome.NewUser, "new@example.com", User: user)];
 
         SyncPlan plan = SyncPlanFactory.Create(Team, new TeamRoster([]), resolutions, SyncMode.RemoveSpecified,
             ["new@example.com"]);
@@ -91,7 +91,7 @@ public sealed class SyncPlanFactoryTests
     {
         AddressResolution[] resolutions =
         [
-            new AddressResolution(ResolutionOutcome.Error, "ambiguous@example.com",
+            new(ResolutionOutcome.Error, "ambiguous@example.com",
                 ErrorReason: ChangeReason.AmbiguousDirectoryUser)
         ];
 
@@ -110,8 +110,8 @@ public sealed class SyncPlanFactoryTests
         TeamRoster roster = new([existing]);
         AddressResolution[] resolutions =
         [
-            new AddressResolution(ResolutionOutcome.ExistingSingle, "taro@example.com", existing),
-            new AddressResolution(ResolutionOutcome.ExistingSingle, "山田太郎", existing)
+            new(ResolutionOutcome.ExistingSingle, "taro@example.com", existing),
+            new(ResolutionOutcome.ExistingSingle, "山田太郎", existing)
         ];
 
         SyncPlan plan = SyncPlanFactory.Create(Team, roster, resolutions, SyncMode.FullSync,
@@ -132,7 +132,7 @@ public sealed class SyncPlanFactoryTests
         DirectoryUser newUser = new("new-id", "New", "new@example.com", "new@example.com");
         AddressResolution[] resolutionsBeforeExecution =
         [
-            new AddressResolution(ResolutionOutcome.NewUser, "new@example.com", User: newUser)
+            new(ResolutionOutcome.NewUser, "new@example.com", User: newUser)
         ];
         SyncPlan preview = SyncPlanFactory.Create(Team, rosterBeforeExecution, resolutionsBeforeExecution,
             SyncMode.FullSync, ["new@example.com"]);
@@ -145,7 +145,7 @@ public sealed class SyncPlanFactoryTests
         ]);
         AddressResolution[] resolutionsAfterExecution =
         [
-            new AddressResolution(ResolutionOutcome.ExistingSingle, "new@example.com",
+            new(ResolutionOutcome.ExistingSingle, "new@example.com",
                 rosterAfterExecution.FindByUserId("new-id"))
         ];
         SyncPlan remaining = SyncPlanFactory.Create(Team, rosterAfterExecution, resolutionsAfterExecution,

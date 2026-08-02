@@ -14,9 +14,6 @@ public sealed class BusyOperationRunner(
     private const string DefaultErrorMessage = "エラーが発生しました。通知の「詳細をコピー」から内容を確認できます";
     private const string CancellationMessage = "処理を中止しました";
 
-    /// <summary>特定の例外を処理した際、ViewModelへ報告するステータスとダイアログのタイトルを保持する。</summary>
-    public record SpecificExceptionResult(string Status, string? DialogTitle = null, bool IsCritical = false);
-
     /// <summary>
     ///     戻り値のない処理を実行し、成功したかどうかを返す。
     ///     例外・キャンセルはここで通知まで完結させるが、後続処理を続けてよいかの判断は
@@ -100,7 +97,8 @@ public sealed class BusyOperationRunner(
         }
     }
 
-    private async Task HandleExceptionAsync(Exception ex, Func<Exception, SpecificExceptionResult?>? handleSpecificException)
+    private async Task HandleExceptionAsync(Exception ex,
+        Func<Exception, SpecificExceptionResult?>? handleSpecificException)
     {
         SpecificExceptionResult? specific = handleSpecificException?.Invoke(ex);
         if (specific is not null)
@@ -121,4 +119,7 @@ public sealed class BusyOperationRunner(
             await notifications.ShowErrorAsync(ex.Message);
         }
     }
+
+    /// <summary>特定の例外を処理した際、ViewModelへ報告するステータスとダイアログのタイトルを保持する。</summary>
+    public record SpecificExceptionResult(string Status, string? DialogTitle = null, bool IsCritical = false);
 }
