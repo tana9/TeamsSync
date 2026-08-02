@@ -137,7 +137,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
-    public async Task MainWindow_SignOut_キャンセル時は未サインイン状態にならずチーム選択も保持される()
+    public async Task MainWindow_SignOut_タイムアウト時は未サインイン状態にならずエラーを通知する()
     {
         FakeTeamsGateway gateway = new() { OwnedTeams = [new TeamInfo("team-1", "開発", null)] };
         FakeDialogs dialogs = new();
@@ -147,8 +147,9 @@ public sealed class MainWindowViewModelTests
             preferences, dialogs, dialogs, gateway, dialogs);
         SyncWorkspaceViewModel syncWorkspace = new(new TeamSyncService(gateway),
             new FakeResultWriter(), dialogs, dialogs);
-        FakeAuthenticationService auth = new() { SignOutException = new OperationCanceledException() };
-        MainWindowViewModel viewModel = new(auth, gateway, dialogs,
+        FakeAuthenticationService auth = new() { SignOutException = new TaskCanceledException("request timeout") };
+        RecordingNotificationService notifications = new();
+        MainWindowViewModel viewModel = new(auth, gateway, notifications,
             preferences, teamSelection, memberFile, syncWorkspace,
             new ManualViewModel(new FakeManualService(), dialogs));
         await teamSelection.InitializeAsync("current-user", TestContext.Current.CancellationToken);
@@ -162,8 +163,9 @@ public sealed class MainWindowViewModelTests
         Assert.Equal("Current User (current@example.com)", viewModel.SignIn.AccountText);
         Assert.Single(teamSelection.Teams);
         Assert.NotNull(teamSelection.SelectedTeam);
-        Assert.Equal("処理を中止しました", viewModel.StatusText);
-        Assert.False(viewModel.IsStatusError);
+        Assert.Equal("エラーが発生しました。通知の「詳細をコピー」から内容を確認できます", viewModel.StatusText);
+        Assert.True(viewModel.IsStatusError);
+        Assert.Equal("request timeout", notifications.ErrorMessage);
         Assert.True(viewModel.SignIn.SignOutCommand.CanExecute(null));
     }
 

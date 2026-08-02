@@ -186,6 +186,6 @@ public partial class TeamSelectionViewModel : ObservableObject
                 ? "所有しているチームが見つかりません"
                 : $"{Teams.Count}件のチームが見つかりました", false);
             OnPropertyChanged(nameof(HasNoSearchResults));
-        });
+        }, cancellationToken: cancellationToken);
     }
 }

@@ -562,6 +562,26 @@ public sealed class SyncServiceTests
     }
 
     [Fact]
+    public async Task Execute_GatewayTimeoutIsRecordedAsFailureInsteadOfCancellation()
+    {
+        FakeGraphService graph = new()
+        {
+            OnAdd = _ => Task.FromException(new TaskCanceledException("request timeout"))
+        };
+        SyncPlan plan = new(Team,
+            [new SyncChange(ChangeKind.Add, "New", "new@example.com", ChangeReason.Unspecified, "new-id")],
+            ["new@example.com"]);
+
+        SyncExecutionResult result = await new TeamSyncService(graph).ExecuteAsync(plan,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.False(result.Cancelled);
+        SyncOperationResult failure = Assert.Single(result.Operations);
+        Assert.False(failure.Succeeded);
+        Assert.Equal("request timeout", failure.Error);
+    }
+
+    [Fact]
     public async Task Execute_AuditEventsAreCorrelatedAndExcludeSensitiveValues()
     {
         CapturingLogger<TeamSyncService> logger = new();

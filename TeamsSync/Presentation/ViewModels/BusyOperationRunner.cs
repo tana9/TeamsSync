@@ -30,9 +30,10 @@ public sealed class BusyOperationRunner(
     ///     外側の処理がまだ実行中にもかかわらずIsBusyが早期にfalseへ戻ってしまう
     ///     (画面が実行中に一瞬再操作可能になる不具合の原因になる)
     /// </param>
+    /// <param name="cancellationToken">利用者または呼び出し元から要求されたキャンセルを識別するトークン</param>
     public async Task<bool> RunAsync(Func<Task> action,
         Func<Exception, SpecificExceptionResult?>? handleSpecificException = null,
-        bool manageBusyState = true)
+        bool manageBusyState = true, CancellationToken cancellationToken = default)
     {
         if (manageBusyState)
         {
@@ -44,7 +45,7 @@ public sealed class BusyOperationRunner(
             await action();
             return true;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             reportStatus(CancellationMessage, false);
             return false;
@@ -71,11 +72,12 @@ public sealed class BusyOperationRunner(
     ///     例外を固有のステータス通知へ変換する関数。既定のエラー処理を使う場合はnull
     /// </param>
     /// <param name="manageBusyState">
-    ///     <see cref="RunAsync(Func{Task}, Func{Exception, SpecificExceptionResult?}?, bool)" />を参照
+    ///     <see cref="RunAsync(Func{Task}, Func{Exception, SpecificExceptionResult?}?, bool, CancellationToken)" />を参照
     /// </param>
+    /// <param name="cancellationToken">利用者または呼び出し元から要求されたキャンセルを識別するトークン</param>
     public async Task<T?> RunAsync<T>(Func<Task<T>> action,
         Func<Exception, SpecificExceptionResult?>? handleSpecificException = null,
-        bool manageBusyState = true)
+        bool manageBusyState = true, CancellationToken cancellationToken = default)
     {
         if (manageBusyState)
         {
@@ -86,7 +88,7 @@ public sealed class BusyOperationRunner(
         {
             return await action();
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             reportStatus(CancellationMessage, false);
             return default;

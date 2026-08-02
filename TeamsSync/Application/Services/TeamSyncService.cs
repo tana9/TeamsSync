@@ -237,7 +237,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
 
             return false;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             return true;
         }
