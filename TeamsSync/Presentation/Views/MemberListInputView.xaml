@@ -104,9 +104,10 @@
                                 AutomationProperties.Name="1行1ユーザーの貼り付け入力" />
                     <Grid Grid.Row="1" Margin="4,4,0,0">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" /><ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="{Binding PasteInfoText}" FontSize="12" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding PasteInfoText}" FontSize="12" VerticalAlignment="Center"
+                                   TextWrapping="Wrap">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
@@ -120,27 +121,30 @@
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <!-- 狭いウィンドウ幅でも右端がクリップされないよう、固定幅Autoの水平StackPanelではなく
+                             折り返し可能なWrapPanelにする。列もAutoから*へ変更し、実際に折り返せる有限幅を与える。 -->
+                        <WrapPanel Grid.Column="1" HorizontalAlignment="Right">
                             <ui:ProgressRing Width="16" Height="16" Margin="8,0" IsIndeterminate="True"
                                              Visibility="{Binding Import.IsFetchingMembers, Converter={StaticResource BooleanToVisibilityConverter}}"
                                              AutomationProperties.Name="現在のチームメンバーを取得中" />
                             <ui:Button Content="現在のメンバーを取り込む" Command="{Binding Import.ImportCurrentMembersCommand}"
                                        Icon="{ui:SymbolIcon Symbol=PeopleTeam24}" Appearance="Secondary"
+                                       Margin="0,4"
                                        ToolTip="選択中チームの一般メンバーをテキスト入力へ取り込みます"
                                        AutomationProperties.Name="現在の一般メンバーを入力リストへ取り込む" />
                             <ui:Button Content="キャンセル" Command="{Binding Import.CancelImportCurrentMembersCommand}"
-                                       Margin="8,0,0,0" Appearance="Secondary"
+                                       Margin="8,4,0,4" Appearance="Secondary"
                                        Visibility="{Binding Import.IsImportingMembers, Converter={StaticResource BooleanToVisibilityConverter}}"
                                        AutomationProperties.Name="現在のメンバーの取り込みをキャンセル" />
                             <ui:ProgressRing Width="16" Height="16" Margin="8,0" IsIndeterminate="True"
                                              Visibility="{Binding IsParsing, Converter={StaticResource BooleanToVisibilityConverter}}"
                                              AutomationProperties.Name="貼り付け入力を解析中" />
                             <ui:Button Content="解析をキャンセル" Command="{Binding CancelParsingCommand}"
-                                       Margin="8,0,0,0" Appearance="Secondary"
+                                       Margin="8,4,0,4" Appearance="Secondary"
                                        Visibility="{Binding IsParsing, Converter={StaticResource BooleanToVisibilityConverter}}"
                                        AutomationProperties.Name="貼り付け入力の解析をキャンセル" />
                             <ui:Button Content="入力を_反映" Command="{Binding ApplyPastedTextInputCommand}"
-                                       Margin="8,0,0,0"
+                                       Margin="8,4,0,4"
                                        Icon="{ui:SymbolIcon Symbol=CheckmarkCircle24}"
                                        AutomationProperties.Name="貼り付け入力を反映">
                                 <!-- 貼り付けテキストが変更されて未反映のときは、次にすべき操作として強調する。
@@ -156,7 +160,7 @@
                                     </Style>
                                 </ui:Button.Style>
                             </ui:Button>
-                        </StackPanel>
+                        </WrapPanel>
                     </Grid>
                 </Grid>
             </TabItem>
