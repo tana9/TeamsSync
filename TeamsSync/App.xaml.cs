@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Threading;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,6 +28,7 @@ public partial class App : System.Windows.Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        DispatcherUnhandledException += OnDispatcherUnhandledException;
         try
         {
             HostApplicationBuilder builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
@@ -66,6 +68,15 @@ public partial class App : System.Windows.Application
                 "起動エラー", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(-1);
         }
+    }
+
+    // UIスレッドの未処理例外を診断できるようログへ記録する。既存の挙動(未処理のままなら
+    // プロセスが終了する)は変えない(e.Handledは設定しない)。原因不明のままクラッシュログが
+    // 残らない状態を避けることが目的で、任意の例外を握りつぶして実行を継続させる意図ではない。
+    /// <summary>UIスレッドで発生した未処理の例外をログへ記録する。</summary>
+    private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+    {
+        _host?.Services.GetService<ILogger<App>>()?.LogCritical(e.Exception, "UIスレッドで未処理の例外が発生しました");
     }
 
     /// <summary>
