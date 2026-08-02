@@ -203,6 +203,18 @@
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
             </StackPanel>
         </Grid>
+        <!-- 既定の「変更あり」フィルターは変更なし行を除外するため、全員が変更なしの場合は
+             一覧が0行の空白テーブルになってしまう。HasChangesは絞り込み前の件数で判定しており
+             このときtrueのままなので、上のオーバーレイとは別に、この状態専用の案内を出す。 -->
+        <Grid Grid.Row="2" Margin="0,36,0,0" IsHitTestVisible="False"
+              Visibility="{Binding HasNoChangesToApply, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <ui:SymbolIcon Symbol="CheckmarkCircle24" FontSize="28" HorizontalAlignment="Center"
+                               Foreground="{DynamicResource SystemFillColorSuccessBrush}" />
+                <TextBlock Text="{Binding NoChangesMessage}" Margin="0,8,0,0"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+        </Grid>
         <Grid Grid.Row="2" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
               Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="200">

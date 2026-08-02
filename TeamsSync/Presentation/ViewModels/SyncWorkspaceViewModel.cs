@@ -240,6 +240,19 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     public string EmptyStateMessage =>
         SyncWorkspaceTextFormatter.BuildEmptyStateMessage(_signedIn, _team, _document);
 
+    // 既定の「変更あり」フィルターは追加・削除・エラーのみを表示するため、全員が変更なしの場合は
+    // 一覧が0行になる。HasChangesは絞り込み前の件数(変更なし行を含む)で判定しており、
+    // このときはtrueのままでEmptyStateMessage側のオーバーレイは出ないため、
+    // ただの空白の表にならないよう専用の案内を別途表示する。
+    // 「変更なし」フィルターなどへ切り替えて実際に行が表示されているときは、案内を隠す必要があるため
+    // 現在のフィルター後のビュー(ChangesView)が空かどうかもあわせて判定する。
+    /// <summary>差分確認の結果、追加・削除ともに0件で新たに行う変更がなく、かつ現在のフィルターでは一覧に何も表示されないかどうか。</summary>
+    public bool HasNoChangesToApply =>
+        _plan is { HasErrors: false, AddCount: 0, RemoveCount: 0 } && !ChangesView.Cast<object>().Any();
+
+    /// <summary>変更なし(同期済み)の場合に一覧領域へ表示する案内文。</summary>
+    public string NoChangesMessage => _plan is null ? "" : SyncWorkspaceTextFormatter.BuildPreviewStatusText(_plan);
+
     /// <summary>差分確認中の進捗テキスト。</summary>
     public string PreviewProgressText =>
         SyncWorkspaceTextFormatter.BuildPreviewProgressText(PreviewProgressValue, PreviewProgressMaximum);
@@ -325,6 +338,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     partial void OnSelectedFilterChanged(ChangeFilter value)
     {
         ChangesView.Refresh();
+        OnPropertyChanged(nameof(HasNoChangesToApply));
     }
 
     /// <summary>同期モードの変更に応じて関連プロパティを通知し、既存の差分プランを無効化する。</summary>
@@ -562,6 +576,8 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         // Teams側の最新状態はまだ再取得していないため、件数は目安であることをResultRemainingTextの文言側で示す。
         ResultRemainingCount = Math.Max(0, _plan!.AddCount + _plan.RemoveCount - _lastResult!.Operations.Count);
         _plan = null;
+        OnPropertyChanged(nameof(HasNoChangesToApply));
+        OnPropertyChanged(nameof(NoChangesMessage));
         ExecuteSyncCommand.NotifyCanExecuteChanged();
         ShowResultNotification(true, "同期を中止しました",
             $"{_lastResult!.SuccessCount}件は処理済みです。差分を再確認してください。");
@@ -710,6 +726,8 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         Changes.Clear();
         SummaryText = "";
         IsRemovalWarningOpen = false;
+        OnPropertyChanged(nameof(HasNoChangesToApply));
+        OnPropertyChanged(nameof(NoChangesMessage));
         // 件数表示を未確認状態(-1)に戻す。理由はSyncWorkspaceTextFormatter.ClearFilterCounts参照。
         ClearFilterCounts();
         if (clearResult)
@@ -770,6 +788,8 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         IsRemovalWarningOpen = plan.RemoveCount > 0;
         RemovalWarningTitle = presentation.RemovalTitle;
         RemovalWarningMessage = presentation.RemovalMessage;
+        OnPropertyChanged(nameof(HasNoChangesToApply));
+        OnPropertyChanged(nameof(NoChangesMessage));
         if (announceStatus)
         {
             StatusChanged?.Invoke(SyncWorkspaceTextFormatter.BuildPreviewStatusText(plan), plan.HasErrors);

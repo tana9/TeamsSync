@@ -56,6 +56,50 @@ public sealed class SyncWorkspaceViewModelTests
     }
 
     [Fact]
+    public async Task SyncWorkspace_差分確認で変更が0件の場合は一覧領域に同期済みの案内を表示する()
+    {
+        FakeTeamsGateway gateway = new()
+        {
+            Members = [new TeamMember("membership", "user", "User", "user@example.com", false)]
+        };
+        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+            new FakeResultWriter(), new FakeDialogs(), new RecordingNotificationService());
+        viewModel.SetContext(new TeamInfo("team-1", "開発", null),
+            new MemberListDocument(["user@example.com"], "members.csv", "C:\\members.csv",
+                new DateTime(2026, 8, 1), "CSV", "email"), true);
+
+        await viewModel.PreviewCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.HasNoChangesToApply);
+        Assert.Equal("変更はありません。すでに同期済みです", viewModel.NoChangesMessage);
+
+        viewModel.SetContext(new TeamInfo("team-2", "営業", null), null, true);
+
+        Assert.False(viewModel.HasNoChangesToApply);
+        Assert.Equal("", viewModel.NoChangesMessage);
+    }
+
+    [Fact]
+    public async Task SyncWorkspace_変更が0件でも変更なしフィルターへ切り替えると同期済み案内は消える()
+    {
+        FakeTeamsGateway gateway = new()
+        {
+            Members = [new TeamMember("membership", "user", "User", "user@example.com", false)]
+        };
+        SyncWorkspaceViewModel viewModel = new(new TeamSyncService(gateway),
+            new FakeResultWriter(), new FakeDialogs(), new RecordingNotificationService());
+        viewModel.SetContext(new TeamInfo("team-1", "開発", null),
+            new MemberListDocument(["user@example.com"], "members.csv", "C:\\members.csv",
+                new DateTime(2026, 8, 1), "CSV", "email"), true);
+        await viewModel.PreviewCommand.ExecuteAsync(null);
+        Assert.True(viewModel.HasNoChangesToApply);
+
+        viewModel.SelectedFilter = viewModel.Filters.Single(filter => filter.Kind == ChangeKind.Keep);
+
+        Assert.False(viewModel.HasNoChangesToApply);
+    }
+
+    [Fact]
     public void SyncWorkspace_同期結果CSVを開けない場合は警告して例外を伝播しない()
     {
         RecordingNotificationService notifications = new();
