@@ -850,7 +850,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
         if (SelectedFilter.ChangesOnly)
         {
-            return row.Kind is ChangeKind.Add or ChangeKind.Remove or ChangeKind.Error;
+            return ChangeFilter.MatchesChangesOnly(row.Kind);
         }
 
         return SelectedFilter.Kind is null || row.Kind == SelectedFilter.Kind;

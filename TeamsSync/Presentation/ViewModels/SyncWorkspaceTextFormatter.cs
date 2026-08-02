@@ -142,7 +142,7 @@ public static class SyncWorkspaceTextFormatter
         foreach (ChangeFilter filter in filters)
         {
             filter.Count = filter.ChangesOnly
-                ? changes.Count(change => change.Kind is ChangeKind.Add or ChangeKind.Remove or ChangeKind.Error)
+                ? changes.Count(change => ChangeFilter.MatchesChangesOnly(change.Kind))
                 : filter.Kind is null
                     ? changes.Count
                     : changes.Count(change => change.Kind == filter.Kind);

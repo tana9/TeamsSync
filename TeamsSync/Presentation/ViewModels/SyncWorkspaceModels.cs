@@ -67,6 +67,12 @@ public sealed record ChangeFilter(string Label, ChangeKind? Kind, bool ChangesOn
     {
         return HashCode.Combine(Label, Kind, ChangesOnly);
     }
+
+    /// <summary>「変更あり」絞り込み(<see cref="ChangesOnly" />)に該当する種別かどうかを判定する。</summary>
+    public static bool MatchesChangesOnly(ChangeKind kind)
+    {
+        return kind is ChangeKind.Add or ChangeKind.Remove or ChangeKind.Error;
+    }
 }
 
 /// <summary>差分一覧DataGridの1行分の表示用ラップ。</summary>

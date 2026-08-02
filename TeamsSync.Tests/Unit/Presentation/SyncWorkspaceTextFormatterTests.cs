@@ -250,6 +250,18 @@ public sealed class SyncWorkspaceTextFormatterTests
         Assert.Equal("同期を実行できます", text);
     }
 
+    [Theory]
+    [InlineData(ChangeKind.Add, true)]
+    [InlineData(ChangeKind.Remove, true)]
+    [InlineData(ChangeKind.Error, true)]
+    [InlineData(ChangeKind.Keep, false)]
+    [InlineData(ChangeKind.Protected, false)]
+    [InlineData(ChangeKind.NotMember, false)]
+    public void ChangeFilter_MatchesChangesOnly_追加_削除_エラーのみtrueを返す(ChangeKind kind, bool expected)
+    {
+        Assert.Equal(expected, ChangeFilter.MatchesChangesOnly(kind));
+    }
+
     [Fact]
     public void UpdateFilterCounts_フィルターの種類ごとに該当件数を計算する()
     {

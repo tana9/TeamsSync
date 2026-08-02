@@ -440,7 +440,7 @@ public sealed class TeamSyncService(ITeamsGateway teamsGateway, ILogger<TeamSync
         IProgress<SyncProgress>? progress, CancellationToken cancellationToken)
     {
         List<SyncOperationResult> results = [];
-        List<SyncChange> operations = plan.Changes.Where(x => x.Kind is ChangeKind.Add or ChangeKind.Remove).ToList();
+        IReadOnlyList<SyncChange> operations = plan.Operations;
         _logger.LogInformation(
             "SyncStarted Add={AddCount} Remove={RemoveCount} Keep={KeepCount} Protected={ProtectedCount}",
             plan.AddCount, plan.RemoveCount, plan.KeepCount, plan.ProtectedCount);

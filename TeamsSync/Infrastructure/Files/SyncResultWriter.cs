@@ -47,9 +47,7 @@ public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultW
     {
         using StreamWriter writer = new(stream, new UTF8Encoding(true), leaveOpen: true);
         writer.WriteLine("チーム,同期モード,操作,表示名,メールアドレス,結果,エラー");
-        IReadOnlyList<SyncChange> plannedOperations = plan.Changes
-            .Where(change => change.Kind is ChangeKind.Add or ChangeKind.Remove)
-            .ToList();
+        IReadOnlyList<SyncChange> plannedOperations = plan.Operations;
         if (plannedOperations.Count == 0 && result.Operations.Count > 0)
         {
             // 古い呼び出し元や単体利用との互換性を保つ。通常の同期では必ずプラン側に操作が存在する。

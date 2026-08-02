@@ -132,4 +132,8 @@ public sealed record SyncPlan(
 
     /// <summary>未解決の変更がなく、追加・削除される一般メンバーも1人もいないかどうか。</summary>
     public bool HasNoActionableChanges => !HasErrors && AddCount == 0 && RemoveCount == 0;
+
+    /// <summary>実際にGraphへ送信する操作(追加・削除)だけを抽出した一覧。</summary>
+    public IReadOnlyList<SyncChange> Operations =>
+        Changes.Where(x => x.Kind is ChangeKind.Add or ChangeKind.Remove).ToList();
 }
