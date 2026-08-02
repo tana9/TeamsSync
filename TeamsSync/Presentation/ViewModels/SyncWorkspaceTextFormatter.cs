@@ -161,6 +161,19 @@ public static class SyncWorkspaceTextFormatter
         }
     }
 
+    /// <summary>差分確認後のステータス文言を、未解決ユーザーの有無と変更件数に応じて組み立てる。</summary>
+    public static string BuildPreviewStatusText(SyncPlan plan)
+    {
+        if (plan.HasErrors)
+        {
+            return "未解決ユーザーがあります。リストを修正してください";
+        }
+
+        return plan.AddCount + plan.RemoveCount == 0
+            ? "変更はありません。すでに同期済みです"
+            : $"追加 {plan.AddCount}件・削除 {plan.RemoveCount}件です。内容を確認してください";
+    }
+
     /// <summary>同期プランから、件数サマリーと削除警告(タイトル・本文)を組み立てる。</summary>
     public static PlanPresentation BuildPlan(SyncPlan plan)
     {

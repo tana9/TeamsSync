@@ -338,6 +338,42 @@ public sealed class SyncWorkspaceTextFormatterTests
     }
 
     [Fact]
+    public void BuildPreviewStatusText_未解決ユーザーがある場合は修正を促すメッセージになる()
+    {
+        SyncPlan plan = new(Team,
+            [new SyncChange(ChangeKind.Error, "不明太郎", "unknown@example.com", ChangeReason.UserNotFound)], []);
+
+        string text = SyncWorkspaceTextFormatter.BuildPreviewStatusText(plan);
+
+        Assert.Equal("未解決ユーザーがあります。リストを修正してください", text);
+    }
+
+    [Fact]
+    public void BuildPreviewStatusText_追加も削除も0件の場合は同期済みである旨のメッセージになる()
+    {
+        SyncPlan plan = new(Team,
+            [new SyncChange(ChangeKind.Keep, "維持太郎", "keep@example.com", ChangeReason.AlreadyMember)], []);
+
+        string text = SyncWorkspaceTextFormatter.BuildPreviewStatusText(plan);
+
+        Assert.Equal("変更はありません。すでに同期済みです", text);
+    }
+
+    [Fact]
+    public void BuildPreviewStatusText_追加または削除がある場合は件数を含むメッセージになる()
+    {
+        SyncPlan plan = new(Team,
+        [
+            new SyncChange(ChangeKind.Add, "追加太郎", "add@example.com", ChangeReason.AddToTeam),
+            new SyncChange(ChangeKind.Remove, "削除太郎", "remove@example.com", ChangeReason.RemoveNotInInput)
+        ], []);
+
+        string text = SyncWorkspaceTextFormatter.BuildPreviewStatusText(plan);
+
+        Assert.Equal("追加 1件・削除 1件です。内容を確認してください", text);
+    }
+
+    [Fact]
     public void BuildFailedRows_結果がnullの場合は空の一覧を返す()
     {
         IReadOnlyList<SyncResultRowViewModel> rows = SyncWorkspaceTextFormatter.BuildFailedRows(null);

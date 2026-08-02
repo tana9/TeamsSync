@@ -772,9 +772,14 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         RemovalWarningMessage = presentation.RemovalMessage;
         if (announceStatus)
         {
-            StatusChanged?.Invoke(plan.HasErrors
-                ? "未解決ユーザーがあります。リストを修正してください"
-                : "差分を確認してください", plan.HasErrors);
+            StatusChanged?.Invoke(SyncWorkspaceTextFormatter.BuildPreviewStatusText(plan), plan.HasErrors);
+            // 変更あり・エラーありは差分一覧にその内容が表示されるため見た目で気づけるが、
+            // 変更なし(既に同期済み)は一覧が実質空のままで手がかりが他にないため、Snackbarでも知らせる。
+            if (!plan.HasErrors && plan.AddCount + plan.RemoveCount == 0)
+            {
+                _notifications.ShowSuccess("変更はありません", "すでに同期済みです。");
+            }
+
             // 差分が更新されるたびに、エラーがあれば最初のエラーへ、なければ集計へフォーカスを移すようViewへ依頼する。
             // announceStatus=falseの呼び出し(再検証で差分が変わらない場合など)ではフォーカスも移動させない。
             // そうしないと、実行直前のフォーカス復元(ShowRestoringFocusAsync)をこのフォーカス移動が
