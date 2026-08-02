@@ -1,375 +1,272 @@
 <!DOCTYPE html>
-<html lang="ja" xml:lang="ja" xmlns="http://www.w3.org/1999/xhtml">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja" xml:lang="ja">
 <head>
-    <meta charset="utf-8"/>
-    <meta content="pandoc 3.10.1" name="generator"/>
-    <meta content="width=device-width, initial-scale=1.0, user-scalable=yes" name="viewport"/>
-    <title>TeamsSync マニュアル</title>
-    <style>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10.1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>TeamsSync マニュアル</title>
+  <style>
 
-        span.smallcaps {
-            font-variant: small-caps;
-        }
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 
-        div.columns {
-            display: flex;
-            gap: 1.5em;
-        }
-
-        div.column {
-            flex: auto;
-        }
-
-        @media screen {
-            div.columns {
-                gap: min(4vw, 1.5em);
-            }
-
-            div.column {
-                overflow-x: auto;
-            }
-        }
-
-        div.hanging-indent {
-            margin-left: 1.5em;
-            text-indent: -1.5em;
-        }
-
-        ul.task-list[class] {
-            list-style: none;
-        }
-
-        ul.task-list li input[type="checkbox"] {
-            font-size: inherit;
-            width: 0.8em;
-            margin: 0 0.8em 0.2em -1.6em;
-            vertical-align: middle;
-        }
-
-        .display.math {
-            display: block;
-            text-align: center;
-            margin: 0.5rem auto;
-        }
-    </style>
-    <style type="text/css">:root {
-        --accent: #5B5FC7;
-        --accent-dark: #464EB8;
-        --text: #1F1F1F;
-        --muted: #616161;
-        --border: #E0E0E0;
-        --bg-soft: #F5F5FA;
-    }
-
-    body {
-        font-family: "Yu Gothic UI", "Segoe UI", "Meiryo", system-ui, sans-serif;
-        color: var(--text);
-        max-width: 860px;
-        margin: 0 auto;
-        padding: 32px 24px 64px;
-        line-height: 1.75;
-    }
-
-    h1 {
-        color: var(--accent-dark);
-        border-bottom: 3px solid var(--accent);
-        padding-bottom: 10px;
-        margin-top: 0;
-    }
-
-    h2 {
-        color: var(--accent-dark);
-        border-bottom: 1px solid var(--border);
-        padding-bottom: 6px;
-        margin-top: 40px;
-    }
-
-    h3 {
-        margin-top: 28px;
-    }
-
-    p, li {
-        color: var(--text);
-    }
-
-    ol, ul {
-        padding-left: 1.4em;
-    }
-
-    ol:first-of-type {
-        background: var(--bg-soft);
-        border-radius: 8px;
-        padding: 16px 20px 16px 40px;
-    }
-
-    code {
-        background: var(--bg-soft);
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-family: Consolas, "Cascadia Code", monospace;
-        font-size: 0.92em;
-    }
-
-    pre {
-        background: var(--bg-soft);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 14px 16px;
-        overflow-x: auto;
-    }
-
-    pre code {
-        background: none;
-        padding: 0;
-    }
-
-    table {
-        border-collapse: collapse;
-        width: 100%;
-        margin: 16px 0;
-    }
-
-    th, td {
-        border: 1px solid var(--border);
-        padding: 8px 12px;
-        text-align: left;
-    }
-
-    th {
-        background: var(--bg-soft);
-        color: var(--accent-dark);
-    }
-
-    blockquote {
-        border-left: 4px solid var(--border);
-        margin: 16px 0;
-        padding: 4px 16px;
-        color: var(--muted);
-    }
-
-    .callout {
-        border-left: 4px solid var(--accent);
-        background: var(--bg-soft);
-        border-radius: 6px;
-        padding: 12px 16px;
-        margin: 16px 0;
-    }
-
-    .callout.important {
-        border-left-color: #C42B1C;
-        background: #FDF3F2;
-    }
-
-    .callout > p:first-child {
-        color: var(--accent-dark);
-        margin: 0 0 4px;
-    }
-
-    .callout.important > p:first-child {
-        color: #C42B1C;
-    }
-
-    .callout p:last-child {
-        margin-bottom: 0;
-    }
-
-    a {
-        color: var(--accent-dark);
-    }
-
-    @media print {
-        body {
-            max-width: none;
-        }
-
-        h2 {
-            break-before: page;
-        }
-    }
-    </style>
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+  <style type="text/css">:root {
+--accent: #5B5FC7;
+--accent-dark: #464EB8;
+--text: #1F1F1F;
+--muted: #616161;
+--border: #E0E0E0;
+--bg-soft: #F5F5FA;
+}
+body {
+font-family: "Yu Gothic UI", "Segoe UI", "Meiryo", system-ui, sans-serif;
+color: var(--text);
+max-width: 860px;
+margin: 0 auto;
+padding: 32px 24px 64px;
+line-height: 1.75;
+}
+h1 {
+color: var(--accent-dark);
+border-bottom: 3px solid var(--accent);
+padding-bottom: 10px;
+margin-top: 0;
+}
+h2 {
+color: var(--accent-dark);
+border-bottom: 1px solid var(--border);
+padding-bottom: 6px;
+margin-top: 40px;
+}
+h3 { margin-top: 28px; }
+p, li { color: var(--text); }
+ol, ul { padding-left: 1.4em; }
+ol:first-of-type {
+background: var(--bg-soft);
+border-radius: 8px;
+padding: 16px 20px 16px 40px;
+}
+code {
+background: var(--bg-soft);
+padding: 2px 6px;
+border-radius: 4px;
+font-family: Consolas, "Cascadia Code", monospace;
+font-size: 0.92em;
+}
+pre {
+background: var(--bg-soft);
+border: 1px solid var(--border);
+border-radius: 8px;
+padding: 14px 16px;
+overflow-x: auto;
+}
+pre code { background: none; padding: 0; }
+table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+th { background: var(--bg-soft); color: var(--accent-dark); }
+blockquote {
+border-left: 4px solid var(--border);
+margin: 16px 0;
+padding: 4px 16px;
+color: var(--muted);
+}
+.callout {
+border-left: 4px solid var(--accent);
+background: var(--bg-soft);
+border-radius: 6px;
+padding: 12px 16px;
+margin: 16px 0;
+}
+.callout.important { border-left-color: #C42B1C; background: #FDF3F2; }
+.callout > p:first-child { color: var(--accent-dark); margin: 0 0 4px; }
+.callout.important > p:first-child { color: #C42B1C; }
+.callout p:last-child { margin-bottom: 0; }
+a { color: var(--accent-dark); }
+@media print {
+body { max-width: none; }
+h2 { break-before: page; }
+}
+</style>
 </head>
 <body>
 <h1 id="teamssync-利用者マニュアル">TeamsSync 利用者マニュアル</h1>
 <p>TeamsSyncは、CSVまたはExcelの名簿を使って、Microsoft
-    Teamsのチームへメンバーをまとめて追加・削除するアプリです。</p>
-<p>
-    このアプリでは、同期を実行する前に変更内容を確認できます。初めて使うときは、削除が発生しない「追加のみ」で試してください。</p>
+Teamsのチームへメンバーをまとめて追加・削除するアプリです。</p>
+<p>このアプリでは、同期を実行する前に変更内容を確認できます。</p>
 <h2 id="基本の操作">基本の操作</h2>
 <ol type="1">
-    <li>Microsoft 365へサインインする</li>
-    <li>同期先のチームを選ぶ</li>
-    <li>メンバー一覧を指定する</li>
-    <li>同期モードを選ぶ</li>
-    <li>差分を確認する</li>
-    <li>チームに反映する</li>
-    <li>結果を確認する</li>
+<li>Microsoft 365へサインインする</li>
+<li>同期先のチームを選ぶ</li>
+<li>メンバー一覧を指定する</li>
+<li>同期モードを選ぶ</li>
+<li>差分を確認する</li>
+<li>チームに反映する</li>
+<li>結果を確認する</li>
 </ol>
 <h3 id="microsoft-365へサインインする">1. Microsoft
-    365へサインインする</h3>
+365へサインインする</h3>
 <p>画面右上の「サインイン」を押します。ブラウザーが開いたら、チームの所有者（チームを管理できるメンバー）になっているMicrosoft
-    365アカウントでサインインしてください。</p>
+365アカウントでサインインしてください。</p>
 <p>サインイン後、そのアカウントが所有しているチームが読み込まれます。</p>
 <h3 id="同期先のチームを選ぶ">2. 同期先のチームを選ぶ</h3>
 <p>「1
-    所有しているチーム」で対象のチームを選びます。入力欄へチーム名の一部を入力すると候補を絞り込めます。</p>
+所有しているチーム」で対象のチームを選びます。入力欄へチーム名の一部を入力すると候補を絞り込めます。</p>
 <p>目的のチームがない場合は、次を確認してください。</p>
 <ol type="1">
-    <li>検索文字を消すか短くする</li>
-    <li>「再読込」を押す</li>
-    <li>Teamsで自分がそのチームの所有者になっているか確認する</li>
+<li>検索文字を消すか短くする</li>
+<li>「再読込」を押す</li>
+<li>Teamsで自分がそのチームの所有者になっているか確認する</li>
 </ol>
 <div class="callout important">
-    <p><strong>重要</strong></p>
-    <p>名前の似たチームを選び間違えないよう、同期前の最終確認でもチーム名を確認してください。</p>
+<p><strong>重要</strong></p>
+<p>名前の似たチームを選び間違えないよう、同期前の最終確認でもチーム名を確認してください。</p>
 </div>
 <h3 id="メンバー一覧を指定する">3. メンバー一覧を指定する</h3>
 <p>「2
-    メンバーリスト」で、「ファイル」または「テキスト貼り付け」を選びます。</p>
+メンバーリスト」で、「ファイル」または「テキスト貼り付け」を選びます。</p>
 <h4 id="ファイルを使う場合">ファイルを使う場合</h4>
-<p>利用できるファイルはCSV（<code>.csv</code>）とExcel（<code>.xlsx</code>）です。古いExcel形式（<code>.xls</code>）には対応していません。
-</p>
+<p>利用できるファイルはCSV（<code>.csv</code>）とExcel（<code>.xlsx</code>）です。古いExcel形式（<code>.xls</code>）には対応していません。</p>
 <p>次のような1列の一覧が最も確実です。</p>
 <pre class="csv"><code>メールアドレス
 taro.yamada@example.com
 hanako.suzuki@example.com</code></pre>
 <ul>
-    <li>1行目には「メールアドレス」などの見出しを入れます。</li>
-    <li>2行目以降には1行につき1人を入力します。</li>
-    <li>Excelでは最初のシートを読み込みます。</li>
-    <li>複数の列がある場合は、メールアドレスまたはUPN（Microsoft
-        365のサインイン名）の列を氏名列より優先します。
-    </li>
-    <li>対応する見出しが見つからない場合は1列目を読み込みます。</li>
+<li>1行目には「メールアドレス」などの見出しを入れます。</li>
+<li>2行目以降には1行につき1人を入力します。</li>
+<li>Excelでは最初のシートを読み込みます。</li>
+<li>複数の列がある場合は、メールアドレスまたはUPN（Microsoft
+365のサインイン名）の列を氏名列より優先します。</li>
+<li>対応する見出しが見つからない場合は1列目を読み込みます。</li>
 </ul>
 <p>利用できる主な見出しは次のとおりです。</p>
 <ul>
-    <li>メールアドレス:
-        <code>email</code>、<code>mail</code>、<code>メール</code>、<code>メールアドレス</code></li>
-    <li>サインイン名: <code>upn</code>、<code>userPrincipalName</code></li>
-    <li>氏名:
-        <code>name</code>、<code>displayName</code>、<code>氏名</code>、<code>姓名</code>、<code>名前</code></li>
+<li>メールアドレス:
+<code>email</code>、<code>mail</code>、<code>メール</code>、<code>メールアドレス</code></li>
+<li>サインイン名: <code>upn</code>、<code>userPrincipalName</code></li>
+<li>氏名:
+<code>name</code>、<code>displayName</code>、<code>氏名</code>、<code>姓名</code>、<code>名前</code></li>
 </ul>
 <p>ファイルを選んだ後、画面に表示される件数、シート名、採用された列を確認してください。</p>
 <h4 id="テキストを貼り付ける場合">テキストを貼り付ける場合</h4>
 <p>「テキスト貼り付け」タブへ、メールアドレスまたは氏名を1行に1人ずつ貼り付けます。その後、「入力を反映」を押してください。</p>
 <p>入力内容を変更した場合は、もう一度「入力を反映」を押す必要があります。</p>
 <h4 id="現在のチームメンバーを基準にする場合">現在のチームメンバーを基準にする場合</h4>
-<p>「現在のメンバーを取り込む」を押すと、選択中チームの一般メンバーを取得し、<code>山田 太郎
-    &lt;taro.yamada@example.com&gt;</code>の形式で「テキスト貼り付け」タブへ反映します。人物を確認しやすいよう表示名も示しますが、同期の識別には山括弧内のメールアドレスだけを使用します。チームの所有者は入力へ含めません。
-</p>
-<p>
-    既にファイルまたはテキストを指定している場合は、置き換え確認が表示されます。取得失敗、キャンセル、一般メンバーが0人の場合は、現在の入力を維持します。</p>
-<p>
-    取り込んだ一覧から数人を追加・削除して「入力を反映」を押すと、現在の構成を基準に完全同期の差分を作成できます。同期モードは自動で変更されないため、目的に合うモードを選んでから「差分を確認」を押してください。</p>
+<p>「現在のメンバーを取り込む」を押すと、選択中チームの一般メンバーを取得し、<code>山田 太郎 &lt;taro.yamada@example.com&gt;</code>
+の形式で「テキスト貼り付け」タブへ反映します。人物を確認しやすいよう表示名も示しますが、同期の識別には山括弧内のメールアドレスだけを使用します。チームの所有者は入力へ含めません。</p>
+<p>既にファイルまたはテキストを指定している場合は、置き換え確認が表示されます。取得失敗、キャンセル、一般メンバーが0人の場合は、現在の入力を維持します。</p>
+<p>取り込んだ一覧から数人を追加・削除して「入力を反映」を押すと、現在の構成を基準に完全同期の差分を作成できます。同期モードは自動で変更されないため、目的に合うモードを選んでから「差分を確認」を押してください。</p>
 <h4 id="氏名を使う場合の注意">氏名を使う場合の注意</h4>
 <p>氏名では「山田
-    太郎」「山田　太郎」「山田太郎」を同じ名前として扱います。同じ氏名の人が複数いる場合は安全のため同期できません。エラーになった行をメールアドレスへ変更してください。</p>
+太郎」「山田　太郎」「山田太郎」を同じ名前として扱います。同じ氏名の人が複数いる場合は安全のため同期できません。エラーになった行をメールアドレスへ変更してください。</p>
 <h3 id="同期モードを選ぶ">4. 同期モードを選ぶ</h3>
 <h4 id="追加のみ既存メンバーを維持">追加のみ（既存メンバーを維持）</h4>
-<p>
-    一覧にいる人を追加します。現在チームにいる人が一覧になくても削除しません。初回や、削除する必要がない場合はこちらを選んでください。</p>
+<p>一覧にいる人を追加します。現在チームにいる人が一覧になくても削除しません。初回や、削除する必要がない場合はこちらを選んでください。</p>
 <h4 id="指定メンバーを削除">指定メンバーを削除</h4>
-<p>
-    一覧に入力した現在の一般メンバーだけを削除します。入力していないメンバーとチームの所有者は削除しません。数人だけをまとめてチームから外したい場合に使用します。</p>
-<p>
-    入力した人が現在チームに所属していない場合は「未所属」と表示され、追加も削除も行いません。同じ氏名の人が複数いる場合やユーザーを特定できない場合は、チームへ反映できません。</p>
+<p>一覧に入力した現在の一般メンバーだけを削除します。入力していないメンバーとチームの所有者は削除しません。数人だけをまとめてチームから外したい場合に使用します。</p>
+<p>入力した人が現在チームに所属していない場合は「未所属」と表示され、追加も削除も行いません。同じ氏名の人が複数いる場合やユーザーを特定できない場合は、チームへ反映できません。</p>
 <h4 id="完全同期リスト外を削除">完全同期（リスト外を削除）</h4>
 <p>一覧にいる人を追加し、一覧にいない一般メンバーを削除します。チームの所有者は削除しません。</p>
-<p>
-    たとえば、現在の一般メンバーが「Aさん、Bさん、Cさん」で、一覧が「Aさん、Dさん」の場合は、Dさんを追加し、BさんとCさんを削除します。</p>
+<p>たとえば、現在の一般メンバーが「Aさん、Bさん、Cさん」で、一覧が「Aさん、Dさん」の場合は、Dさんを追加し、BさんとCさんを削除します。</p>
 <div class="callout important">
-    <p><strong>重要</strong></p>
-    <p>
-        完全同期を選ぶ前に、そのファイルが「追加したい人だけの一覧」ではなく、「同期後に残したい一般メンバー全員の一覧」であることを確認してください。</p>
+<p><strong>重要</strong></p>
+<p>完全同期を選ぶ前に、そのファイルが「追加したい人だけの一覧」ではなく、「同期後に残したい一般メンバー全員の一覧」であることを確認してください。</p>
 </div>
 <p>同期モードを変更すると、以前に確認した差分は消去されます。もう一度「差分を確認」を押してください。</p>
 <h3 id="差分を確認する">5. 差分を確認する</h3>
 <p>「差分を確認」を押すと、実際に行われる変更が一覧に表示されます。</p>
 <table>
-    <colgroup>
-        <col style="width: 33%"/>
-        <col style="width: 33%"/>
-        <col style="width: 33%"/>
-    </colgroup>
-    <thead>
-    <tr>
-        <th>表示</th>
-        <th>意味</th>
-        <th>確認すること</th>
-    </tr>
-    </thead>
-    <tbody>
-    <tr>
-        <td>追加</td>
-        <td>チームへ追加する人</td>
-        <td>人物とメールアドレスが正しいか</td>
-    </tr>
-    <tr>
-        <td>削除</td>
-        <td>チームから削除する一般メンバー</td>
-        <td>本当に削除してよいか</td>
-    </tr>
-    <tr>
-        <td>変更なし</td>
-        <td>すでにチームにいる人</td>
-        <td>通常は対応不要です</td>
-    </tr>
-    <tr>
-        <td>保護</td>
-        <td>チームの所有者</td>
-        <td>削除されません</td>
-    </tr>
-    <tr>
-        <td>未所属</td>
-        <td>指定削除の入力に含まれるが、現在はチームにいない人</td>
-        <td>追加も削除もされません</td>
-    </tr>
-    <tr>
-        <td>エラー</td>
-        <td>人を特定できなかった入力</td>
-        <td>メールアドレスへ直すなどして解消します</td>
-    </tr>
-    </tbody>
+<colgroup>
+<col style="width: 9%" />
+<col style="width: 50%" />
+<col style="width: 39%" />
+</colgroup>
+<thead>
+<tr>
+<th>表示</th>
+<th>意味</th>
+<th>確認すること</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>追加</td>
+<td>チームへ追加する人</td>
+<td>人物とメールアドレスが正しいか</td>
+</tr>
+<tr>
+<td>削除</td>
+<td>チームから削除する一般メンバー</td>
+<td>本当に削除してよいか</td>
+</tr>
+<tr>
+<td>変更なし</td>
+<td>すでにチームにいる人</td>
+<td>通常は対応不要です</td>
+</tr>
+<tr>
+<td>保護</td>
+<td>チームの所有者</td>
+<td>削除されません</td>
+</tr>
+<tr>
+<td>未所属</td>
+<td>指定削除の入力に含まれるが、現在はチームにいない人</td>
+<td>追加も削除もされません</td>
+</tr>
+<tr>
+<td>エラー</td>
+<td>人を特定できなかった入力</td>
+<td>メールアドレスへ直すなどして解消します</td>
+</tr>
+</tbody>
 </table>
 <p>「表示」から、追加のみ、削除のみ、エラーのみなどへ絞り込めます。列見出しを押すと並べ替えられます。</p>
 <p>エラーが1件でもある場合はチームへ反映できません。入力を修正して読み込み直し、もう一度差分を確認してください。</p>
 <h3 id="チームに反映する">6. チームに反映する</h3>
 <p>差分を確認したら「チームに反映」を押します。最終確認画面で、次の項目をもう一度確認してください。</p>
 <ul>
-    <li>対象チーム</li>
-    <li>同期モード</li>
-    <li>入力元</li>
-    <li>追加人数</li>
-    <li>削除人数</li>
+<li>対象チーム</li>
+<li>同期モード</li>
+<li>入力元</li>
+<li>追加人数</li>
+<li>削除人数</li>
 </ul>
-<p>
-    削除がある場合は、同期モードにかかわらず削除対象者が表示されます。11名以上の場合は先頭10名と残りの人数が表示されるため、全員分は差分一覧で確認してください。内容を確認したうえで「チームに反映」を押します。</p>
+<p>削除がある場合は、同期モードにかかわらず削除対象者が表示されます。11名以上の場合は先頭10名と残りの人数が表示されるため、全員分は差分一覧で確認してください。内容を確認したうえで「チームに反映」を押します。</p>
 <p>同期中は進み具合と現在処理している人が表示されます。「キャンセル」または<code>Esc</code>キーで中止できます。</p>
 <div class="callout important">
-    <p><strong>重要</strong></p>
-    <p>
-        中止するまでに完了した追加・削除は元に戻りません。中止後は必ず、もう一度「差分を確認」を押してTeams側の最新状態を確認してください。</p>
+<p><strong>重要</strong></p>
+<p>中止するまでに完了した追加・削除は元に戻りません。中止後は必ず、もう一度「差分を確認」を押してTeams側の最新状態を確認してください。</p>
 </div>
 <h3 id="結果を確認する">7. 結果を確認する</h3>
 <p>同期後、画面下部のメッセージと差分一覧を確認します。</p>
 <ul>
-    <li>すべて成功した場合:
-        Teams側の状態が再確認され、残りの差分がなければ完了です。
-    </li>
-    <li>一部失敗した場合:
-        成功した変更はそのまま残ります。画面に表示された未反映件数を確認し、必要に応じて再実行します。
-    </li>
-    <li>中止した場合:
-        処理済み件数を確認し、改めて「差分を確認」を押します。
-    </li>
-    <li>最新状態を確認できなかった場合:
-        通信を確認してから「差分を確認」を押します。
-    </li>
+<li>すべて成功した場合:
+Teams側の状態が再確認され、残りの差分がなければ完了です。</li>
+<li>一部失敗した場合:
+成功した変更はそのまま残ります。画面に表示された未反映件数を確認し、必要に応じて再実行します。</li>
+<li>中止した場合:
+処理済み件数を確認し、改めて「差分を確認」を押します。</li>
+<li>最新状態を確認できなかった場合:
+通信を確認してから「差分を確認」を押します。</li>
 </ul>
 <p>失敗、キャンセル、未反映が残った場合は「失敗・未実行分を再確認」を押すと、Teams側の最新状態から差分を作り直せます。</p>
-<p>今回実行した各操作の成功・失敗は、<code>%LocalAppData%\TeamsSync\Logs</code>へ実行日時・実行ID・対象チーム名を付けたCSVファイルとして自動で記録されます。同期完了通知の「同期結果CSVを開く」ボタン、または画面下部の同名リンクから該当ファイルを直接開けます。
-</p>
-<p>
-    同期を途中でキャンセルした場合も、実行前に予定されていた追加・削除をすべて記録します。処理へ着手しなかった対象は結果欄に「未実行」と表示されます。キャンセル直前の操作はTeams側へ反映されている可能性があるため、CSVだけで再実行せず、必ず「差分を確認」で最新状態を取得してください。</p>
+<p>今回実行した各操作の成功・失敗は、<code>%LocalAppData%\TeamsSync\Logs</code>
+へ実行日時・実行ID・対象チーム名を付けたCSVファイルとして自動で記録されます。同期完了通知の「同期結果CSVを開く」ボタン、または画面下部の同名リンクから該当ファイルを直接開けます。</p>
+<p>同期を途中でキャンセルした場合も、実行前に予定されていた追加・削除をすべて記録します。処理へ着手しなかった対象は結果欄に「未実行」と表示されます。キャンセル直前の操作はTeams側へ反映されている可能性があるため、CSVだけで再実行せず、必ず「差分を確認」で最新状態を取得してください。</p>
 </body>
 </html>
