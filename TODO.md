@@ -35,6 +35,16 @@ TeamsSync の今後の改善項目。メンバー削除を伴うアプリケー�
 
 ## 優先度: 中
 
+### 同期判定の業務ルールをDomain Modelへ集約する
+
+- [ ] `TeamSyncService`の`ClassifyResolutions`、`ClassifyExistingMember`、`ComputeRemovals`から、Graphアクセスに依存しない同期差分の判定をDomain層の`SyncPlanFactory`等へ移す
+- [ ] 現在メンバーのメールアドレス・正規化氏名・ユーザーIDによる検索と、メンバーシップスナップショット生成を`TeamRoster`等のDomain Modelへ集約する
+- [ ] `ValidateExecutablePlan`のモード別実行可否判定を`SyncPlan`の不変条件または検証メソッドとして表現する
+- [ ] `PlansAreEquivalent`の同期プラン同値性判定を`SyncPlan`へ移し、再検証のオーケストレーションだけをApplication層へ残す
+- [ ] 所有者保護、追加のみ、指定削除、完全同期、曖昧・未解決ユーザー、重複入力、プラン同値性の既存挙動をDomain層の単体テストで固定する
+
+完了条件: Graph通信、並列制御、進捗通知、ログをApplication/Infrastructure層に維持しながら、同期差分・実行可否・プラン同値性の業務ルールがDomain層だけでテストできる。
+
 ### 初回利用時の操作順序と同期モードを分かりやすくする
 
 - [x] 画面上の手順番号と実際の操作順を一致させ、無番号の「同期モード」を独立した手順として扱う（「同期モード」を専用カードへ分離し「3 同期モード」、差分カードを「4 同期差分」へ繰り上げた）
