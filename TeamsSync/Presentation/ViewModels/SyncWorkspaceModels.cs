@@ -87,7 +87,7 @@ public sealed record SyncChangeRowViewModel(SyncChange Change)
     {
         ChangeKind.Add => "追加", ChangeKind.Remove => "削除", ChangeKind.Keep => "維持",
         ChangeKind.Protected => "所有者保護", ChangeKind.NotMember => "未所属",
-        ChangeKind.Error => "エラー", _ => Kind.ToString()
+        ChangeKind.Error => "エラー", ChangeKind.Excluded => "個別除外", _ => Kind.ToString()
     };
 
     /// <summary>対象ユーザーの表示名。</summary>
@@ -115,6 +115,7 @@ internal static class SyncChangeReasonText
         ChangeReason.NotCurrentMember => "現在このチームに所属していません",
         ChangeReason.AddToTeam => "メンバーに追加します",
         ChangeReason.RemoveNotInInput => "リストにないため削除します",
+        ChangeReason.ManuallyExcluded => "個別に除外したため変更しません",
         _ => ""
     };
 }

@@ -39,7 +39,10 @@ public enum ChangeKind
     NotMember,
 
     /// <summary>アドレスの解決に失敗した(未解決)。</summary>
-    Error
+    Error,
+
+    /// <summary>利用者が個別に除外したため、追加・削除の対象外になった。</summary>
+    Excluded
 }
 
 /// <summary>同期差分がその状態になった業務上の理由。</summary>
@@ -55,7 +58,8 @@ public enum ChangeReason
     AlreadyMemberDifferentIdentifier,
     NotCurrentMember,
     AddToTeam,
-    RemoveNotInInput
+    RemoveNotInInput,
+    ManuallyExcluded
 }
 
 /// <summary>同期の実行モード。</summary>
@@ -127,6 +131,9 @@ public sealed record SyncPlan(
     /// <summary>未解決(エラー)の件数。</summary>
     public int ErrorCount => Changes.Count(x => x.Kind == ChangeKind.Error);
 
+    /// <summary>利用者が個別に除外した件数。</summary>
+    public int ExcludedCount => Changes.Count(x => x.Kind == ChangeKind.Excluded);
+
     /// <summary>未解決の変更が1件以上あるかどうか。</summary>
     public bool HasErrors => ErrorCount > 0;
 
@@ -138,6 +145,21 @@ public sealed record SyncPlan(
         Changes.Where(x => x.Kind is ChangeKind.Add or ChangeKind.Remove).ToList();
 
     /// <summary>
+    ///     選択した同期モードと、含まれる追加・削除の内容が矛盾していないかどうか。
+    ///     「追加のみ」モードでの削除、「指定メンバーを削除」モードでの追加は矛盾とみなす。
+    ///     <see cref="EnsureExecutable" />と<see cref="CanExecute" />が共通してこの判定を使う。
+    /// </summary>
+    private bool IsModeConsistent => Mode switch
+    {
+        SyncMode.AddOnly => RemoveCount == 0,
+        SyncMode.RemoveSpecified => AddCount == 0,
+        _ => true
+    };
+
+    /// <summary>未解決の変更がなく、モードと矛盾せず、かつ実行対象の変更が1件以上あるため実行可能かどうか。</summary>
+    public bool CanExecute => !HasErrors && !HasNoActionableChanges && IsModeConsistent;
+
+    /// <summary>
     ///     未解決の変更がある場合、または選択した同期モードと矛盾する追加・削除が含まれる場合に例外をスローする。
     /// </summary>
     public void EnsureExecutable()
@@ -147,15 +169,35 @@ public sealed record SyncPlan(
             throw new InvalidOperationException("未解決ユーザーがあります。同期は実行できません。");
         }
 
-        if (Mode == SyncMode.AddOnly && RemoveCount > 0)
+        if (!IsModeConsistent)
         {
-            throw new InvalidOperationException("追加のみモードではメンバーを削除できません。");
+            throw new InvalidOperationException(Mode == SyncMode.AddOnly
+                ? "追加のみモードではメンバーを削除できません。"
+                : "指定メンバー削除モードではメンバーを追加できません。");
+        }
+    }
+
+    /// <summary>
+    ///     指定したユーザーID群を追加・削除の対象から個別に除外した新しい同期プランを返す。
+    ///     除外された項目は<see cref="ChangeKind.Excluded" />として一覧には残るが、
+    ///     <see cref="Operations" />・<see cref="AddCount" />・<see cref="RemoveCount" />には含まれず、
+    ///     モード整合・所有者保護・件数整合(<see cref="CurrentMemberCount" />・
+    ///     <see cref="MembershipSnapshot" />)は変化しない。
+    /// </summary>
+    public SyncPlan WithoutChanges(IReadOnlyCollection<string> userIds)
+    {
+        if (userIds.Count == 0)
+        {
+            return this;
         }
 
-        if (Mode == SyncMode.RemoveSpecified && AddCount > 0)
-        {
-            throw new InvalidOperationException("指定メンバー削除モードではメンバーを追加できません。");
-        }
+        HashSet<string> excluded = new(userIds, StringComparer.OrdinalIgnoreCase);
+        List<SyncChange> updated = Changes.Select(change =>
+            change.Kind is ChangeKind.Add or ChangeKind.Remove &&
+            change.UserId is not null && excluded.Contains(change.UserId)
+                ? change with { Kind = ChangeKind.Excluded, Reason = ChangeReason.ManuallyExcluded }
+                : change).ToList();
+        return this with { Changes = updated };
     }
 
     /// <summary>

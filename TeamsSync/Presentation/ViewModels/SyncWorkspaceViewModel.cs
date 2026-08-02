@@ -192,7 +192,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     public bool HasChanges => Changes.Count > 0;
 
     /// <summary>差分一覧に未解決(エラー)の項目があるかどうか。</summary>
-    public bool HasErrors => Changes.Any(change => change.Kind == ChangeKind.Error);
+    public bool HasErrors => _plan?.HasErrors ?? false;
 
     /// <summary>同期を実行できない理由の説明文(実行可能な場合はその旨)。</summary>
     public string SyncUnavailableReason => GetSyncUnavailableReason();
@@ -675,8 +675,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
     private bool CanExecuteSync()
     {
-        return !_externallyBusy && !IsBusy && !IsSyncing &&
-               _plan is { HasErrors: false } && !_plan.HasNoActionableChanges;
+        return !_externallyBusy && !IsBusy && !IsSyncing && (_plan?.CanExecute ?? false);
     }
 
     /// <summary>現在の状態から、同期を実行できない理由(または実行可能である旨)を判定する。</summary>

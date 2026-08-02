@@ -121,6 +121,42 @@ public sealed class SyncPlanFactoryTests
         Assert.Equal("taro@example.com ／ 山田太郎", change.Email);
     }
 
+    [Fact]
+    public void Create_最新Rosterから再計画すると実行済みの変更は差分に含まれない()
+    {
+        // 「追加+削除」プランのうち追加だけがGraphへ反映され、削除は失敗したと仮定する。
+        // 実行後の最新Rosterを渡して同じ入力から再計画すると、既に反映済みの追加は
+        // 現メンバーとして解決されて消え、未反映の削除だけが差分として残ることを確認する。
+        TeamMember stale = Member("old-membership", "old-id", "Old", "old@example.com");
+        TeamRoster rosterBeforeExecution = new([stale]);
+        DirectoryUser newUser = new("new-id", "New", "new@example.com", "new@example.com");
+        AddressResolution[] resolutionsBeforeExecution =
+        [
+            new AddressResolution(ResolutionOutcome.NewUser, "new@example.com", User: newUser)
+        ];
+        SyncPlan preview = SyncPlanFactory.Create(Team, rosterBeforeExecution, resolutionsBeforeExecution,
+            SyncMode.FullSync, ["new@example.com"]);
+        Assert.Equal(1, preview.AddCount);
+        Assert.Equal(1, preview.RemoveCount);
+
+        TeamRoster rosterAfterExecution = new([
+            Member("old-membership", "old-id", "Old", "old@example.com"),
+            Member("new-membership", "new-id", "New", "new@example.com")
+        ]);
+        AddressResolution[] resolutionsAfterExecution =
+        [
+            new AddressResolution(ResolutionOutcome.ExistingSingle, "new@example.com",
+                rosterAfterExecution.FindByUserId("new-id"))
+        ];
+        SyncPlan remaining = SyncPlanFactory.Create(Team, rosterAfterExecution, resolutionsAfterExecution,
+            SyncMode.FullSync, ["new@example.com"]);
+
+        Assert.Equal(0, remaining.AddCount);
+        Assert.Equal(1, remaining.RemoveCount);
+        Assert.Equal("old-membership", Assert.Single(remaining.Changes,
+            change => change.Kind == ChangeKind.Remove).MembershipId);
+    }
+
     private static TeamMember Member(string membershipId, string userId, string name, string email,
         bool owner = false)
     {

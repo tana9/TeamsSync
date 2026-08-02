@@ -157,9 +157,10 @@ public sealed class WpfSyncConfirmationService(
             Margin = new Thickness(0, 12, 0, 0),
             TextWrapping = TextWrapping.Wrap
         });
+        string excludedSuffix = plan.ExcludedCount > 0 ? $" ／ 個別除外 {plan.ExcludedCount}名" : "";
         TextBlock secondaryCounts = new()
         {
-            Text = $"変更なし {plan.KeepCount}名 ／ 所有者保護 {plan.ProtectedCount}名",
+            Text = $"変更なし {plan.KeepCount}名 ／ 所有者保護 {plan.ProtectedCount}名{excludedSuffix}",
             Margin = new Thickness(0, 2, 0, 0),
             TextWrapping = TextWrapping.Wrap
         };

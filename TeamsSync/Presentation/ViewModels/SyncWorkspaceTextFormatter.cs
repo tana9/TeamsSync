@@ -177,8 +177,9 @@ public static class SyncWorkspaceTextFormatter
     /// <summary>同期プランから、件数サマリーと削除警告(タイトル・本文)を組み立てる。</summary>
     public static PlanPresentation BuildPlan(SyncPlan plan)
     {
+        string excludedSuffix = plan.ExcludedCount > 0 ? $" / 除外 {plan.ExcludedCount}" : "";
         return new PlanPresentation(
-            $"追加 {plan.AddCount} / 削除 {plan.RemoveCount} / 変更なし {plan.KeepCount} / 所有者 {plan.ProtectedCount} / 未所属 {plan.NotMemberCount} / エラー {plan.ErrorCount}",
+            $"追加 {plan.AddCount} / 削除 {plan.RemoveCount} / 変更なし {plan.KeepCount} / 所有者 {plan.ProtectedCount} / 未所属 {plan.NotMemberCount} / エラー {plan.ErrorCount}{excludedSuffix}",
             "削除対象があります",
             plan.Mode == SyncMode.RemoveSpecified
                 ? $"入力リストで指定した一般メンバー {plan.RemoveCount}名を削除します。"

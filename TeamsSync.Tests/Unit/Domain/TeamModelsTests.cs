@@ -99,6 +99,161 @@ public sealed class TeamModelsTests
     }
 
     [Fact]
+    public void SyncPlan_CanExecute_未解決ユーザーがある場合はfalse()
+    {
+        SyncPlan plan = new(Team,
+            [new SyncChange(ChangeKind.Error, "不明太郎", "unknown@example.com", ChangeReason.UserNotFound)], []);
+
+        Assert.False(plan.CanExecute);
+    }
+
+    [Fact]
+    public void SyncPlan_CanExecute_実行対象の変更が1件もない場合はfalse()
+    {
+        SyncPlan plan = new(Team,
+            [new SyncChange(ChangeKind.Keep, "維持太郎", "keep@example.com", ChangeReason.AlreadyMember)], []);
+
+        Assert.False(plan.CanExecute);
+    }
+
+    [Fact]
+    public void SyncPlan_CanExecute_追加のみモードで削除が含まれる場合はfalse()
+    {
+        SyncPlan plan = new(Team,
+            [new SyncChange(ChangeKind.Remove, "削除太郎", "remove@example.com", ChangeReason.RemoveSpecified)], [],
+            Mode: SyncMode.AddOnly);
+
+        Assert.False(plan.CanExecute);
+    }
+
+    [Fact]
+    public void SyncPlan_CanExecute_指定削除モードで追加が含まれる場合はfalse()
+    {
+        SyncPlan plan = new(Team,
+            [new SyncChange(ChangeKind.Add, "追加太郎", "add@example.com", ChangeReason.AddToTeam)], [],
+            Mode: SyncMode.RemoveSpecified);
+
+        Assert.False(plan.CanExecute);
+    }
+
+    [Fact]
+    public void SyncPlan_CanExecute_未解決がなくモードと矛盾せず実行対象がある場合はtrue()
+    {
+        SyncPlan plan = new(Team,
+            [new SyncChange(ChangeKind.Add, "追加太郎", "add@example.com", ChangeReason.AddToTeam)], []);
+
+        Assert.True(plan.CanExecute);
+    }
+
+    [Fact]
+    public void SyncPlan_WithoutChanges_指定したユーザーIDの追加をExcludedへ変更する()
+    {
+        SyncPlan plan = new(Team,
+        [
+            new SyncChange(ChangeKind.Add, "追加太郎", "add@example.com", ChangeReason.AddToTeam, "u1"),
+            new SyncChange(ChangeKind.Add, "追加次郎", "add2@example.com", ChangeReason.AddToTeam, "u2")
+        ], ["add@example.com", "add2@example.com"]);
+
+        SyncPlan excluded = plan.WithoutChanges(["u1"]);
+
+        SyncChange excludedChange = Assert.Single(excluded.Changes, x => x.UserId == "u1");
+        Assert.Equal(ChangeKind.Excluded, excludedChange.Kind);
+        Assert.Equal(ChangeReason.ManuallyExcluded, excludedChange.Reason);
+        SyncChange remaining = Assert.Single(excluded.Changes, x => x.UserId == "u2");
+        Assert.Equal(ChangeKind.Add, remaining.Kind);
+        Assert.Equal(1, excluded.AddCount);
+        Assert.Equal(1, excluded.ExcludedCount);
+    }
+
+    [Fact]
+    public void SyncPlan_WithoutChanges_指定したユーザーIDの削除をExcludedへ変更する()
+    {
+        SyncPlan plan = new(Team,
+            [new SyncChange(ChangeKind.Remove, "削除太郎", "remove@example.com", ChangeReason.RemoveNotInInput, "u1",
+                "m1")], []);
+
+        SyncPlan excluded = plan.WithoutChanges(["u1"]);
+
+        SyncChange change = Assert.Single(excluded.Changes);
+        Assert.Equal(ChangeKind.Excluded, change.Kind);
+        Assert.Equal(0, excluded.RemoveCount);
+        Assert.Equal(1, excluded.ExcludedCount);
+    }
+
+    [Fact]
+    public void SyncPlan_WithoutChanges_一致しないユーザーIDは変更しない()
+    {
+        SyncPlan plan = new(Team,
+            [new SyncChange(ChangeKind.Add, "追加太郎", "add@example.com", ChangeReason.AddToTeam, "u1")], []);
+
+        SyncPlan result = plan.WithoutChanges(["other-user"]);
+
+        Assert.Equal(ChangeKind.Add, Assert.Single(result.Changes).Kind);
+        Assert.Equal(0, result.ExcludedCount);
+    }
+
+    [Fact]
+    public void SyncPlan_WithoutChanges_ユーザーID比較は大文字小文字を区別しない()
+    {
+        SyncPlan plan = new(Team,
+            [new SyncChange(ChangeKind.Add, "追加太郎", "add@example.com", ChangeReason.AddToTeam, "USER-1")], []);
+
+        SyncPlan result = plan.WithoutChanges(["user-1"]);
+
+        Assert.Equal(ChangeKind.Excluded, Assert.Single(result.Changes).Kind);
+    }
+
+    [Fact]
+    public void SyncPlan_WithoutChanges_追加削除以外の種別はUserIdが一致しても変更しない()
+    {
+        SyncPlan plan = new(Team,
+            [new SyncChange(ChangeKind.Protected, "所有太郎", "owner@example.com", ChangeReason.OwnerProtected, "u1")],
+            []);
+
+        SyncPlan result = plan.WithoutChanges(["u1"]);
+
+        Assert.Equal(ChangeKind.Protected, Assert.Single(result.Changes).Kind);
+        Assert.Equal(0, result.ExcludedCount);
+    }
+
+    [Fact]
+    public void SyncPlan_WithoutChanges_除外対象が空の場合は同一インスタンスを返す()
+    {
+        SyncPlan plan = new(Team,
+            [new SyncChange(ChangeKind.Add, "追加太郎", "add@example.com", ChangeReason.AddToTeam, "u1")], []);
+
+        SyncPlan result = plan.WithoutChanges([]);
+
+        Assert.Same(plan, result);
+    }
+
+    [Fact]
+    public void SyncPlan_WithoutChanges_全件除外すると実行対象がなくなり実行不可になる()
+    {
+        SyncPlan plan = new(Team,
+            [new SyncChange(ChangeKind.Add, "追加太郎", "add@example.com", ChangeReason.AddToTeam, "u1")], []);
+
+        SyncPlan excluded = plan.WithoutChanges(["u1"]);
+
+        Assert.True(excluded.HasNoActionableChanges);
+        Assert.False(excluded.CanExecute);
+    }
+
+    [Fact]
+    public void SyncPlan_WithoutChanges_CurrentMemberCountとMembershipSnapshotは変化しない()
+    {
+        IReadOnlyList<TeamMembershipSnapshot> snapshot = [new TeamMembershipSnapshot("m1", "u1", false)];
+        SyncPlan plan = new(Team,
+            [new SyncChange(ChangeKind.Add, "追加太郎", "add@example.com", ChangeReason.AddToTeam, "u2")], [],
+            CurrentMemberCount: 5, MembershipSnapshot: snapshot);
+
+        SyncPlan excluded = plan.WithoutChanges(["u2"]);
+
+        Assert.Equal(5, excluded.CurrentMemberCount);
+        Assert.Equal(snapshot, excluded.MembershipSnapshot);
+    }
+
+    [Fact]
     public void SyncPlan_IsEquivalentTo_モードが異なる場合はfalse()
     {
         SyncPlan preview = new(Team, [], [], Mode: SyncMode.AddOnly);
