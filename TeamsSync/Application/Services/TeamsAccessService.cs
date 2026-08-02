@@ -29,19 +29,6 @@ public sealed class TeamsAccessService(ITeamsGateway teamsGateway)
         teamsGateway.ClearOwnedTeamsCache(currentUserId);
     }
 
-    public async Task<TeamsConnectionDiagnostics> RunDiagnosticsAsync(
-        CancellationToken cancellationToken = default)
-    {
-        CurrentUser user = await GetCurrentUserAsync(cancellationToken);
-        IReadOnlyList<TeamInfo> teams = await GetOwnedTeamsAsync(user.Id, cancellationToken: cancellationToken);
-        int memberCount = teams.Count == 0
-            ? 0
-            : (await teamsGateway.GetTeamMembersAsync(teams[0].Id, cancellationToken)).Count;
-        IReadOnlyList<DirectoryUser> users = await teamsGateway.FindUsersAsync(
-            user.UserPrincipalName, cancellationToken);
-        return new TeamsConnectionDiagnostics(teams.Count, memberCount, users.Count);
-    }
-
     public async Task<CurrentMemberImport?> ImportCurrentMembersAsync(TeamInfo team,
         CancellationToken cancellationToken = default)
     {
