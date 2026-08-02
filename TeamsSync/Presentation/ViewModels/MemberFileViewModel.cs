@@ -24,8 +24,8 @@ public partial class MemberFileViewModel : ObservableObject
     private readonly IMemberTextParser _textParser;
     private bool _enabled = true;
     private MemberListDocument? _fileDocument;
-    private CancellationTokenSource? _loadCancellation;
-    private CancellationTokenSource? _parseCancellation;
+    private readonly RestartableCancellation _loadCancellation = new();
+    private readonly RestartableCancellation _parseCancellation = new();
 
     /// <summary>コンストラクター。</summary>
     public MemberFileViewModel(IMemberListReader reader, IMemberTextParser textParser,
@@ -198,10 +198,7 @@ public partial class MemberFileViewModel : ObservableObject
     /// </summary>
     private async Task Load(string path)
     {
-        _loadCancellation?.Cancel();
-        _loadCancellation?.Dispose();
-        CancellationTokenSource cts = new();
-        _loadCancellation = cts;
+        CancellationTokenSource cts = _loadCancellation.Begin();
         IsLoadingFile = true;
         FilePath = path;
         FileInfoText = "ファイルを読み込んでいます…";
@@ -249,12 +246,7 @@ public partial class MemberFileViewModel : ObservableObject
         finally
         {
             IsLoadingFile = false;
-            if (ReferenceEquals(_loadCancellation, cts))
-            {
-                _loadCancellation = null;
-            }
-
-            cts.Dispose();
+            _loadCancellation.End(cts);
             NotifyFileLoadCommandsCanExecuteChanged();
         }
     }
@@ -263,12 +255,12 @@ public partial class MemberFileViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanCancelLoad))]
     private void CancelLoad()
     {
-        _loadCancellation?.Cancel();
+        _loadCancellation.Cancel();
     }
 
     private bool CanCancelLoad()
     {
-        return IsLoadingFile && _loadCancellation is not null;
+        return IsLoadingFile && _loadCancellation.IsActive;
     }
 
     /// <summary>ファイルから読み取った識別子を1行1件のテキストへコピーし、編集できる状態にする。</summary>
@@ -327,10 +319,7 @@ public partial class MemberFileViewModel : ObservableObject
             return;
         }
 
-        _parseCancellation?.Cancel();
-        _parseCancellation?.Dispose();
-        CancellationTokenSource cts = new();
-        _parseCancellation = cts;
+        CancellationTokenSource cts = _parseCancellation.Begin();
         string text = PastedText;
         IsParsing = true;
         IsPasteError = false;
@@ -370,24 +359,19 @@ public partial class MemberFileViewModel : ObservableObject
             IsParsing = false;
             ApplyPastedTextInputCommand.NotifyCanExecuteChanged();
             CancelParsingCommand.NotifyCanExecuteChanged();
-            if (ReferenceEquals(_parseCancellation, cts))
-            {
-                _parseCancellation = null;
-            }
-
-            cts.Dispose();
+            _parseCancellation.End(cts);
         }
     }
 
     [RelayCommand(CanExecute = nameof(CanCancelParsing))]
     private void CancelParsing()
     {
-        _parseCancellation?.Cancel();
+        _parseCancellation.Cancel();
     }
 
     private bool CanCancelParsing()
     {
-        return IsParsing && _parseCancellation is not null;
+        return IsParsing && _parseCancellation.IsActive;
     }
 
     private bool CanApplyPastedText()

@@ -18,7 +18,7 @@ public partial class TeamMemberImportViewModel : ObservableObject
     private readonly INotificationService _notifications;
     private readonly TeamsAccessService _teamsAccess;
     private readonly IMemberTextParser _textParser;
-    private CancellationTokenSource? _importCancellation;
+    private readonly RestartableCancellation _importCancellation = new();
     private TeamInfo? _selectedTeam;
 
     /// <summary>
@@ -66,7 +66,7 @@ public partial class TeamMemberImportViewModel : ObservableObject
     {
         if (_selectedTeam?.Id != team?.Id)
         {
-            _importCancellation?.Cancel();
+            _importCancellation.Cancel();
         }
 
         _selectedTeam = team;
@@ -90,10 +90,7 @@ public partial class TeamMemberImportViewModel : ObservableObject
         }
 
         TeamInfo team = _selectedTeam;
-        _importCancellation?.Cancel();
-        _importCancellation?.Dispose();
-        CancellationTokenSource cts = new();
-        _importCancellation = cts;
+        CancellationTokenSource cts = _importCancellation.Begin();
         IsImportingMembers = true;
         NotifyCanExecuteChanged();
         try
@@ -131,12 +128,7 @@ public partial class TeamMemberImportViewModel : ObservableObject
         finally
         {
             IsImportingMembers = false;
-            if (ReferenceEquals(_importCancellation, cts))
-            {
-                _importCancellation = null;
-            }
-
-            cts.Dispose();
+            _importCancellation.End(cts);
             NotifyCanExecuteChanged();
         }
     }
@@ -187,12 +179,12 @@ public partial class TeamMemberImportViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanCancelImportCurrentMembers))]
     private void CancelImportCurrentMembers()
     {
-        _importCancellation?.Cancel();
+        _importCancellation.Cancel();
     }
 
     private bool CanCancelImportCurrentMembers()
     {
-        return IsImportingMembers && _importCancellation is not null;
+        return IsImportingMembers && _importCancellation.IsActive;
     }
 
 }
