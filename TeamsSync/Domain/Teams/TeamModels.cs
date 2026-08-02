@@ -129,4 +129,7 @@ public sealed record SyncPlan(
 
     /// <summary>未解決の変更が1件以上あるかどうか。</summary>
     public bool HasErrors => ErrorCount > 0;
+
+    /// <summary>未解決の変更がなく、追加・削除される一般メンバーも1人もいないかどうか。</summary>
+    public bool HasNoActionableChanges => !HasErrors && AddCount == 0 && RemoveCount == 0;
 }

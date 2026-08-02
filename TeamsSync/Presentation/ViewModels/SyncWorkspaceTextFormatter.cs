@@ -125,7 +125,7 @@ public static class SyncWorkspaceTextFormatter
             return "未解決ユーザーを修正してください";
         }
 
-        if (plan.AddCount + plan.RemoveCount == 0)
+        if (plan.HasNoActionableChanges)
         {
             return "実行する変更はありません";
         }
@@ -169,7 +169,7 @@ public static class SyncWorkspaceTextFormatter
             return "未解決ユーザーがあります。リストを修正してください";
         }
 
-        return plan.AddCount + plan.RemoveCount == 0
+        return plan.HasNoActionableChanges
             ? "変更はありません。すでに同期済みです"
             : $"追加 {plan.AddCount}件・削除 {plan.RemoveCount}件です。内容を確認してください";
     }

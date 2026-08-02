@@ -248,7 +248,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     // 現在のフィルター後のビュー(ChangesView)が空かどうかもあわせて判定する。
     /// <summary>差分確認の結果、追加・削除ともに0件で新たに行う変更がなく、かつ現在のフィルターでは一覧に何も表示されないかどうか。</summary>
     public bool HasNoChangesToApply =>
-        _plan is { HasErrors: false, AddCount: 0, RemoveCount: 0 } && !ChangesView.Cast<object>().Any();
+        _plan is not null && _plan.HasNoActionableChanges && !ChangesView.Cast<object>().Any();
 
     /// <summary>変更なし(同期済み)の場合に一覧領域へ表示する案内文。</summary>
     public string NoChangesMessage => _plan is null ? "" : SyncWorkspaceTextFormatter.BuildPreviewStatusText(_plan);
@@ -675,7 +675,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     private bool CanExecuteSync()
     {
         return !_externallyBusy && !IsBusy && !IsSyncing &&
-               _plan is { HasErrors: false } && (_plan.AddCount > 0 || _plan.RemoveCount > 0);
+               _plan is { HasErrors: false } && !_plan.HasNoActionableChanges;
     }
 
     /// <summary>現在の状態から、同期を実行できない理由(または実行可能である旨)を判定する。</summary>
@@ -795,7 +795,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             StatusChanged?.Invoke(SyncWorkspaceTextFormatter.BuildPreviewStatusText(plan), plan.HasErrors);
             // 変更あり・エラーありは差分一覧にその内容が表示されるため見た目で気づけるが、
             // 変更なし(既に同期済み)は一覧が実質空のままで手がかりが他にないため、Snackbarでも知らせる。
-            if (!plan.HasErrors && plan.AddCount + plan.RemoveCount == 0)
+            if (plan.HasNoActionableChanges)
             {
                 _notifications.ShowSuccess("変更はありません", "すでに同期済みです。");
             }
