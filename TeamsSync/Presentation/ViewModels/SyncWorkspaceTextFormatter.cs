@@ -41,14 +41,6 @@ public static class SyncWorkspaceTextFormatter
             : $"先頭: {string.Join(" / ", document.Addresses.Take(5))}";
     }
 
-    /// <summary>検出された列がメールアドレスではなく氏名の列かどうかを判定する。</summary>
-    public static bool IsNameColumn(MemberListDocument? document)
-    {
-        return document is not null &&
-               new[] { "name", "displayname", "氏名", "姓名", "名前" }.Contains(
-                   document.DetectedColumn.Replace("_", "").Replace(" ", "").ToLowerInvariant());
-    }
-
     /// <summary>差分未確認時に表示する案内メッセージを、現在の状態に応じて組み立てる。</summary>
     public static string BuildEmptyStateMessage(bool signedIn, TeamInfo? team, MemberListDocument? document)
     {

@@ -89,6 +89,42 @@ public sealed class TeamRosterTests
         Assert.Equal(["m1", "m2"], snapshot.Select(x => x.MembershipId));
     }
 
+    [Fact]
+    public void ImportableMembers_所有者を除きメールアドレス順に並べる()
+    {
+        TeamRoster roster = new(
+        [
+            Member("m1", "u1", "Bob", "bob@example.com"),
+            Member("m2", "u2", "Owner", "owner@example.com", true),
+            Member("m3", "u3", "Alice", "alice@example.com")
+        ]);
+
+        IReadOnlyList<TeamMember> importable = roster.ImportableMembers();
+
+        Assert.Equal(["alice@example.com", "bob@example.com"], importable.Select(x => x.Email));
+    }
+
+    [Fact]
+    public void ImportableMembers_メールアドレスがないメンバーを除く()
+    {
+        TeamRoster roster = new([Member("m1", "u1", "NoEmail", "")]);
+
+        Assert.Empty(roster.ImportableMembers());
+    }
+
+    [Fact]
+    public void ImportableMembers_メールアドレスの重複は先勝ちで1件にまとめる()
+    {
+        TeamRoster roster = new(
+        [
+            Member("m1", "u1", "First", "dup@example.com"),
+            Member("m2", "u2", "Second", "DUP@example.com")
+        ]);
+
+        TeamMember importable = Assert.Single(roster.ImportableMembers());
+        Assert.Equal("u1", importable.UserId);
+    }
+
     private static TeamMember Member(string membershipId, string userId, string name, string email,
         bool owner = false)
     {

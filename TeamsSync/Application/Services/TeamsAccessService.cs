@@ -33,28 +33,14 @@ public sealed class TeamsAccessService(ITeamsGateway teamsGateway)
         CancellationToken cancellationToken = default)
     {
         IReadOnlyList<TeamMember> members = await teamsGateway.GetTeamMembersAsync(team.Id, cancellationToken);
-        List<TeamMember> importable = members
-            .Where(member => !member.IsOwner && !string.IsNullOrWhiteSpace(member.Email))
-            .GroupBy(member => member.Email.Trim(), StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.First())
-            .OrderBy(member => member.Email, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        IReadOnlyList<TeamMember> importable = new TeamRoster(members).ImportableMembers();
         if (importable.Count == 0)
         {
             return null;
         }
 
-        string text = string.Join(Environment.NewLine, importable.Select(FormatImportedMember));
+        string text = string.Join(Environment.NewLine,
+            importable.Select(member => MemberIdentifierLine.FormatDisplayLine(member.DisplayName, member.Email)));
         return new CurrentMemberImport(team, importable, text);
-    }
-
-    private static string FormatImportedMember(TeamMember member)
-    {
-        string displayName = new string(member.DisplayName
-            .Select(character => char.IsControl(character) || character is '<' or '>' ? ' ' : character)
-            .ToArray()).Trim();
-        return string.IsNullOrWhiteSpace(displayName)
-            ? member.Email.Trim()
-            : $"{displayName} <{member.Email.Trim()}>";
     }
 }

@@ -85,28 +85,6 @@ public sealed class SyncWorkspaceTextFormatterTests
     }
 
     [Fact]
-    public void IsNameColumn_文書がnullの場合はfalse()
-    {
-        Assert.False(SyncWorkspaceTextFormatter.IsNameColumn(null));
-    }
-
-    [Theory]
-    [InlineData("email", false)]
-    [InlineData("name", true)]
-    [InlineData("displayName", true)]
-    [InlineData("氏名", true)]
-    [InlineData("姓名", true)]
-    [InlineData("名前", true)]
-    [InlineData("display_name", true)]
-    [InlineData("display name", true)]
-    public void IsNameColumn_検出列名が氏名系かどうかを正規化して判定する(string detectedColumn, bool expected)
-    {
-        MemberListDocument document = Document(detectedColumn: detectedColumn, addresses: ["a@example.com"]);
-
-        Assert.Equal(expected, SyncWorkspaceTextFormatter.IsNameColumn(document));
-    }
-
-    [Fact]
     public void BuildEmptyStateMessage_未サインインの場合はサインインを促す()
     {
         string text = SyncWorkspaceTextFormatter.BuildEmptyStateMessage(false, Team, Document());

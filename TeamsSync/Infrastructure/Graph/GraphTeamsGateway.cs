@@ -175,9 +175,8 @@ public sealed class GraphTeamsGateway : ITeamsGateway
             // 個別取得も失敗した場合(members=null)は、そのチームだけ所有者判定を諦めて
             // false扱いにする(一覧から除外)。動的Microsoft 365グループなどメンバーを
             // 直接取得できないチームが1件あっても、他の正常なチームの判定を継続できるようにする。
-            bool isOwner = members?.Any(member =>
-                member.IsOwner && string.Equals(member.UserId, currentUserId,
-                    StringComparison.OrdinalIgnoreCase)) ?? false;
+            bool isOwner = members is not null &&
+                           (new TeamRoster(members).FindByUserId(currentUserId)?.IsOwner ?? false);
             _ownershipCache.Set(currentUserId, team.Id, isOwner);
             ownership[index] = isOwner;
         }

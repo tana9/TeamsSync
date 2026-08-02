@@ -23,7 +23,7 @@ internal static class GraphResponseParser
                 Optional(x, "displayName") ?? "",
                 Optional(x, "email") ?? "",
                 x.TryGetProperty("roles", out JsonElement roles) &&
-                roles.EnumerateArray().Any(r => r.GetString() == "owner")))
+                HasOwnerRole(roles.EnumerateArray().Select(r => r.GetString()))))
             .ToList();
     }
 
@@ -36,8 +36,14 @@ internal static class GraphResponseParser
             return new TeamMember(Required(member.Id, "id"),
                 Required(user?.UserId ?? AdditionalString(member, "userId"), "userId"),
                 member.DisplayName ?? "", user?.Email ?? AdditionalString(member, "email") ?? "",
-                member.Roles?.Any(role => role == "owner") == true);
+                HasOwnerRole(member.Roles));
         }).ToList();
+    }
+
+    /// <summary>ロール一覧に"owner"が含まれるかどうかを判定する。</summary>
+    private static bool HasOwnerRole(IEnumerable<string?>? roles)
+    {
+        return roles?.Any(role => role == "owner") == true;
     }
 
     private static string? AdditionalString(GraphConversationMember member, string name)

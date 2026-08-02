@@ -92,28 +92,14 @@ public sealed class MemberTextParser : IMemberTextParser
     /// <summary>`表示名 &lt;メールアドレス&gt;`形式の場合は山括弧内だけを識別子として返す。</summary>
     private static string ParseLine(ReadOnlySpan<char> line, int lineNumber)
     {
-        ReadOnlySpan<char> trimmed = line.Trim();
-        if (trimmed.IsEmpty)
+        DisplayLineFormat format = MemberIdentifierLine.ParseDisplayLine(line, out string identifier);
+        return format switch
         {
-            return "";
-        }
-
-        int lastOpen = trimmed.LastIndexOf('<');
-        if (lastOpen < 0 && !trimmed.Contains('>'))
-        {
-            return trimmed.ToString();
-        }
-
-        if (lastOpen <= 0 || !trimmed.EndsWith(">") || trimmed.IndexOf('<') != lastOpen ||
-            trimmed.IndexOf('>') != trimmed.Length - 1)
-        {
-            throw new InvalidDataException(
-                $"{lineNumber}行目の表示名とメールアドレスの形式が正しくありません。表示名 <メールアドレス> の形式で入力してください。");
-        }
-
-        ReadOnlySpan<char> address = trimmed.Slice(lastOpen + 1, trimmed.Length - lastOpen - 2).Trim();
-        return address.IsEmpty
-            ? throw new InvalidDataException($"{lineNumber}行目の山括弧内にメールアドレスを入力してください。")
-            : address.ToString();
+            DisplayLineFormat.PlainIdentifier or DisplayLineFormat.BracketedIdentifier => identifier,
+            DisplayLineFormat.EmptyBracketedIdentifier => throw new InvalidDataException(
+                $"{lineNumber}行目の山括弧内にメールアドレスを入力してください。"),
+            _ => throw new InvalidDataException(
+                $"{lineNumber}行目の表示名とメールアドレスの形式が正しくありません。表示名 <メールアドレス> の形式で入力してください。")
+        };
     }
 }

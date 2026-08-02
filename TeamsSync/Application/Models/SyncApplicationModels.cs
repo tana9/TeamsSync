@@ -11,7 +11,8 @@ public sealed record MemberListDocument(
     DateTime LastModified,
     string SourceName,
     string DetectedColumn,
-    string ContentSha256 = "");
+    string ContentSha256 = "",
+    bool IsNameColumn = false);
 
 public sealed record SyncAuditContext(
     Guid ExecutionId,

@@ -60,7 +60,7 @@ public sealed class MemberListReader : IMemberListReader
 
             string initialHash = ComputeSha256(path);
             string extension = Path.GetExtension(path).ToLowerInvariant();
-            (IEnumerable<string> values, string source, string column) = extension switch
+            (IEnumerable<string> values, string source, string column, bool isNameColumn) = extension switch
             {
                 ".csv" => ReadCsv(path, cancellationToken),
                 ".xlsx" => ReadExcel(path, cancellationToken),
@@ -84,7 +84,7 @@ public sealed class MemberListReader : IMemberListReader
             }
 
             return new MemberListDocument(addresses, info.Name, info.FullName, info.LastWriteTime,
-                source, column, finalHash);
+                source, column, finalHash, isNameColumn);
         }
         catch (IOException ex) when (ex.HResult == SharingViolationHResult)
         {
@@ -94,7 +94,8 @@ public sealed class MemberListReader : IMemberListReader
     }
 
     /// <summary>CSVファイルを解析し、アドレス候補列を抽出する。</summary>
-    private static (IEnumerable<string>, string, string) ReadCsv(string path, CancellationToken cancellationToken)
+    private static (IEnumerable<string>, string, string, bool) ReadCsv(string path,
+        CancellationToken cancellationToken)
     {
         Encoding encoding = CsvEncodingDetector.Detect(path);
         using FileStream stream = OpenShared(path);
@@ -126,12 +127,13 @@ public sealed class MemberListReader : IMemberListReader
             throw new InvalidDataException($"{physicalRow}行目のCSV形式が正しくありません。引用符と列数を確認してください。", ex);
         }
 
-        (IEnumerable<string> Values, string Column) extracted = ExtractColumn(rows);
-        return (extracted.Values, "CSV", extracted.Column);
+        (IEnumerable<string> Values, string Column, bool IsNameColumn) extracted = ExtractColumn(rows);
+        return (extracted.Values, "CSV", extracted.Column, extracted.IsNameColumn);
     }
 
     /// <summary>Excelファイルの先頭ワークシートを解析し、アドレス候補列を抽出する。</summary>
-    private static (IEnumerable<string>, string, string) ReadExcel(string path, CancellationToken cancellationToken)
+    private static (IEnumerable<string>, string, string, bool) ReadExcel(string path,
+        CancellationToken cancellationToken)
     {
         using (FileStream archiveStream = OpenShared(path))
         {
@@ -157,38 +159,45 @@ public sealed class MemberListReader : IMemberListReader
             rows.Add(row.Cells(1, width).Select(c => c.GetFormattedString()).ToArray());
         }
 
-        (IEnumerable<string> Values, string Column) extracted = ExtractColumn(rows);
-        return (extracted.Values, sheet.Name, extracted.Column);
+        (IEnumerable<string> Values, string Column, bool IsNameColumn) extracted = ExtractColumn(rows);
+        return (extracted.Values, sheet.Name, extracted.Column, extracted.IsNameColumn);
     }
 
     /// <summary>
     ///     ヘッダー行からアドレス列(またはフォールバックの氏名列)を推定し、その列の値を抽出する。
     /// </summary>
-    private static (IEnumerable<string> Values, string Column) ExtractColumn(IReadOnlyList<string[]> rows)
+    private static (IEnumerable<string> Values, string Column, bool IsNameColumn) ExtractColumn(
+        IReadOnlyList<string[]> rows)
     {
         if (rows.Count == 0)
         {
-            return ([], "1列目");
+            return ([], "1列目", false);
         }
 
-        int index = FindPreferredColumn(rows[0]);
+        (int index, bool isNameColumn) = FindPreferredColumn(rows[0]);
         bool hasHeader = index >= 0;
         int column = hasHeader ? index : 0;
         string label = hasHeader ? rows[0][column].Trim() : "1列目（ヘッダーなし）";
-        return (rows.Skip(hasHeader ? 1 : 0).Where(r => r.Length > column).Select(r => r[column]), label);
+        return (rows.Skip(hasHeader ? 1 : 0).Where(r => r.Length > column).Select(r => r[column]), label,
+            hasHeader && isNameColumn);
     }
 
     /// <summary>
     ///     ヘッダー名からメールアドレス列を優先的に探し、なければ氏名列を含む候補列を探す。
+    ///     戻り値には、見つかった列がメールアドレス列ではなく氏名列かどうかもあわせて含める。
     /// </summary>
-    private static int FindPreferredColumn(IReadOnlyList<string> headers)
+    private static (int Index, bool IsNameColumn) FindPreferredColumn(IReadOnlyList<string> headers)
     {
-        int addressIndex = headers.Select(NormalizeHeader).ToList().FindIndex(header =>
+        List<string> normalized = headers.Select(NormalizeHeader).ToList();
+        int addressIndex = normalized.FindIndex(header =>
             AddressHeaderNames.Contains(header, StringComparer.OrdinalIgnoreCase));
-        return addressIndex >= 0
-            ? addressIndex
-            : headers.Select(NormalizeHeader).ToList()
-                .FindIndex(header => HeaderNames.Contains(header, StringComparer.OrdinalIgnoreCase));
+        if (addressIndex >= 0)
+        {
+            return (addressIndex, false);
+        }
+
+        int fallbackIndex = normalized.FindIndex(header => HeaderNames.Contains(header, StringComparer.OrdinalIgnoreCase));
+        return (fallbackIndex, fallbackIndex >= 0);
     }
 
     /// <summary>ファイル内容のSHA-256ハッシュを16進文字列で計算する。</summary>

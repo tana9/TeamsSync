@@ -234,7 +234,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     public string InputPreview => SyncWorkspaceTextFormatter.BuildInputPreview(_document);
 
     /// <summary>検出された列がメールアドレスではなく氏名の列かどうか。</summary>
-    public bool IsNameColumn => SyncWorkspaceTextFormatter.IsNameColumn(_document);
+    public bool IsNameColumn => _document?.IsNameColumn ?? false;
 
     /// <summary>差分未確認時に表示する案内メッセージ。</summary>
     public string EmptyStateMessage =>

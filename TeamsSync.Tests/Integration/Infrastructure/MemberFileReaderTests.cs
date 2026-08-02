@@ -113,6 +113,7 @@ public sealed class MemberFileReaderTests : IDisposable
 
         Assert.Equal("メールアドレス", document.DetectedColumn);
         Assert.Equal(["taro@example.com"], document.Addresses);
+        Assert.False(document.IsNameColumn);
     }
 
     [Fact]
@@ -133,6 +134,7 @@ public sealed class MemberFileReaderTests : IDisposable
 
         Assert.Equal("UPN", document.DetectedColumn);
         Assert.Equal(["taro@example.com"], document.Addresses);
+        Assert.False(document.IsNameColumn);
     }
 
     [Fact]
@@ -182,6 +184,19 @@ public sealed class MemberFileReaderTests : IDisposable
 
         Assert.Equal(["山田 太郎", "佐藤　花子"], result.Addresses);
         Assert.Equal("氏名", result.DetectedColumn);
+        Assert.True(result.IsNameColumn);
+    }
+
+    [Fact]
+    public void ReadCsv_ヘッダーが認識できない場合はIsNameColumnがfalse()
+    {
+        string path = Path.Combine(_directory, "unrecognized-header.csv");
+        File.WriteAllText(path, "識別子\nuser1@example.com\n");
+
+        MemberListDocument result = new MemberListReader().Read(path, CancellationToken.None);
+
+        Assert.Equal("1列目（ヘッダーなし）", result.DetectedColumn);
+        Assert.False(result.IsNameColumn);
     }
 
     [Fact]

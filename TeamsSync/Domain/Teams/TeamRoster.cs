@@ -61,6 +61,20 @@ public sealed class TeamRoster
         return _byUserId.GetValueOrDefault(userId);
     }
 
+    /// <summary>
+    ///     同期入力として取り込み可能な一般メンバー(所有者を除き、メールアドレスがあるメンバー)を、
+    ///     メールアドレスの重複を除いてメールアドレス順に並べて返す。
+    /// </summary>
+    public IReadOnlyList<TeamMember> ImportableMembers()
+    {
+        return Members
+            .Where(member => !member.IsOwner && !string.IsNullOrWhiteSpace(member.Email))
+            .GroupBy(member => member.Email.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .OrderBy(member => member.Email, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
     /// <summary>再検証(プラン同値性の判定)で使う、現メンバーシップのスナップショットを作成する。</summary>
     public IReadOnlyList<TeamMembershipSnapshot> BuildMembershipSnapshot()
     {
