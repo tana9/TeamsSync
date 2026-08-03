@@ -138,7 +138,7 @@ public partial class TeamMemberImportViewModel : ObservableObject
     private void NotifyNoImportableMembers(TeamInfo team)
     {
         _notifications.ShowWarning("取り込める一般メンバーがいません",
-            $"{team.DisplayName}には、メールアドレスを取得できる一般メンバーがいません。現在の入力は維持します。");
+            $"{team.DisplayName}には、取得できる一般メンバーがいません。現在の入力は維持します。");
         StatusChanged?.Invoke("現在の入力を維持しました", false);
     }
 
