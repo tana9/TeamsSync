@@ -20,6 +20,8 @@ public sealed class MemberFileViewModelTests
             new FakePreferences(), dialogs, dialogs, new FakeTeamsGateway(), dialogs);
         await viewModel.LoadDroppedFileCommand.ExecuteAsync("C:\\members.csv");
         Assert.True(viewModel.CopyFileContentToTextCommand.CanExecute(null));
+        bool focusRequested = false;
+        viewModel.InputFocusRequested += () => focusRequested = true;
 
         await viewModel.CopyFileContentToTextCommand.ExecuteAsync(null);
 
@@ -29,6 +31,10 @@ public sealed class MemberFileViewModelTests
         Assert.Contains("入力を反映", viewModel.PasteInput.InfoText);
         Assert.Contains("元ファイルは変更されません", viewModel.PasteInput.InfoText);
         Assert.Equal(0, dialogs.FileContentConfirmationCount);
+        // タブ切替(テキスト貼り付けへの切り替え)でファイル選択ボタンがビジュアルツリーから外れ、
+        // ダイアログの汎用フォーカス復元(前にフォーカスしていた要素への復元)が失敗するため、
+        // 貼り付けテキスト欄へ明示的にフォーカスを移すよう通知する
+        Assert.True(focusRequested);
     }
 
     [Fact]

@@ -123,9 +123,10 @@ public partial class MemberFileViewModel : ObservableObject
         remove => _uiEvents.StatusChanged -= value;
     }
 
-    // ファイル読込またはテキスト解析が失敗したときに1回だけ発行する。
-    // Viewはこれを受けて、選択中の入力方法(ファイル/貼り付け)に応じた修正対象へフォーカスを移す
-    /// <summary>入力エラー発生時、修正対象へフォーカスを移すために発行される</summary>
+    // ファイル読込またはテキスト解析が失敗したとき、またはファイル内容をテキストへコピーして
+    // 入力方法を切り替えたときに発行する。Viewはこれを受けて、選択中の入力方法(ファイル/貼り付け)
+    // に応じた対象(ファイル選択ボタン、または貼り付けテキスト欄)へフォーカスを移す
+    /// <summary>入力エラー発生時や入力方法の切り替え後、対象へフォーカスを移すために発行される</summary>
     public event Action? InputFocusRequested
     {
         add => _uiEvents.FocusRequested += value;
@@ -317,6 +318,10 @@ public partial class MemberFileViewModel : ObservableObject
         PastedText = text;
         PasteInput.InfoText = "ファイル内容をコピーしました。編集後に「入力を反映」を押してください（元ファイルは変更されません）";
         _uiEvents.Status("ファイル内容をテキストへコピーしました。編集後に入力を反映してください", false);
+        // 確認ダイアログのShowRestoringFocusAsyncは表示前にフォーカスしていた「ファイル内容をコピーして
+        // 編集」ボタンへの復元を試みるが、直後にタブを「テキスト貼り付け」へ切り替えるため、そのボタンは
+        // ビジュアルツリーから外れており復元に失敗する。切替後に有効な貼り付けテキスト欄へ明示的に移す
+        _uiEvents.RequestFocus();
     }
 
     private bool CanCopyFileContentToText()

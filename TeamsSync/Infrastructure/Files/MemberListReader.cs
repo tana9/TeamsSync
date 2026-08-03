@@ -150,7 +150,16 @@ public sealed class MemberListReader : IMemberListReader
         {
             cancellationToken.ThrowIfCancellationRequested();
             int width = Math.Max(1, row.LastCellUsed()?.Address.ColumnNumber ?? 1);
-            rows.Add(row.Cells(1, width).Select(c => c.GetFormattedString()).ToArray());
+            string[] fields = row.Cells(1, width).Select(c => c.GetFormattedString()).ToArray();
+            // CSVの列数不一致チェック(ReadCsv)と挙動を揃え、1行目より列が少ない行を
+            // 対象列の値なしとして無警告で除外せず、行番号付きのエラーとして明示する
+            if (rows.Count > 0 && fields.Length != rows[0].Length)
+            {
+                throw new InvalidDataException(
+                    $"{row.RowNumber()}行目の列数が1行目と一致しません（1行目: {rows[0].Length}列、{row.RowNumber()}行目: {fields.Length}列）。");
+            }
+
+            rows.Add(fields);
         }
 
         (IEnumerable<string> Values, string Column, bool IsNameColumn) extracted = ExtractColumn(rows);

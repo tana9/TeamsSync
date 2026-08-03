@@ -16,6 +16,7 @@ public partial class MainWindow
 {
     private readonly ILogger<MainWindow> _logger;
     private readonly MainWindowViewModel _viewModel;
+    private bool _cancellingBeforeClose;
     private bool _closeAfterCancellation;
 
     /// <summary>コンストラクター。ダイアログ・スナックバーホストを登録し、テーマを適用する</summary>
@@ -86,12 +87,22 @@ public partial class MainWindow
 
     private async Task OnClosingAsync(CancelEventArgs e)
     {
-        if (_closeAfterCancellation || !_viewModel.SyncWorkspace.Execution.IsRunning)
+        switch (DecideCloseAction(_closeAfterCancellation, _cancellingBeforeClose,
+                    _viewModel.SyncWorkspace.Execution.IsRunning))
         {
-            return;
+            case CloseAction.AllowClose:
+                return;
+            case CloseAction.BlockWhilePendingCancellation:
+                // 既にキャンセル待機中に、再度「閉じる」操作が行われた場合。待機を二重に開始せず、
+                // このクローズ要求は保留して先行する待機の完了(下のfinallyが呼ぶClose())に委ねる
+                e.Cancel = true;
+                return;
         }
 
         e.Cancel = true;
+        // 待機中に再度閉じる操作をされても上のBlockWhilePendingCancellation分岐で弾けるよう、
+        // 実際に待機を始める前にガードを立てる
+        _cancellingBeforeClose = true;
         try
         {
             await _viewModel.SyncWorkspace.CancelAndWaitAsync();
@@ -108,6 +119,27 @@ public partial class MainWindow
             Close();
         }
     }
+
+    /// <summary>
+    ///     同期実行中にウィンドウを閉じようとした際の対応を、現在の状態から判定する。
+    ///     待機中の再クローズ操作でキャンセル待機やCloseの呼び出しが二重に走らないようにする
+    /// </summary>
+    internal static CloseAction DecideCloseAction(bool closeAfterCancellation, bool cancellingBeforeClose,
+        bool syncing)
+    {
+        if (closeAfterCancellation)
+        {
+            // キャンセル完了後、自身のClose()呼び出しが再度発火させたClosingイベント。素通りさせる
+            return CloseAction.AllowClose;
+        }
+
+        if (cancellingBeforeClose)
+        {
+            return CloseAction.BlockWhilePendingCancellation;
+        }
+
+        return syncing ? CloseAction.StartCancelAndWait : CloseAction.AllowClose;
+    }
 }
 
 internal enum EscapeAction
@@ -116,4 +148,11 @@ internal enum EscapeAction
     DeferToDialog,
     DeferToSyncCancellation,
     DismissSnackbar
+}
+
+internal enum CloseAction
+{
+    AllowClose,
+    StartCancelAndWait,
+    BlockWhilePendingCancellation
 }

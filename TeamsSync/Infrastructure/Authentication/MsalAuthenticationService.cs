@@ -24,8 +24,12 @@ public sealed class MsalAuthenticationService(
     private static readonly string SignInSuccessHtml = LoadEmbeddedHtml("Authentication.SignInSuccess.html");
     private static readonly string SignInErrorHtml = LoadEmbeddedHtml("Authentication.SignInError.html");
 
+    // GetTokenAsyncを直列化する。並列呼び出しで_resultへの書き込みが競合し誤ったアカウントの
+    // トークンが返る、または対話型サインインが複数同時に起動することを防ぐ
+    private readonly SemaphoreSlim _tokenGate = new(1, 1);
     private IPublicClientApplication? _app;
     private string? _configuredClientId;
+    private string? _configuredTenantId;
     private AuthenticationResult? _result;
 
     /// <summary>サインイン中のユーザー名(未サインインの場合はnull)</summary>
@@ -42,24 +46,32 @@ public sealed class MsalAuthenticationService(
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        IPublicClientApplication app = GetOrCreateApp();
-        IAccount? account = (await app.GetAccountsAsync()).FirstOrDefault();
-
-        AuthenticationResult? silentResult = null;
-        if (!interactive && account is not null)
+        await _tokenGate.WaitAsync(cancellationToken);
+        try
         {
-            try
-            {
-                silentResult = await app.AcquireTokenSilent(Scopes, account).ExecuteAsync(cancellationToken);
-            }
-            catch (MsalUiRequiredException)
-            {
-                // サイレント取得できなかった場合は対話型サインインへフォールバックする
-            }
-        }
+            IPublicClientApplication app = GetOrCreateApp();
+            IAccount? account = (await app.GetAccountsAsync()).FirstOrDefault();
 
-        _result = silentResult ?? await AcquireInteractiveAsync(app, account, cancellationToken);
-        return _result.AccessToken;
+            AuthenticationResult? silentResult = null;
+            if (!interactive && account is not null)
+            {
+                try
+                {
+                    silentResult = await app.AcquireTokenSilent(Scopes, account).ExecuteAsync(cancellationToken);
+                }
+                catch (MsalUiRequiredException)
+                {
+                    // サイレント取得できなかった場合は対話型サインインへフォールバックする
+                }
+            }
+
+            _result = silentResult ?? await AcquireInteractiveAsync(app, account, cancellationToken);
+            return _result.AccessToken;
+        }
+        finally
+        {
+            _tokenGate.Release();
+        }
     }
 
     /// <summary>システムブラウザーでの対話型サインインを実行する</summary>
@@ -110,15 +122,19 @@ public sealed class MsalAuthenticationService(
                 "Entra IDのアプリ設定がありません。ClientIdを設定ファイル、環境変数 TEAMSSYNC_Entra__ClientId、または起動引数 --Entra:ClientId で指定してください。TenantIdは省略できます。");
         }
 
-        if (_app is not null && _configuredClientId == config.ClientId)
+        string tenantId = string.IsNullOrWhiteSpace(config.TenantId) ? "organizations" : config.TenantId;
+        if (_app is not null && _configuredClientId == config.ClientId && _configuredTenantId == tenantId)
         {
             return _app;
         }
 
+        // ClientIdが同じでもTenantIdが変わった場合、テナント制限をプロセス再起動なしで
+        // 即座に反映するため、キャッシュされた古いテナント向けのアプリを再構築する。
+        // 古いアプリのサインイン状態は引き継がれず、新しいテナントでの再サインインが必要になる
         _configuredClientId = config.ClientId;
+        _configuredTenantId = tenantId;
         return _app = PublicClientApplicationBuilder.Create(config.ClientId)
-            .WithAuthority(AzureCloudInstance.AzurePublic,
-                string.IsNullOrWhiteSpace(config.TenantId) ? "organizations" : config.TenantId)
+            .WithAuthority(AzureCloudInstance.AzurePublic, tenantId)
             .WithDefaultRedirectUri().Build();
     }
 

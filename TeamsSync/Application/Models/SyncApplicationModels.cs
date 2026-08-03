@@ -56,12 +56,18 @@ public sealed record SyncProgress(int Completed, int Total, ChangeKind Kind, str
 /// <param name="Succeeded">操作が成功した場合はtrue</param>
 /// <param name="Error">失敗時のエラーメッセージ。成功した場合はnull</param>
 /// <param name="DisplayName">対象ユーザーの表示名</param>
+/// <param name="Uncertain">
+///     Graphへの要求中にキャンセルされ、サーバー側で実際に成功したかどうか不明な場合はtrue。
+///     <see cref="Succeeded" />はfalseになるが、実際には成功している可能性があるため
+///     区別して表示・記録する必要がある
+/// </param>
 public sealed record SyncOperationResult(
     ChangeKind Kind,
     string Email,
     bool Succeeded,
     string? Error,
-    string DisplayName = "");
+    string DisplayName = "",
+    bool Uncertain = false);
 
 /// <summary>1回の同期処理全体の実行結果</summary>
 /// <param name="Operations">実行を開始した各操作の結果</param>
@@ -71,6 +77,9 @@ public sealed record SyncExecutionResult(IReadOnlyList<SyncOperationResult> Oper
     /// <summary>成功した操作の件数</summary>
     public int SuccessCount => Operations.Count(x => x.Succeeded);
 
-    /// <summary>失敗した操作の件数</summary>
+    /// <summary>失敗した操作の件数(状態不明を含む)</summary>
     public int FailureCount => Operations.Count(x => !x.Succeeded);
+
+    /// <summary>キャンセルにより成否が確認できなかった操作の件数</summary>
+    public int UncertainCount => Operations.Count(x => x.Uncertain);
 }

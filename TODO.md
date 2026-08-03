@@ -36,17 +36,17 @@ TeamsSync の今後の改善項目。メンバー削除を伴うアプリケー�
 
 ### 同期実行の安全ゲートと取りこぼし記録を修正する
 
-- [ ] 実行直前の再検証結果(`MembershipSnapshot`)を`SyncPlan.EnsureExecutable`または`SyncExecutor.ExecuteAsync`の実行判定に組み込み、プレビュー後にOwnerへ昇格したメンバーが削除されないようにする（`TeamModels.cs:178-191`、`SyncExecutor.cs:19-79`、`SyncPlanService.cs:42-48`。現状は再検証結果が実行経路に配線されておらず、Owner保護を迂回しうる。コードレビューで指摘、2026-08-03）
-- [ ] `AddressResolver.TryResolveFromRoster`が氏名一致で確定した場合でも、ディレクトリ側に別人の候補がないか確認するか、氏名一致はメール一致より確度が低いことをUI・監査ログへ明示する（`AddressResolver.cs:14-26`、`SyncPlanService.cs:87-91`。現状はロスターに同姓同名が1人いるだけで、無警告のまま別人へ取り違えうる。コードレビューで指摘、2026-08-03）
-- [ ] FullSyncで同姓同名の衝突(`AmbiguousCurrentMember`)を起こした現メンバーが`wantedIds`に含まれず削除候補として表示される挙動を修正する（`SyncPlanFactory.cs:85-88, 139-150`。実行自体はHasErrorsでブロックされるが、差分表示が実態と矛盾する。コードレビューで指摘、2026-08-03）
-- [ ] キャンセル時、サーバー側では成功していた操作が`OperationCanceledException`により未記録のまま取りこぼされる問題と、キャンセル時に限り`ReconcileAsync`(最新状態との差分検出)がスキップされる問題を修正する（`SyncExecutor.cs:109-112`、`SyncExecutionCoordinator.cs:67-80`。既存テストが取りこぼし自体を実証済み。コードレビューで指摘、2026-08-03）
+- [x] 実行直前の再検証結果(`MembershipSnapshot`)を`SyncPlan.EnsureExecutable`または`SyncExecutor.ExecuteAsync`の実行判定に組み込み、プレビュー後にOwnerへ昇格したメンバーが削除されないようにする（呼び出し順序に依存しない構造的な保証にするため、`SyncExecutionCoordinator.RevalidateAndExecuteAsync`を新設し、実行直前に必ず`RevalidatePlanAsync`で再検証してから実行するよう変更。`SyncWorkspaceViewModel`側の既存の事前チェックはUX上そのまま残し、二重の防御とした）
+- [x] `AddressResolver.TryResolveFromRoster`が氏名一致で確定した場合でも、ディレクトリ側に別人の候補がないか確認するか、氏名一致はメール一致より確度が低いことをUI・監査ログへ明示する（追加のGraph検索は行わず、`AddressResolution.MatchedByNameOnly`で確度を判別できるようにし、差分一覧に`ChangeReason.AlreadyMemberNameMatchOnly`/`RemoveSpecifiedNameMatchOnly`として表示。指定削除モードでの誤削除リスクが特に高いため両モードに対応した）
+- [x] FullSyncで同姓同名の衝突(`AmbiguousCurrentMember`)を起こした現メンバーが`wantedIds`に含まれず削除候補として表示される挙動を修正する（`AddressResolution.AmbiguousMembers`で衝突した現メンバーを`SyncPlanFactory`まで伝搬し、`ComputeRemovals`の`wantedIds`へ合流させて二重表示を解消）
+- [x] キャンセル時、サーバー側では成功していた操作が`OperationCanceledException`により未記録のまま取りこぼされる問題と、キャンセル時に限り`ReconcileAsync`(最新状態との差分検出)がスキップされる問題を修正する（`SyncOperationResult.Uncertain`を追加してキャンセル時も操作を記録するようにし、`SyncExecutionCoordinator.ExecuteAsync`はキャンセル時も`CancellationToken.None`で`ReconcileAsync`を実行するよう変更。ViewModel側もキャンセル後に最新の未反映件数を表示するよう統合）
 
 完了条件: 実行直前の状態変化とキャンセル時の取りこぼしが検出・記録され、同姓同名の衝突が差分表示や削除判定を誤らせない。
 
 ### 認証の安全性を高める
 
-- [ ] `MsalAuthenticationService`の共有結果フィールドを排他化し、`GetOwnedTeamsAsync`の並列トークン取得で誤ったアカウントのトークンが返る、または複数の対話サインインが同時に起動する競合を解消する（`MsalAuthenticationService.cs:41-72`。コードレビューで指摘、2026-08-03）
-- [ ] `TenantId`設定の変更が、`ClientId`が同じ場合キャッシュされた`IPublicClientApplication`へ反映されない問題を修正する（同ファイル97-116行。テナント制限の強化がプロセス再起動まで黙って無効化される。コードレビューで指摘、2026-08-03）
+- [x] `MsalAuthenticationService`の共有結果フィールドを排他化し、`GetOwnedTeamsAsync`の並列トークン取得で誤ったアカウントのトークンが返る、または複数の対話サインインが同時に起動する競合を解消する（`GetTokenAsync`全体を`SemaphoreSlim(1,1)`で直列化）
+- [x] `TenantId`設定の変更が、`ClientId`が同じ場合キャッシュされた`IPublicClientApplication`へ反映されない問題を修正する（`_configuredTenantId`を追加し、ClientIdまたはTenantIdのいずれかが変わればアプリを再構築するよう変更。再構築で古いテナントのサインイン状態は失われ再サインインが必要になるが、テナント制限の即時反映を優先した）
 
 完了条件: 認証トークンの取り違え・同時サインイン、テナント制限の無効化が発生しない。
 
@@ -115,9 +115,9 @@ TeamsSync の今後の改善項目。メンバー削除を伴うアプリケー�
 
 - [ ] `GraphSdkClient.AddMemberAsync`が受け取る`userId`をエスケープまたは検証し、将来GUID以外の値が渡された場合のOData束縛文字列注入を防ぐ（`GraphSdkClient.cs:168`。現在の呼び出し経路はGraphが返すGUIDのみのため実害なし。コードレビューで指摘、2026-08-03）
 - [ ] 貼り付けテキストの制御文字フィルタがUnicode行区切り・段落区切り(U+2028/U+2029)を素通りさせる問題を修正する（`MemberTextParser.cs:23-27, 48-59`。コードレビューで指摘、2026-08-03）
-- [ ] Excel読込で列数不一致の行が無警告で除外される挙動をCSVと揃え、除外・欠落をエラーまたは警告として明示する（`MemberListReader.cs:184` と `116-120`の非対称。コードレビューで指摘、2026-08-03）
-- [ ] 同期中にウィンドウを閉じる際のガード(`_closeAfterCancellation`)を`await`前に設定し、待機中の再クローズ操作で二重キャンセル・未処理例外が起きないようにする（`MainWindow.xaml.cs:82-110`。コードレビューで指摘、2026-08-03）
-- [ ] 「テキストとして編集」確認ダイアログ後のフォーカス復元が、直後のタブ切替でボタンがビジュアルツリーから外れて失敗する問題を修正する（`ConfirmationDialogHelper.cs:52-67`、`WpfMemberInputConfirmationService.cs:38-58`。コードレビューで指摘、2026-08-03）
+- [x] Excel読込で列数不一致の行が無警告で除外される挙動をCSVと揃え、除外・欠落をエラーまたは警告として明示する（`ReadExcel`にCSVの`ReadCsv`と同じ「1行目と列数が異なれば行番号付きで例外」チェックを追加。`ExtractColumn`の`.Where(r => r.Length > column)`による無警告の除外に頼らないようにした）
+- [x] 同期中にウィンドウを閉じる際のガード(`_closeAfterCancellation`)を`await`前に設定し、待機中の再クローズ操作で二重キャンセル・未処理例外が起きないようにする（`_cancellingBeforeClose`を追加し、キャンセル待機中の再クローズ操作は`CancelAndWaitAsync`・`Close()`を再実行せず保留するよう`DecideCloseAction`として切り出し。`DecideEscapeAction`と同様の形でテスト可能にした）
+- [x] 「テキストとして編集」確認ダイアログ後のフォーカス復元が、直後のタブ切替でボタンがビジュアルツリーから外れて失敗する問題を修正する（`ShowRestoringFocusAsync`の汎用復元(旧フォーカス先への復元)には頼らず、`CopyFileContentToTextAsync`でタブ切替後に既存の`InputFocusRequested`を発行し、切替後に有効な貼り付けテキスト欄へ明示的にフォーカスするよう変更）
 
 完了条件: 上記いずれも再現条件下で例外・情報欠落・フォーカス消失が発生しない。
 

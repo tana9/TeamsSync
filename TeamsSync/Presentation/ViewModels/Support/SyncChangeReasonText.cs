@@ -20,6 +20,8 @@ internal static class SyncChangeReasonText
             ChangeReason.AddToTeam => "メンバーに追加します",
             ChangeReason.RemoveNotInInput => "リストにないため削除します",
             ChangeReason.ManuallyExcluded => "個別に除外したため変更しません",
+            ChangeReason.AlreadyMemberNameMatchOnly => "氏名のみの一致で既にメンバーと判定しました(メールアドレスでの確認を推奨)",
+            ChangeReason.RemoveSpecifiedNameMatchOnly => "氏名のみの一致で削除対象と判定しました(メールアドレスでの確認を推奨)",
             _ => ""
         };
     }

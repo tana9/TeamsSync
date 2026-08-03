@@ -157,6 +157,58 @@ public sealed class SyncPlanFactoryTests
             change => change.Kind == ChangeKind.Remove).MembershipId);
     }
 
+    [Fact]
+    public void Create_完全同期モードで同姓同名衝突の現メンバーは削除候補に二重表示されない()
+    {
+        // 「山田太郎」という同姓同名のメンバーが2人おり、氏名入力では特定できずAmbiguousCurrentMemberの
+        // エラーになる場合、この2人は既にエラーとして表示されているため、
+        // 完全同期の削除候補(ComputeRemovals)へも重複して表示されてはならない
+        TeamMember taro1 = Member("m1", "u1", "山田太郎", "taro1@example.com");
+        TeamMember taro2 = Member("m2", "u2", "山田太郎", "taro2@example.com");
+        TeamRoster roster = new([taro1, taro2]);
+        AddressResolution[] resolutions =
+        [
+            new(ResolutionOutcome.Error, "山田太郎",
+                ErrorReason: ChangeReason.AmbiguousCurrentMember, AmbiguousMembers: [taro1, taro2])
+        ];
+
+        SyncPlan plan = SyncPlanFactory.Create(Team, roster, resolutions, SyncMode.FullSync, ["山田太郎"]);
+
+        SyncChange change = Assert.Single(plan.Changes);
+        Assert.Equal(ChangeKind.Error, change.Kind);
+        Assert.DoesNotContain(plan.Changes, x => x.Kind == ChangeKind.Remove);
+    }
+
+    [Fact]
+    public void Create_氏名のみの一致は確度の低い理由になる()
+    {
+        TeamMember existing = Member("m1", "u1", "山田 太郎", "taro@example.com");
+        TeamRoster roster = new([existing]);
+        AddressResolution[] resolutions =
+            [new(ResolutionOutcome.ExistingSingle, "山田太郎", existing, MatchedByNameOnly: true)];
+
+        SyncPlan plan = SyncPlanFactory.Create(Team, roster, resolutions, SyncMode.FullSync, ["山田太郎"]);
+
+        SyncChange change = Assert.Single(plan.Changes);
+        Assert.Equal(ChangeKind.Keep, change.Kind);
+        Assert.Equal(ChangeReason.AlreadyMemberNameMatchOnly, change.Reason);
+    }
+
+    [Fact]
+    public void Create_指定削除モードで氏名のみの一致は確度の低い理由になる()
+    {
+        TeamMember existing = Member("m1", "u1", "山田 太郎", "taro@example.com");
+        TeamRoster roster = new([existing]);
+        AddressResolution[] resolutions =
+            [new(ResolutionOutcome.ExistingSingle, "山田太郎", existing, MatchedByNameOnly: true)];
+
+        SyncPlan plan = SyncPlanFactory.Create(Team, roster, resolutions, SyncMode.RemoveSpecified, ["山田太郎"]);
+
+        SyncChange change = Assert.Single(plan.Changes);
+        Assert.Equal(ChangeKind.Remove, change.Kind);
+        Assert.Equal(ChangeReason.RemoveSpecifiedNameMatchOnly, change.Reason);
+    }
+
     private static TeamMember Member(string membershipId, string userId, string name, string email,
         bool owner = false)
     {

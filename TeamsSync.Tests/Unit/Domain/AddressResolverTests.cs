@@ -30,17 +30,41 @@ public sealed class AddressResolverTests
     [Fact]
     public void TryResolveFromRoster_同姓同名で複数の現メンバーに一致するとエラーになる()
     {
-        TeamRoster roster = new(
-        [
-            Member("m1", "u1", "山田 太郎", "taro1@example.com"),
-            Member("m2", "u2", "山田 太郎", "taro2@example.com")
-        ]);
+        TeamMember taro1 = Member("m1", "u1", "山田 太郎", "taro1@example.com");
+        TeamMember taro2 = Member("m2", "u2", "山田 太郎", "taro2@example.com");
+        TeamRoster roster = new([taro1, taro2]);
 
         AddressResolution? resolution = AddressResolver.TryResolveFromRoster("山田太郎", roster);
 
         Assert.NotNull(resolution);
         Assert.Equal(ResolutionOutcome.Error, resolution.Outcome);
         Assert.Equal(ChangeReason.AmbiguousCurrentMember, resolution.ErrorReason);
+        Assert.Equal([taro1, taro2], resolution.AmbiguousMembers);
+    }
+
+    [Fact]
+    public void TryResolveFromRoster_メールアドレス一致はMatchedByNameOnlyがfalse()
+    {
+        TeamMember existing = Member("m1", "u1", "Existing", "existing@example.com");
+        TeamRoster roster = new([existing]);
+
+        AddressResolution? resolution = AddressResolver.TryResolveFromRoster("existing@example.com", roster);
+
+        Assert.NotNull(resolution);
+        Assert.False(resolution.MatchedByNameOnly);
+    }
+
+    [Fact]
+    public void TryResolveFromRoster_氏名のみの一致はMatchedByNameOnlyがtrue()
+    {
+        TeamMember existing = Member("m1", "u1", "山田 太郎", "taro@example.com");
+        TeamRoster roster = new([existing]);
+
+        AddressResolution? resolution = AddressResolver.TryResolveFromRoster("山田太郎", roster);
+
+        Assert.NotNull(resolution);
+        Assert.Equal(ResolutionOutcome.ExistingSingle, resolution.Outcome);
+        Assert.True(resolution.MatchedByNameOnly);
     }
 
     [Fact]

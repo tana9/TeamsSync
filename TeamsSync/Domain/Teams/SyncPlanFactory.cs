@@ -22,12 +22,16 @@ public enum ResolutionOutcome
 /// <param name="ExistingMember">現メンバーとして一致した場合のメンバー情報</param>
 /// <param name="User">ディレクトリ検索で一致したユーザー情報</param>
 /// <param name="ErrorReason">解決に失敗した場合の理由</param>
+/// <param name="MatchedByNameOnly">現メンバーとの一致がメールアドレスではなく氏名のみによる場合はtrue</param>
+/// <param name="AmbiguousMembers">氏名等の一致で複数の現メンバーが該当し特定できなかった場合、その現メンバー一覧</param>
 public sealed record AddressResolution(
     ResolutionOutcome Outcome,
     string Address,
     TeamMember? ExistingMember = null,
     DirectoryUser? User = null,
-    ChangeReason ErrorReason = ChangeReason.Unspecified);
+    ChangeReason ErrorReason = ChangeReason.Unspecified,
+    bool MatchedByNameOnly = false,
+    IReadOnlyList<TeamMember>? AmbiguousMembers = null);
 
 /// <summary>
 ///     解決済みのアドレス一覧と現メンバー構成(<see cref="TeamRoster" />)から同期プランを組み立てる。
@@ -46,11 +50,11 @@ public static class SyncPlanFactory
     public static SyncPlan Create(TeamInfo team, TeamRoster roster,
         IReadOnlyList<AddressResolution> resolutions, SyncMode mode, IReadOnlyList<string> inputAddresses)
     {
-        (Dictionary<string, DirectoryUser> resolved, List<SyncChange> changes) =
+        (Dictionary<string, DirectoryUser> resolved, List<SyncChange> changes, HashSet<string> ambiguousMemberIds) =
             ClassifyResolutions(resolutions, mode);
         if (mode == SyncMode.FullSync)
         {
-            changes.AddRange(ComputeRemovals(roster.Members, resolved, changes));
+            changes.AddRange(ComputeRemovals(roster.Members, resolved, changes, ambiguousMemberIds));
         }
 
         return new SyncPlan(team, changes, inputAddresses, roster.NonOwnerCount,
@@ -62,12 +66,18 @@ public static class SyncPlanFactory
     ///     同一ユーザーが氏名とメールアドレスなど複数の表記で重複指定された場合、2件目以降を別行にはせず
     ///     最初の行のEmailへ表記を合流させて1行にまとめる
     /// </summary>
-    private static (Dictionary<string, DirectoryUser> Resolved, List<SyncChange> Changes) ClassifyResolutions(
-        IReadOnlyList<AddressResolution> resolutions, SyncMode mode)
+    /// <returns>
+    ///     解決済みユーザー、変更一覧に加え、氏名等の重複で特定できなかった現メンバーのユーザーID一覧
+    ///     (完全同期の削除候補から除外するために<see cref="ComputeRemovals" />で使う)
+    /// </returns>
+    private static (Dictionary<string, DirectoryUser> Resolved, List<SyncChange> Changes,
+        HashSet<string> AmbiguousMemberIds) ClassifyResolutions(
+            IReadOnlyList<AddressResolution> resolutions, SyncMode mode)
     {
         Dictionary<string, DirectoryUser> resolved = new(StringComparer.OrdinalIgnoreCase);
         List<SyncChange> changes = [];
         Dictionary<string, int> rowIndexByUserId = new(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> ambiguousMemberIds = new(StringComparer.OrdinalIgnoreCase);
 
         void AddOrMergeChange(string address, string userId, string? membershipId, string displayName,
             ChangeKind kind, ChangeReason reason)
@@ -89,13 +99,26 @@ public static class SyncPlanFactory
         {
             switch (resolution)
             {
+                case
+                {
+                    Outcome: ResolutionOutcome.Error, ErrorReason: ChangeReason.AmbiguousCurrentMember,
+                    AmbiguousMembers: { } ambiguous
+                }:
+                    changes.Add(new SyncChange(ChangeKind.Error, "", resolution.Address,
+                        resolution.ErrorReason));
+                    foreach (TeamMember member in ambiguous)
+                    {
+                        ambiguousMemberIds.Add(member.UserId);
+                    }
+
+                    break;
                 case { Outcome: ResolutionOutcome.Error }:
                     changes.Add(new SyncChange(ChangeKind.Error, "", resolution.Address,
                         resolution.ErrorReason));
                     break;
                 case { Outcome: ResolutionOutcome.ExistingSingle, ExistingMember: { } existing }:
                     (ChangeKind existingKind, ChangeReason existingReason) = ClassifyExistingMember(
-                        existing.IsOwner, mode, ChangeReason.AlreadyMember);
+                        existing.IsOwner, mode, ChangeReason.AlreadyMember, resolution.MatchedByNameOnly);
                     AddOrMergeChange(resolution.Address, existing.UserId, existing.MembershipId,
                         existing.DisplayName, existingKind, existingReason);
                     break;
@@ -106,7 +129,7 @@ public static class SyncPlanFactory
                 }:
                     resolved[resolution.Address] = sameUserAccount;
                     (ChangeKind sameUserKind, ChangeReason sameUserReason) = ClassifyExistingMember(
-                        sameUser.IsOwner, mode, ChangeReason.AlreadyMemberDifferentIdentifier);
+                        sameUser.IsOwner, mode, ChangeReason.AlreadyMemberDifferentIdentifier, false);
                     AddOrMergeChange(resolution.Address, sameUser.UserId, sameUser.MembershipId,
                         sameUser.DisplayName, sameUserKind, sameUserReason);
                     break;
@@ -119,36 +142,46 @@ public static class SyncPlanFactory
             }
         }
 
-        return (resolved, changes);
+        return (resolved, changes, ambiguousMemberIds);
     }
 
     /// <summary>
     ///     既にチームに所属しているメンバーの変更種別・理由を判定する。所有者は常に保護し、
-    ///     所有者でなければ指定削除モードは削除、それ以外は<paramref name="keepReason" />を理由に維持する
+    ///     所有者でなければ指定削除モードは削除、それ以外は<paramref name="keepReason" />を理由に維持する。
+    ///     氏名のみによる一致(<paramref name="matchedByNameOnly" />)の場合は、削除・維持のいずれでも
+    ///     確度が低いことが伝わる理由へ差し替える
     /// </summary>
     private static (ChangeKind Kind, ChangeReason Reason) ClassifyExistingMember(bool isOwner, SyncMode mode,
-        ChangeReason keepReason)
+        ChangeReason keepReason, bool matchedByNameOnly)
     {
         if (isOwner)
         {
             return (ChangeKind.Protected, ChangeReason.OwnerProtected);
         }
 
-        return mode == SyncMode.RemoveSpecified
-            ? (ChangeKind.Remove, ChangeReason.RemoveSpecified)
-            : (ChangeKind.Keep, keepReason);
+        if (mode == SyncMode.RemoveSpecified)
+        {
+            return (ChangeKind.Remove,
+                matchedByNameOnly ? ChangeReason.RemoveSpecifiedNameMatchOnly : ChangeReason.RemoveSpecified);
+        }
+
+        return (ChangeKind.Keep, matchedByNameOnly ? ChangeReason.AlreadyMemberNameMatchOnly : keepReason);
     }
 
     /// <summary>
     ///     完全同期モード用に、入力リストに含まれない一般メンバー(所有者を除く)を
-    ///     削除対象の<see cref="SyncChange" />として列挙する
+    ///     削除対象の<see cref="SyncChange" />として列挙する。氏名等の重複で特定できなかった
+    ///     (<paramref name="ambiguousMemberIds" />)現メンバーは、既にエラーとして表示されているため
+    ///     削除候補としては二重に表示しない
     /// </summary>
     private static IEnumerable<SyncChange> ComputeRemovals(IReadOnlyList<TeamMember> current,
-        Dictionary<string, DirectoryUser> resolved, IReadOnlyList<SyncChange> changes)
+        Dictionary<string, DirectoryUser> resolved, IReadOnlyList<SyncChange> changes,
+        IReadOnlySet<string> ambiguousMemberIds)
     {
         HashSet<string> wantedIds = resolved.Values.Select(x => x.Id)
             .Concat(changes.Where(x => x.Kind is ChangeKind.Keep or ChangeKind.Protected)
                 .Select(x => x.UserId!))
+            .Concat(ambiguousMemberIds)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         return current.Where(x => !x.IsOwner && !wantedIds.Contains(x.UserId))

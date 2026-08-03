@@ -72,7 +72,11 @@ public enum ChangeReason
     /// <summary>完全同期の入力に含まれないため削除が必要である</summary>
     RemoveNotInInput,
     /// <summary>利用者が変更対象から個別に除外した</summary>
-    ManuallyExcluded
+    ManuallyExcluded,
+    /// <summary>現メンバーとの一致が氏名のみによるもので、メールアドレス等では確認できていない</summary>
+    AlreadyMemberNameMatchOnly,
+    /// <summary>指定削除の対象だが、現メンバーとの一致が氏名のみによるもので確度が低い</summary>
+    RemoveSpecifiedNameMatchOnly
 }
 
 /// <summary>同期の実行モード</summary>

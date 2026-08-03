@@ -108,6 +108,15 @@ public sealed class SyncExecutor(ITeamsGateway teamsGateway, ILogger<SyncExecuto
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            // Graphへの要求送信後にキャンセルされた場合、サーバー側で実際に成功しているかどうかは
+            // ここでは判別できない。記録から欠落させると「未実行」と誤認されるため、
+            // 状態不明として明示的に記録し、後続のReconcileAsyncによる実際の状態確認に委ねる
+            results.Add(new SyncOperationResult(change.Kind, change.Email, false,
+                "キャンセルされたため、Teams側で実際に成功したかどうか不明です。最新状態を確認してください",
+                change.DisplayName, true));
+            _logger.LogWarning(
+                "MemberOperationUncertain Kind={Kind} TargetObjectId={TargetObjectId}",
+                change.Kind, targetObjectId);
             return true;
         }
         catch (Exception ex)
@@ -122,8 +131,10 @@ public sealed class SyncExecutor(ITeamsGateway teamsGateway, ILogger<SyncExecuto
 
     private void LogSyncCancelled(IReadOnlyList<SyncOperationResult> results, int totalOperations)
     {
-        _logger.LogWarning("SyncCancelled Success={SuccessCount} Failure={FailureCount} Unexecuted={UnexecutedCount}",
+        _logger.LogWarning(
+            "SyncCancelled Success={SuccessCount} Failure={FailureCount} Uncertain={UncertainCount} " +
+            "Unexecuted={UnexecutedCount}",
             results.Count(result => result.Succeeded), results.Count(result => !result.Succeeded),
-            Math.Max(0, totalOperations - results.Count));
+            results.Count(result => result.Uncertain), Math.Max(0, totalOperations - results.Count));
     }
 }

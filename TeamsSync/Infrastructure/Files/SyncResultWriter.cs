@@ -60,7 +60,7 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
             foreach (SyncOperationResult item in result.Operations)
             {
                 WriteRow(writer, plan, item.Kind, item.DisplayName, item.Email,
-                    item.Succeeded ? "成功" : "失敗", item.Error ?? "");
+                    StatusLabel(item), item.Error ?? "");
             }
         }
         else
@@ -70,7 +70,7 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
                 SyncChange planned = plannedOperations[index];
                 SyncOperationResult? executed = index < result.Operations.Count ? result.Operations[index] : null;
                 WriteRow(writer, plan, planned.Kind, planned.DisplayName, planned.Email,
-                    executed is null ? "未実行" : executed.Succeeded ? "成功" : "失敗",
+                    executed is null ? "未実行" : StatusLabel(executed),
                     executed is null
                         ? result.Cancelled ? "同期がキャンセルされたため未実行" : "実行結果が記録されていません"
                         : executed.Error ?? "");
@@ -78,6 +78,12 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
         }
 
         writer.Flush();
+    }
+
+    /// <summary>操作結果を利用者向けの日本語ラベルへ変換する。状態不明は失敗と区別して「不明」と表示する</summary>
+    private static string StatusLabel(SyncOperationResult item)
+    {
+        return item.Uncertain ? "不明" : item.Succeeded ? "成功" : "失敗";
     }
 
     /// <summary>同期操作1件をCSVへ出力する</summary>

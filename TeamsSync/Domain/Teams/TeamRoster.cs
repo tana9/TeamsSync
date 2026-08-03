@@ -61,6 +61,12 @@ public sealed class TeamRoster
         return _byUserId.GetValueOrDefault(userId);
     }
 
+    /// <summary>指定した値がメールアドレスとして現メンバーに一致するかどうか</summary>
+    public bool HasEmailMatch(string value)
+    {
+        return _byEmail.ContainsKey(value);
+    }
+
     /// <summary>
     ///     同期入力として取り込み可能な一般メンバー(所有者を除き、メールアドレスがあるメンバー)を、
     ///     メールアドレスの重複を除いてメールアドレス順に並べて返す

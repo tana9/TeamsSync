@@ -559,6 +559,11 @@ public sealed class SyncServiceTests
 
         Assert.True(result.Cancelled);
         Assert.Single(graph.Added);
+        // Graphへの要求送信中にキャンセルされた場合、サーバー側で実際に成功したかどうか不明なため、
+        // 「未実行」として欠落させず、状態不明(Uncertain)の操作として記録する
+        SyncOperationResult operation = Assert.Single(result.Operations);
+        Assert.True(operation.Uncertain);
+        Assert.False(operation.Succeeded);
     }
 
     [Fact]

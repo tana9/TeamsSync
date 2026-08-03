@@ -17,12 +17,19 @@ public static class AddressResolver
         if (existingMatches.Count > 1)
         {
             return new AddressResolution(ResolutionOutcome.Error, address,
-                ErrorReason: ChangeReason.AmbiguousCurrentMember);
+                ErrorReason: ChangeReason.AmbiguousCurrentMember, AmbiguousMembers: existingMatches);
         }
 
-        return existingMatches.Count == 1
-            ? new AddressResolution(ResolutionOutcome.ExistingSingle, address, existingMatches[0])
-            : null;
+        if (existingMatches.Count == 0)
+        {
+            return null;
+        }
+
+        // メールアドレスでの一致がなければ氏名のみによる一致であり、同姓同名の別人を
+        // 取り違える可能性があるため、呼び出し側で確度の低さを判別できるようにする
+        bool matchedByNameOnly = !roster.HasEmailMatch(address);
+        return new AddressResolution(ResolutionOutcome.ExistingSingle, address, existingMatches[0],
+            MatchedByNameOnly: matchedByNameOnly);
     }
 
     /// <summary>

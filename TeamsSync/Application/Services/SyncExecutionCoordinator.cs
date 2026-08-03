@@ -56,21 +56,49 @@ public sealed class SyncExecutionCoordinator(ISyncPlanService plans, ISyncExecut
 
         SyncPlan? remainingPlan = null;
         Exception? reconciliationError = null;
-        if (!execution.Cancelled)
+        try
         {
-            try
-            {
-                reconciliationStarting?.Invoke();
-                remainingPlan = await plans.ReconcileAsync(plan, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                reconciliationError = ex;
-            }
+            reconciliationStarting?.Invoke();
+            // キャンセル時も取りこぼしを検出するため、既にキャンセル済みの可能性があるトークンではなく
+            // CancellationToken.Noneで最新状態を取得する。渡されたトークンをそのまま使うと、
+            // キャンセル直後は最新状態の取得自体も即座に中断され、取りこぼしを検出できなくなる
+            CancellationToken reconciliationToken = execution.Cancelled ? CancellationToken.None : cancellationToken;
+            remainingPlan = await plans.ReconcileAsync(plan, reconciliationToken);
+        }
+        catch (Exception ex)
+        {
+            reconciliationError = ex;
         }
 
         return new SyncExecutionOutcome(plan, execution, resultLogPath,
             logSaveError, remainingPlan, reconciliationError);
+    }
+
+    /// <summary>
+    ///     実行直前に最新のメンバー構成でプランを再検証し、変化がない場合に限り実行する。
+    ///     プレビュー後にチーム構成が変化していた場合(所有者への昇格を含む)は実行せず、
+    ///     最新のプランを返す。この判定を呼び出し元(ViewModel等)の順序に依存させず、
+    ///     実行経路そのものに組み込むためのメソッド
+    /// </summary>
+    /// <param name="plan">実行しようとしている同期プラン</param>
+    /// <param name="auditContext">監査CSVへ記録する実行情報</param>
+    /// <param name="progress">操作の進捗を受け取る通知先。通知が不要な場合はnull</param>
+    /// <param name="reconciliationStarting">実行後の最新状態取得を開始する直前に呼び出す処理</param>
+    /// <param name="cancellationToken">処理のキャンセルを通知するトークン</param>
+    /// <returns>再検証結果と、実行できた場合はその結果</returns>
+    public async Task<SyncExecutionAttempt> RevalidateAndExecuteAsync(SyncPlan plan, SyncAuditContext auditContext,
+        IProgress<SyncProgress>? progress = null, Action? reconciliationStarting = null,
+        CancellationToken cancellationToken = default)
+    {
+        SyncPlanRevalidation revalidation = await plans.RevalidatePlanAsync(plan, cancellationToken);
+        if (!revalidation.IsCurrent)
+        {
+            return new SyncExecutionAttempt(revalidation.LatestPlan, null);
+        }
+
+        SyncExecutionOutcome outcome = await ExecuteAsync(
+            revalidation.LatestPlan, auditContext, progress, reconciliationStarting, cancellationToken);
+        return new SyncExecutionAttempt(revalidation.LatestPlan, outcome);
     }
 }
 
@@ -88,3 +116,12 @@ public sealed record SyncExecutionOutcome(
     Exception? LogSaveError,
     SyncPlan? RemainingPlan,
     Exception? ReconciliationError);
+
+/// <summary>実行直前の再検証を経て、同期を実行できたかどうかを表す</summary>
+/// <param name="LatestPlan">実行直前に再取得した最新の同期プラン</param>
+/// <param name="Outcome">実行結果。チーム構成の変化により実行しなかった場合はnull</param>
+public sealed record SyncExecutionAttempt(SyncPlan LatestPlan, SyncExecutionOutcome? Outcome)
+{
+    /// <summary>プレビュー後にチーム構成が変化しており、実行しなかった場合はtrue</summary>
+    public bool IsStale => Outcome is null;
+}

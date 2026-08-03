@@ -325,8 +325,8 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     }
 
     /// <summary>
-    ///     同期プランを実行し、結果を画面へ反映する。キャンセルされた場合と正常終了した場合とで
-    ///     後処理をキャンセル時と正常終了時で分ける
+    ///     同期プランを実行し、結果を画面へ反映する。実行直前の再検証(<see cref="RevalidateBeforeExecuteAsync" />)
+    ///     通過後もチーム構成が変化していた場合は<see cref="HandleStaleBeforeExecution" />で防御的に処理する
     /// </summary>
     private async Task RunSyncAndReconcileAsync()
     {
@@ -336,10 +336,18 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         try
         {
             Progress<SyncProgress> progress = new(ReportSyncProgress);
-            SyncExecutionOutcome outcome = await _executionRunner.RunAsync(
+            SyncExecutionAttempt attempt = await _executionRunner.RunAsync(
                 Plan.Current, _context.Document!, _context.TenantId, _context.ActorObjectId, progress,
                 () => _uiEvents.Status("Teams側の最新状態を確認しています…", false),
                 _syncCancellation.Token);
+            if (attempt.IsStale)
+            {
+                HandleStaleBeforeExecution(attempt.LatestPlan);
+                ExecuteSyncCommand.NotifyCanExecuteChanged();
+                return;
+            }
+
+            SyncExecutionOutcome outcome = attempt.Outcome!;
             _lastResult = outcome.Execution;
             Result.Apply(_lastResult, outcome.ResultLogPath);
             if (outcome.LogSaveError is not null)
@@ -348,15 +356,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
                     $"同期処理自体は完了しています。{Environment.NewLine}{outcome.LogSaveError.Message}");
             }
 
-            if (_lastResult.Cancelled)
-            {
-                HandleSyncCancelled();
-            }
-            else
-            {
-                HandleReconciliation(outcome);
-            }
-
+            HandleReconciliation(outcome, _lastResult.Cancelled);
             ExecuteSyncCommand.NotifyCanExecuteChanged();
         }
         finally
@@ -373,25 +373,26 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         _uiEvents.Status(Execution.Report(progress), false);
     }
 
-    /// <summary>同期のキャンセルを検知し、未反映件数の見積もりと通知を行う</summary>
-    private void HandleSyncCancelled()
+    /// <summary>
+    ///     <see cref="RevalidateBeforeExecuteAsync" />通過後、実行に取り掛かる直前のわずかな時間差で
+    ///     チーム構成が変化していた場合(所有者への昇格を含む)の防御的な処理。通常は到達しない
+    /// </summary>
+    private void HandleStaleBeforeExecution(SyncPlan latestPlan)
     {
-        // 中止までに着手した件数(_lastResult.Operations)を差し引いた残りを「未反映」として表示する。
-        // Teams側の最新状態はまだ再取得していないため、件数は目安であることをResultRemainingTextの文言側で示す
-        Result.SetRemainingCount(Math.Max(0,
-            Plan.Current!.AddCount + Plan.Current.RemoveCount - _lastResult!.Operations.Count));
-        Plan.Clear();
-        ExecuteSyncCommand.NotifyCanExecuteChanged();
-        ShowResultNotification(true, "同期を中止しました",
-            $"{_lastResult!.SuccessCount}件は処理済みです。差分を再確認してください。");
-        _uiEvents.Status("同期を中止しました。Teams側の最新状態を再確認してください", true);
+        // ApplyPlan既定の案内文はこの直後により具体的な通知に置き換えるため、
+        // 同じ内容をスクリーンリーダーへ二重に読み上げさせないようannounceStatus: falseで抑制する
+        ApplyPlan(latestPlan, false);
+        _notifications.ShowWarning("同期差分が変更されました",
+            "チームのメンバー構成が実行直前に変更されたため、同期を中断しました。最新の差分を確認して、もう一度チームに反映してください。");
+        _uiEvents.Status("最新の同期差分を表示しました。内容を再確認してください", true);
     }
 
     /// <summary>
-    ///     同期完了後にTeams側の最終状態を再取得し、未反映分を新しい差分として表示する。
+    ///     同期の実行後(完了・部分失敗・キャンセルのいずれの場合も)にTeams側の最終状態を再取得し、
+    ///     未反映分を新しい差分として表示する。キャンセル時も取りこぼしを検出するため必ず再取得を試み、
     ///     再取得に失敗しても既に完了した実行結果は保持したまま、差分だけを無効化する
     /// </summary>
-    private void HandleReconciliation(SyncExecutionOutcome outcome)
+    private void HandleReconciliation(SyncExecutionOutcome outcome, bool cancelled)
     {
         if (outcome.ReconciliationError is null && outcome.RemainingPlan is not null)
         {
@@ -401,7 +402,12 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             ApplyPlan(remaining, false);
             int remainingCount = remaining.AddCount + remaining.RemoveCount;
             Result.SetRemainingCount(remainingCount);
-            if (_lastResult!.FailureCount > 0)
+            if (cancelled)
+            {
+                ShowResultNotification(true, "同期を中止しました",
+                    $"{_lastResult!.SuccessCount}件は処理済みです。Teams側の最新状態を確認しました。未反映 {remainingCount}件を再実行できます。");
+            }
+            else if (_lastResult!.FailureCount > 0)
             {
                 ShowResultNotification(true, "一部の操作に失敗しました",
                     $"成功 {_lastResult.SuccessCount}件 / 失敗 {_lastResult.FailureCount}件。未反映 {remainingCount}件を再実行できます。");
@@ -412,17 +418,23 @@ public partial class SyncWorkspaceViewModel : ObservableObject
                     $"{_lastResult.SuccessCount}件の変更が完了し、Teams側の状態を確認しました。");
             }
 
-            _uiEvents.Status(remainingCount > 0
-                ? $"最終状態を確認しました。未反映 {remainingCount}件を再実行できます"
-                : "同期完了: Teams側の状態を確認済みです", remainingCount > 0);
+            _uiEvents.Status(cancelled
+                ? $"同期を中止しました。Teams側の最新状態を確認しました。未反映 {remainingCount}件を再実行できます"
+                : remainingCount > 0
+                    ? $"最終状態を確認しました。未反映 {remainingCount}件を再実行できます"
+                    : "同期完了: Teams側の状態を確認済みです", cancelled || remainingCount > 0);
             return;
         }
 
         InvalidatePlan(false);
         Result.MarkRemainingCountUnavailable();
-        ShowResultNotification(true, "最終状態を確認できませんでした",
-            $"操作結果は保存済みです。差分を再確認してください。{Environment.NewLine}{outcome.ReconciliationError?.Message}");
-        _uiEvents.Status("最終状態を確認できませんでした。差分を再確認してください", true);
+        ShowResultNotification(true, cancelled ? "同期を中止しました" : "最終状態を確認できませんでした",
+            cancelled
+                ? $"{_lastResult!.SuccessCount}件は処理済みの可能性があります。Teams側の最新状態を確認できませんでした。差分を再確認してください。{Environment.NewLine}{outcome.ReconciliationError?.Message}"
+                : $"操作結果は保存済みです。差分を再確認してください。{Environment.NewLine}{outcome.ReconciliationError?.Message}");
+        _uiEvents.Status(cancelled
+            ? "同期を中止しました。最終状態を確認できませんでした。差分を再確認してください"
+            : "最終状態を確認できませんでした。差分を再確認してください", true);
     }
 
     /// <summary>部分失敗やキャンセル後に、Graphの最新状態から未反映分を再計画する</summary>

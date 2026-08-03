@@ -137,6 +137,32 @@ public sealed class MemberFileReaderTests : IDisposable
     }
 
     [Fact]
+    public void ReadExcel_ヘッダーと異なる列数を行番号付きで拒否する()
+    {
+        // CSV(ReadCsv_ヘッダーと異なる列数を行番号付きで拒否する)と挙動を揃え、
+        // 列が少ない行を対象列の値なしとして無警告で除外しないことを確認する
+        string path = Path.Combine(_directory, "column-mismatch.xlsx");
+        using (XLWorkbook book = new())
+        {
+            IXLWorksheet sheet = book.AddWorksheet("Members");
+            sheet.Cell(1, 1).Value = "email";
+            sheet.Cell(1, 2).Value = "name";
+            sheet.Cell(2, 1).Value = "user1@example.com";
+            sheet.Cell(2, 2).Value = "User One";
+            sheet.Cell(3, 1).Value = "user2@example.com";
+            // 3行目はname列を意図的に空のままにし、LastCellUsedが1列目までしかない行を作る
+            book.SaveAs(path);
+        }
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            new MemberListReader().Read(path, CancellationToken.None));
+
+        Assert.Contains("3行目", exception.Message);
+        Assert.Contains("1行目: 2列", exception.Message);
+        Assert.Contains("3行目: 1列", exception.Message);
+    }
+
+    [Fact]
     public void ReadCsv_DetectsUtf8WithBom()
     {
         string path = Path.Combine(_directory, "utf8-bom.csv");
