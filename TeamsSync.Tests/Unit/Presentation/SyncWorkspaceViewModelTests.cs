@@ -191,6 +191,29 @@ public sealed class SyncWorkspaceViewModelTests
     }
 
     [Fact]
+    public async Task SyncWorkspace_モード変更で同期不可理由の変更を通知する()
+    {
+        FakeTeamsGateway gateway = new();
+        gateway.Users["new@example.com"] =
+            new DirectoryUser("user-1", "User", "new@example.com", "new@example.com");
+        SyncWorkspaceViewModel viewModel = new(new SyncPlanService(gateway), new SyncExecutor(gateway),
+            new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
+        viewModel.SetContext(new TeamInfo("team-1", "開発", null),
+            new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
+                DateTime.Now, "CSV", "email"), true);
+        await viewModel.PreviewCommand.ExecuteAsync(null);
+        Assert.Contains("チームに反映できます", viewModel.SyncUnavailableReason);
+
+        List<string?> raisedProperties = [];
+        viewModel.PropertyChanged += (_, args) => raisedProperties.Add(args.PropertyName);
+
+        viewModel.IsFullSyncSelected = true;
+
+        Assert.Contains(nameof(SyncWorkspaceViewModel.SyncUnavailableReason), raisedProperties);
+        Assert.Contains("差分を確認", viewModel.SyncUnavailableReason);
+    }
+
+    [Fact]
     public async Task SyncWorkspace_選択中フィルターの件数が変わるとDisplayTextの変更通知が発火する()
     {
         // ComboBoxのSelectedItem表示はDisplayMemberPathバインディング経由でINotifyPropertyChangedを

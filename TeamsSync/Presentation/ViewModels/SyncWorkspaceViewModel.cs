@@ -43,16 +43,15 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     private string? _tenantId;
 
     /// <summary>コンストラクター。差分一覧の絞り込みビューと既定の選択状態を初期化する</summary>
-    public SyncWorkspaceViewModel(ISyncPlanService syncService, ISyncExecutor syncExecutor,
-        ISyncResultWriter resultWriter, ISyncConfirmationService confirmation, INotificationService notifications,
-        ISavedFileLauncher? savedFileLauncher = null, SyncExecutionCoordinator? executionCoordinator = null)
+    public SyncWorkspaceViewModel(ISyncPlanService syncService, SyncExecutionCoordinator executionCoordinator,
+        ISyncConfirmationService confirmation, INotificationService notifications,
+        ISavedFileLauncher savedFileLauncher)
     {
         _syncService = syncService;
-        _executionCoordinator = executionCoordinator ?? new SyncExecutionCoordinator(
-            syncService, syncExecutor, resultWriter);
+        _executionCoordinator = executionCoordinator;
         _confirmation = confirmation;
         _notifications = notifications;
-        _savedFileLauncher = savedFileLauncher ?? UnavailableSavedFileLauncher.Instance;
+        _savedFileLauncher = savedFileLauncher;
         _busyRunner = new BusyOperationRunner(_notifications,
             (message, isError) => StatusChanged?.Invoke(message, isError), value => IsBusy = value);
         ChangesView = CollectionViewSource.GetDefaultView(Changes);
@@ -60,6 +59,15 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         Changes.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasChanges));
         SelectedFilter = Filters[0];
         SelectedMode = Modes[0];
+    }
+
+    /// <summary>外部サービスを簡易実装へ差し替える単体テスト用コンストラクター</summary>
+    internal SyncWorkspaceViewModel(ISyncPlanService syncService, ISyncExecutor syncExecutor,
+        ISyncResultWriter resultWriter, ISyncConfirmationService confirmation, INotificationService notifications,
+        ISavedFileLauncher? savedFileLauncher = null)
+        : this(syncService, new SyncExecutionCoordinator(syncService, syncExecutor, resultWriter),
+            confirmation, notifications, savedFileLauncher ?? UnavailableSavedFileLauncher.Instance)
+    {
     }
 
     /// <summary>差分確認・再検証などの処理中かどうか</summary>
@@ -753,6 +761,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         }
 
         ExecuteSyncCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(SyncUnavailableReason));
     }
 
     // 実行結果(_lastResult)から成功・失敗件数と失敗一覧を再構築する。同期完了直後に呼び出す
@@ -819,6 +828,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         }
 
         ExecuteSyncCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(SyncUnavailableReason));
     }
 
     /// <summary>差分一覧を種別順(エラー→削除→追加→所有者→その他)に並べ替えて差し替える</summary>
