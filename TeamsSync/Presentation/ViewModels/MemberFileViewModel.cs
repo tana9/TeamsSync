@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -18,8 +20,10 @@ public partial class MemberFileViewModel : ObservableObject
 {
     private readonly IFilePickerService _filePicker;
     private readonly IMemberInputConfirmationService _inputConfirmation;
+    private readonly MemberFileLoadState _fileLoad = new();
     private readonly RestartableCancellation _loadCancellation = new();
     private readonly INotificationService _notifications;
+    private readonly MemberPasteInputState _pasteInput = new();
     private readonly RestartableCancellation _parseCancellation = new();
     private readonly IUserPreferences _preferences;
     private readonly IMemberListReader _reader;
@@ -50,42 +54,64 @@ public partial class MemberFileViewModel : ObservableObject
                 NotifyCommandStates();
             }
         };
+        _fileLoad.PropertyChanged += OnInputStatePropertyChanged;
+        _pasteInput.PropertyChanged += OnInputStatePropertyChanged;
         DocumentChanged += () => OnPropertyChanged(nameof(HasUnappliedPastedText));
     }
 
     /// <summary>ファイル入力の状態説明テキスト</summary>
-    [ObservableProperty]
-    public partial string FileInfoText { get; set; } = "ファイルを選択するか、ここへドロップしてください";
+    public string FileInfoText { get => _fileLoad.InfoText; private set => _fileLoad.InfoText = value; }
 
     /// <summary>選択中のファイルパス</summary>
-    [ObservableProperty]
-    public partial string FilePath { get; set; } = "";
+    public string FilePath { get => _fileLoad.Path; private set => _fileLoad.Path = value; }
 
     /// <summary>テキスト貼り付け入力の状態説明テキスト</summary>
-    [ObservableProperty]
-    public partial string PasteInfoText { get; set; } = "1行につき1ユーザー（氏名またはメールアドレス）";
+    public string PasteInfoText { get => _pasteInput.InfoText; private set => _pasteInput.InfoText = value; }
 
     /// <summary>貼り付けテキストを解析中かどうか</summary>
-    [ObservableProperty]
-    public partial bool IsParsing { get; set; }
+    public bool IsParsing { get => _pasteInput.IsParsing; private set => _pasteInput.IsParsing = value; }
 
     /// <summary>ファイルを読み込み中かどうか</summary>
-    [ObservableProperty]
-    public partial bool IsLoadingFile { get; set; }
+    public bool IsLoadingFile { get => _fileLoad.IsLoading; private set => _fileLoad.IsLoading = value; }
 
     /// <summary>貼り付け入力の解析でエラーが発生したかどうか</summary>
-    [ObservableProperty]
-    public partial bool IsPasteError { get; set; }
+    public bool IsPasteError { get => _pasteInput.HasError; private set => _pasteInput.HasError = value; }
 
     /// <summary>テキスト貼り付け入力欄の内容</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasUnappliedPastedText))]
-    public partial string PastedText { get; set; } = "";
+    public string PastedText
+    {
+        get;
+        set
+        {
+            if (field == value)
+            {
+                return;
+            }
+
+            field = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasUnappliedPastedText));
+            OnPastedTextChanged(value);
+        }
+    } = "";
 
     /// <summary>選択中の入力方法(0=ファイル、1=テキスト貼り付け)</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasUnappliedPastedText))]
-    public partial int SelectedInputIndex { get; set; }
+    public int SelectedInputIndex
+    {
+        get;
+        set
+        {
+            if (field == value)
+            {
+                return;
+            }
+
+            field = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasUnappliedPastedText));
+            OnSelectedInputIndexChanged(value);
+        }
+    }
 
     /// <summary>Teamsからの現在メンバー取り込みを管理するViewModel</summary>
     public TeamMemberImportViewModel Import { get; }
@@ -134,14 +160,14 @@ public partial class MemberFileViewModel : ObservableObject
     }
 
     /// <summary>入力方法の切り替えに応じて、有効な文書を切り替える</summary>
-    partial void OnSelectedInputIndexChanged(int value)
+    private void OnSelectedInputIndexChanged(int value)
     {
         ApplySelectedInput();
         NotifyCommandStates();
     }
 
     /// <summary>貼り付けテキストの変更を検知し、反映前の文書を無効化して状態を更新する</summary>
-    partial void OnPastedTextChanged(string value)
+    private void OnPastedTextChanged(string value)
     {
         if (SelectedInputIndex != 1)
         {
@@ -372,6 +398,26 @@ public partial class MemberFileViewModel : ObservableObject
     {
         return _enabled && !IsParsing && !Import.IsImportingMembers && SelectedInputIndex == 1 &&
                !string.IsNullOrWhiteSpace(PastedText);
+    }
+
+    private void OnInputStatePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        string? propertyName = sender switch
+        {
+            MemberFileLoadState when e.PropertyName == nameof(MemberFileLoadState.InfoText) => nameof(FileInfoText),
+            MemberFileLoadState when e.PropertyName == nameof(MemberFileLoadState.Path) => nameof(FilePath),
+            MemberFileLoadState when e.PropertyName == nameof(MemberFileLoadState.IsLoading) => nameof(IsLoadingFile),
+            MemberPasteInputState when e.PropertyName == nameof(MemberPasteInputState.InfoText) => nameof(PasteInfoText),
+            MemberPasteInputState when e.PropertyName == nameof(MemberPasteInputState.IsParsing) => nameof(IsParsing),
+            MemberPasteInputState when e.PropertyName == nameof(MemberPasteInputState.HasError) => nameof(IsPasteError),
+            _ => null
+        };
+        if (propertyName is not null)
+        {
+            OnPropertyChanged(propertyName);
+        }
+
+        NotifyCommandStates();
     }
 
     /// <summary>Teamsからの取り込み結果を入力欄へ反映し、テキスト貼り付けタブへ切り替える</summary>

@@ -20,7 +20,7 @@ internal static class SyncWorkspaceViewModelFactory
         ISavedFileLauncher? savedFileLauncher = null)
     {
         SyncExecutionCoordinator coordinator = new(planService, executor, resultWriter);
-        return new SyncWorkspaceViewModel(planService, coordinator, confirmation, notifications,
+        return new SyncWorkspaceViewModel(coordinator, confirmation, notifications,
             savedFileLauncher ?? new UnavailableSavedFileLauncher());
     }
 

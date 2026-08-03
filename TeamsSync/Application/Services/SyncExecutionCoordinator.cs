@@ -29,6 +29,13 @@ public sealed class SyncExecutionCoordinator
         return _plans.RevalidatePlanAsync(plan, cancellationToken);
     }
 
+    /// <summary>入力されたチームとアドレスから同期プランを作成する</summary>
+    public Task<SyncPlan> BuildPlanAsync(TeamInfo team, IReadOnlyList<string> addresses,
+        SyncMode mode, IProgress<int>? progress = null, CancellationToken cancellationToken = default)
+    {
+        return _plans.BuildPlanAsync(team, addresses, mode, progress, cancellationToken);
+    }
+
     /// <summary>
     ///     同期プランを実行し、監査CSVの保存と実行後の最新状態取得を行う。
     ///     独立して失敗し得る後処理の結果も戻り値へ格納する

@@ -25,7 +25,6 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     private readonly SyncExecutionCoordinator _executionCoordinator;
     private readonly INotificationService _notifications;
     private readonly ISavedFileLauncher _savedFileLauncher;
-    private readonly ISyncPlanService _syncService;
     private string? _actorObjectId;
     private MemberListDocument? _document;
     private bool _externallyBusy;
@@ -38,11 +37,10 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     private string? _tenantId;
 
     /// <summary>コンストラクター。差分一覧の絞り込みビューと既定の選択状態を初期化する</summary>
-    public SyncWorkspaceViewModel(ISyncPlanService syncService, SyncExecutionCoordinator executionCoordinator,
+    public SyncWorkspaceViewModel(SyncExecutionCoordinator executionCoordinator,
         ISyncConfirmationService confirmation, INotificationService notifications,
         ISavedFileLauncher savedFileLauncher)
     {
-        _syncService = syncService;
         _executionCoordinator = executionCoordinator;
         _confirmation = confirmation;
         _notifications = notifications;
@@ -235,7 +233,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         {
             StatusChanged?.Invoke("ユーザーと現在のメンバーを照合しています…", false);
             IProgress<int> progress = Preview.Start(_document.Addresses.Count);
-            return await _syncService.BuildPlanAsync(_team, _document.Addresses,
+            return await _executionCoordinator.BuildPlanAsync(_team, _document.Addresses,
                 SelectedMode.Mode, progress);
         });
 
