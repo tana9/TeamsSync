@@ -29,6 +29,9 @@
     <EmbeddedResource Include="appsettings.json" LogicalName="appsettings.json"/>
     <None Remove="Resources\Manual.html"/>
     <EmbeddedResource Include="Resources\Manual.html" LogicalName="Manual.html"/>
+    <None Remove="Resources\Authentication\*.html"/>
+    <EmbeddedResource Include="Resources\Authentication\SignInSuccess.html" LogicalName="Authentication.SignInSuccess.html"/>
+    <EmbeddedResource Include="Resources\Authentication\SignInError.html" LogicalName="Authentication.SignInError.html"/>
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Resources\AppIcon.ico"/>

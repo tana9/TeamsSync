@@ -2,6 +2,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Identity.Client;
 
+using System.Reflection;
+
 using TeamsSync.Application.Abstractions;
 
 namespace TeamsSync.Infrastructure.Authentication;
@@ -13,42 +15,14 @@ public sealed class MsalAuthenticationService(
     IOptionsMonitor<EntraOptions> options,
     ILogger<MsalAuthenticationService> logger) : IAuthenticationService
 {
-    private const string SignInResultPageStyle = """
-                                                 <style>
-                                                     body { font-family: "Yu Gothic UI", "Segoe UI", "Meiryo", system-ui, sans-serif;
-                                                            display: flex; align-items: center; justify-content: center;
-                                                            height: 100vh; margin: 0; background: #F5F5FA; color: #1F1F1F; }
-                                                     .card { text-align: center; padding: 40px 48px; border-radius: 12px;
-                                                             background: white; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
-                                                     .icon { font-size: 40px; }
-                                                     h1 { font-size: 18px; margin: 12px 0 4px; }
-                                                     p { font-size: 14px; color: #616161; margin: 0; }
-                                                 </style>
-                                                 """;
-
     private static readonly string[] Scopes =
     [
         "User.Read", "User.ReadBasic.All", "Team.ReadBasic.All",
         "TeamMember.Read.All", "TeamMember.ReadWriteNonOwnerRole.All"
     ];
 
-    private static readonly string SignInSuccessHtml = $$"""
-                                                         <!doctype html><html lang="ja"><head><meta charset="utf-8" />{{SignInResultPageStyle}}</head>
-                                                         <body><div class="card">
-                                                             <div class="icon" style="color:#5B5FC7">&#10003;</div>
-                                                             <h1>サインインが完了しました</h1>
-                                                             <p>このウィンドウを閉じてTeamsSyncに戻ってください。</p>
-                                                         </div></body></html>
-                                                         """;
-
-    private static readonly string SignInErrorHtml = $$"""
-                                                       <!doctype html><html lang="ja"><head><meta charset="utf-8" />{{SignInResultPageStyle}}</head>
-                                                       <body><div class="card">
-                                                           <div class="icon" style="color:#C42B1C">&#10005;</div>
-                                                           <h1>サインインに失敗しました</h1>
-                                                           <p>このウィンドウを閉じてTeamsSyncに戻り、もう一度お試しください。</p>
-                                                       </div></body></html>
-                                                       """;
+    private static readonly string SignInSuccessHtml = LoadEmbeddedHtml("Authentication.SignInSuccess.html");
+    private static readonly string SignInErrorHtml = LoadEmbeddedHtml("Authentication.SignInError.html");
 
     private IPublicClientApplication? _app;
     private string? _configuredClientId;
@@ -139,5 +113,14 @@ public sealed class MsalAuthenticationService(
             .WithAuthority(AzureCloudInstance.AzurePublic,
                 string.IsNullOrWhiteSpace(config.TenantId) ? "organizations" : config.TenantId)
             .WithDefaultRedirectUri().Build();
+    }
+
+    private static string LoadEmbeddedHtml(string resourceName)
+    {
+        Assembly assembly = typeof(MsalAuthenticationService).Assembly;
+        using Stream stream = assembly.GetManifestResourceStream(resourceName)
+                              ?? throw new InvalidOperationException($"埋め込みHTMLを読み込めません: {resourceName}");
+        using StreamReader reader = new(stream);
+        return reader.ReadToEnd();
     }
 }
