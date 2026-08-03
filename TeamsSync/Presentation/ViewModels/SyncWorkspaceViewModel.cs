@@ -443,7 +443,8 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     {
         // 中止までに着手した件数(_lastResult.Operations)を差し引いた残りを「未反映」として表示する。
         // Teams側の最新状態はまだ再取得していないため、件数は目安であることをResultRemainingTextの文言側で示す
-        Result.RemainingCount = Math.Max(0, _plan!.AddCount + _plan.RemoveCount - _lastResult!.Operations.Count);
+        Result.SetRemainingCount(Math.Max(0,
+            _plan!.AddCount + _plan.RemoveCount - _lastResult!.Operations.Count));
         _plan = null;
         OnPropertyChanged(nameof(HasNoChangesToApply));
         OnPropertyChanged(nameof(NoChangesMessage));
@@ -466,7 +467,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             // 同じ内容をスクリーンリーダーへ二重に読み上げさせないようannounceStatus: falseで抑制する
             ApplyPlan(remaining, false);
             int remainingCount = remaining.AddCount + remaining.RemoveCount;
-            Result.RemainingCount = remainingCount;
+            Result.SetRemainingCount(remainingCount);
             if (_lastResult!.FailureCount > 0)
             {
                 ShowResultNotification(true, "一部の操作に失敗しました",
@@ -485,7 +486,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         }
 
         InvalidatePlan(false);
-        Result.RemainingCount = null;
+        Result.MarkRemainingCountUnavailable();
         ShowResultNotification(true, "最終状態を確認できませんでした",
             $"操作結果は保存済みです。差分を再確認してください。{Environment.NewLine}{outcome.ReconciliationError?.Message}");
         StatusChanged?.Invoke("最終状態を確認できませんでした。差分を再確認してください", true);

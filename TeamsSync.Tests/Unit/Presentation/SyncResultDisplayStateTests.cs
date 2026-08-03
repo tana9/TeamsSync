@@ -17,7 +17,7 @@ public sealed class SyncResultDisplayStateTests
         ], false);
 
         state.Apply(execution, @"C:\Logs\result.csv");
-        state.RemainingCount = 1;
+        state.SetRemainingCount(1);
 
         Assert.True(state.HasResult);
         Assert.Equal(1, state.SuccessCount);
@@ -38,7 +38,7 @@ public sealed class SyncResultDisplayStateTests
         state.Apply(new SyncExecutionResult(
             [new SyncOperationResult(ChangeKind.Add, "failure@example.com", false, "失敗")], true),
             @"C:\Logs\result.csv");
-        state.RemainingCount = 1;
+        state.SetRemainingCount(1);
         List<string?> raisedProperties = [];
         state.PropertyChanged += (_, args) => raisedProperties.Add(args.PropertyName);
 
@@ -52,5 +52,21 @@ public sealed class SyncResultDisplayStateTests
         Assert.Contains(nameof(SyncResultDisplayState.HasFailedResults), raisedProperties);
         Assert.Contains(nameof(SyncResultDisplayState.NeedsRetry), raisedProperties);
         Assert.Contains(nameof(SyncResultDisplayState.HasRemainingCount), raisedProperties);
+    }
+
+    [Fact]
+    public void RemainingCount_負数を拒否し確認不能状態を明示できる()
+    {
+        SyncResultDisplayState state = new();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => state.SetRemainingCount(-1));
+
+        state.SetRemainingCount(2);
+        Assert.True(state.HasRemainingCount);
+        state.MarkRemainingCountUnavailable();
+
+        Assert.Null(state.RemainingCount);
+        Assert.False(state.HasRemainingCount);
+        Assert.Equal("", state.RemainingText);
     }
 }

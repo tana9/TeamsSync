@@ -47,7 +47,7 @@ public partial class MemberFileViewModel : ObservableObject
         {
             if (args.PropertyName == nameof(TeamMemberImportViewModel.IsImportingMembers))
             {
-                CopyFileContentToTextCommand.NotifyCanExecuteChanged();
+                NotifyCommandStates();
             }
         };
         DocumentChanged += () => OnPropertyChanged(nameof(HasUnappliedPastedText));
@@ -67,12 +67,10 @@ public partial class MemberFileViewModel : ObservableObject
 
     /// <summary>貼り付けテキストを解析中かどうか</summary>
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(CopyFileContentToTextCommand))]
     public partial bool IsParsing { get; set; }
 
     /// <summary>ファイルを読み込み中かどうか</summary>
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(CopyFileContentToTextCommand))]
     public partial bool IsLoadingFile { get; set; }
 
     /// <summary>貼り付け入力の解析でエラーが発生したかどうか</summary>
@@ -114,11 +112,7 @@ public partial class MemberFileViewModel : ObservableObject
     public void SetEnabled(bool value)
     {
         _enabled = value;
-        BrowseCommand.NotifyCanExecuteChanged();
-        LoadDroppedFileCommand.NotifyCanExecuteChanged();
-        ApplyPastedTextInputCommand.NotifyCanExecuteChanged();
-        CopyFileContentToTextCommand.NotifyCanExecuteChanged();
-        Import.NotifyCanExecuteChanged();
+        NotifyCommandStates();
     }
 
     /// <summary>現在選択されているチームを設定し、メンバー取り込みコマンドの状態を更新する</summary>
@@ -127,21 +121,23 @@ public partial class MemberFileViewModel : ObservableObject
         Import.SetSelectedTeam(team);
     }
 
-    /// <summary>ファイル読込関連コマンドのCanExecute状態を再評価させる</summary>
-    private void NotifyFileLoadCommandsCanExecuteChanged()
+    /// <summary>入力状態に依存するすべてのコマンドの実行可否を再評価する</summary>
+    private void NotifyCommandStates()
     {
         BrowseCommand.NotifyCanExecuteChanged();
         LoadDroppedFileCommand.NotifyCanExecuteChanged();
         CancelLoadCommand.NotifyCanExecuteChanged();
+        ApplyPastedTextInputCommand.NotifyCanExecuteChanged();
+        CancelParsingCommand.NotifyCanExecuteChanged();
+        CopyFileContentToTextCommand.NotifyCanExecuteChanged();
+        Import.NotifyCanExecuteChanged();
     }
 
     /// <summary>入力方法の切り替えに応じて、有効な文書を切り替える</summary>
     partial void OnSelectedInputIndexChanged(int value)
     {
         ApplySelectedInput();
-        ApplyPastedTextInputCommand.NotifyCanExecuteChanged();
-        CopyFileContentToTextCommand.NotifyCanExecuteChanged();
-        Import.NotifyCanExecuteChanged();
+        NotifyCommandStates();
     }
 
     /// <summary>貼り付けテキストの変更を検知し、反映前の文書を無効化して状態を更新する</summary>
@@ -158,7 +154,7 @@ public partial class MemberFileViewModel : ObservableObject
             : "内容が変更されました。「入力を反映」を押してください";
         IsPasteError = false;
         DocumentChanged?.Invoke();
-        ApplyPastedTextInputCommand.NotifyCanExecuteChanged();
+        NotifyCommandStates();
     }
 
     /// <summary>ファイル選択ダイアログを表示し、選ばれたファイルを読み込む</summary>
@@ -202,7 +198,7 @@ public partial class MemberFileViewModel : ObservableObject
         IsLoadingFile = true;
         FilePath = path;
         FileInfoText = "ファイルを読み込んでいます…";
-        NotifyFileLoadCommandsCanExecuteChanged();
+        NotifyCommandStates();
         try
         {
             MemberListDocument document = await Task.Run(() => _reader.Read(path, cts.Token), cts.Token);
@@ -223,7 +219,7 @@ public partial class MemberFileViewModel : ObservableObject
             }
 
             NotifyDocumentChanged();
-            CopyFileContentToTextCommand.NotifyCanExecuteChanged();
+            NotifyCommandStates();
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
@@ -237,7 +233,7 @@ public partial class MemberFileViewModel : ObservableObject
             FilePath = path;
             FileInfoText = $"読込に失敗しました: {Path.GetFileName(path)}";
             DocumentChanged?.Invoke();
-            CopyFileContentToTextCommand.NotifyCanExecuteChanged();
+            NotifyCommandStates();
             StatusChanged?.Invoke("ファイルを読み込めなかったため、以前の同期差分を無効化しました", true);
             // Snackbarはフォーカスを奪わないため、通知表示後のコールバックで修正対象へ戻す
             await _notifications.ShowErrorAsync(ex.Message, "ファイル読込エラー",
@@ -247,7 +243,7 @@ public partial class MemberFileViewModel : ObservableObject
         {
             IsLoadingFile = false;
             _loadCancellation.End(cts);
-            NotifyFileLoadCommandsCanExecuteChanged();
+            NotifyCommandStates();
         }
     }
 
@@ -324,8 +320,7 @@ public partial class MemberFileViewModel : ObservableObject
         IsParsing = true;
         IsPasteError = false;
         PasteInfoText = "入力内容を解析しています…";
-        ApplyPastedTextInputCommand.NotifyCanExecuteChanged();
-        CancelParsingCommand.NotifyCanExecuteChanged();
+        NotifyCommandStates();
         try
         {
             MemberListDocument document = await Task.Run(() => _textParser.Parse(text, cts.Token), cts.Token);
@@ -357,8 +352,7 @@ public partial class MemberFileViewModel : ObservableObject
         finally
         {
             IsParsing = false;
-            ApplyPastedTextInputCommand.NotifyCanExecuteChanged();
-            CancelParsingCommand.NotifyCanExecuteChanged();
+            NotifyCommandStates();
             _parseCancellation.End(cts);
         }
     }

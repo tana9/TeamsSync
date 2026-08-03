@@ -41,14 +41,14 @@ public sealed partial class SyncResultDisplayState : ObservableObject
     /// <summary>同期結果CSVのフルパス。保存できなかった場合は空文字</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasLog))]
-    public partial string LogPath { get; set; } = "";
+    public partial string LogPath { get; private set; } = "";
 
     /// <summary>Teams側に未反映の操作件数。最終状態を確認できない場合はnull</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasRemainingCount))]
     [NotifyPropertyChangedFor(nameof(RemainingText))]
     [NotifyPropertyChangedFor(nameof(NeedsRetry))]
-    public partial int? RemainingCount { get; set; }
+    public partial int? RemainingCount { get; private set; }
 
     /// <summary>失敗した操作のうち画面へ表示する先頭項目</summary>
     public ObservableCollection<SyncResultRowViewModel> FailedResults { get; } = [];
@@ -108,6 +108,19 @@ public sealed partial class SyncResultDisplayState : ObservableObject
         }
 
         NotifyFailedResultsChanged();
+    }
+
+    /// <summary>Teams側の最終状態から確認した未反映件数を設定する</summary>
+    public void SetRemainingCount(int count)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(count);
+        RemainingCount = count;
+    }
+
+    /// <summary>Teams側の最終状態を確認できなかったことを記録する</summary>
+    public void MarkRemainingCountUnavailable()
+    {
+        RemainingCount = null;
     }
 
     /// <summary>直近の同期結果をすべてクリアする</summary>
