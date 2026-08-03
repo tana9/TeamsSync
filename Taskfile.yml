@@ -28,6 +28,12 @@ tasks:
         -o {{.MANUAL_OUTPUT}}
       - 'echo "生成完了: {{.MANUAL_OUTPUT}}"'
 
+  manual-check:
+    desc: 埋め込みHTMLマニュアルが最新のソースから生成されていることを確認します
+    cmds:
+      - task --force manual
+      - git diff --exit-code -- {{.MANUAL_OUTPUT}}
+
   restore:
     desc: NuGetパッケージを復元します
     cmds:

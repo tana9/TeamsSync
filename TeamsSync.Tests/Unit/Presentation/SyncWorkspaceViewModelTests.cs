@@ -191,7 +191,7 @@ public sealed class SyncWorkspaceViewModelTests
     }
 
     [Fact]
-    public async Task SyncWorkspace_モード変更で同期不可理由の変更を通知する()
+    public async Task SyncWorkspace_プラン作成と無効化で表示と実行可否の変更を通知する()
     {
         FakeTeamsGateway gateway = new();
         gateway.Users["new@example.com"] =
@@ -201,15 +201,32 @@ public sealed class SyncWorkspaceViewModelTests
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
                 DateTime.Now, "CSV", "email"), true);
+        List<string?> raisedProperties = [];
+        int executeCanExecuteChanged = 0;
+        viewModel.PropertyChanged += (_, args) => raisedProperties.Add(args.PropertyName);
+        viewModel.ExecuteSyncCommand.CanExecuteChanged += (_, _) => executeCanExecuteChanged++;
+
         await viewModel.PreviewCommand.ExecuteAsync(null);
+
+        Assert.Contains(nameof(SyncWorkspaceViewModel.HasPlan), raisedProperties);
+        Assert.Contains(nameof(SyncWorkspaceViewModel.HasErrors), raisedProperties);
+        Assert.Contains(nameof(SyncWorkspaceViewModel.HasNoChangesToApply), raisedProperties);
+        Assert.Contains(nameof(SyncWorkspaceViewModel.SyncUnavailableReason), raisedProperties);
+        Assert.True(executeCanExecuteChanged > 0);
+        Assert.True(viewModel.ExecuteSyncCommand.CanExecute(null));
         Assert.Contains("チームに反映できます", viewModel.SyncUnavailableReason);
 
-        List<string?> raisedProperties = [];
-        viewModel.PropertyChanged += (_, args) => raisedProperties.Add(args.PropertyName);
+        raisedProperties.Clear();
+        executeCanExecuteChanged = 0;
 
         viewModel.IsFullSyncSelected = true;
 
+        Assert.Contains(nameof(SyncWorkspaceViewModel.HasPlan), raisedProperties);
+        Assert.Contains(nameof(SyncWorkspaceViewModel.HasErrors), raisedProperties);
+        Assert.Contains(nameof(SyncWorkspaceViewModel.HasNoChangesToApply), raisedProperties);
         Assert.Contains(nameof(SyncWorkspaceViewModel.SyncUnavailableReason), raisedProperties);
+        Assert.True(executeCanExecuteChanged > 0);
+        Assert.False(viewModel.ExecuteSyncCommand.CanExecute(null));
         Assert.Contains("差分を確認", viewModel.SyncUnavailableReason);
     }
 

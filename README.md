@@ -45,6 +45,12 @@ dotnet run --project TeamsSync/TeamsSync.csproj
 task manual
 ```
 
+埋め込みHTMLが最新のソースから生成されているか確認する場合は、次を実行します。CIでも同じ検査を行います。
+
+```powershell
+task manual-check
+```
+
 `docs/manual-style.css`(見た目)と`docs/manual-callouts.lua`(GitHub風の
 `> [!NOTE]`/`> [!IMPORTANT]`をコールアウト表示に変換するpandoc Luaフィルタ)
 を使って、TeamsSyncパープルを基調とした自己完結HTMLを生成します。

@@ -15,6 +15,12 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+      - name: Install manual build tools
+        run: |
+          choco install go-task --no-progress --yes
+          choco install pandoc --version=3.10.1 --no-progress --yes
+      - name: Verify embedded manual
+        run: task manual-check
       - name: Restore
         run: dotnet restore TeamsSync.slnx
       - name: Build
