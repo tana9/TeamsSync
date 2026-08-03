@@ -27,8 +27,8 @@ public sealed class SyncWorkspaceViewModelTests
 
         await viewModel.ExecuteSyncCommand.ExecuteAsync(null);
 
-        Assert.True(viewModel.HasResultLog);
-        Assert.Equal(writer.ResultPath, viewModel.ResultLogPath);
+        Assert.True(viewModel.Result.HasLog);
+        Assert.Equal(writer.ResultPath, viewModel.Result.LogPath);
         Assert.Equal("同期完了", notifications.SuccessTitle);
         Assert.Contains("実行ログを保存しました", notifications.SuccessMessage);
         Assert.NotNull(notifications.Action);
@@ -108,7 +108,7 @@ public sealed class SyncWorkspaceViewModelTests
         RecordingSavedFileLauncher launcher = new() { Exception = new InvalidOperationException("関連付けがありません") };
         SyncWorkspaceViewModel viewModel = SyncWorkspaceViewModelFactory.Create(new SyncPlanService(new FakeTeamsGateway()), new SyncExecutor(new FakeTeamsGateway()),
             new FakeResultWriter(), new FakeDialogs(), notifications, launcher);
-        viewModel.ResultLogPath = @"C:\Logs\result.csv";
+        viewModel.Result.LogPath = @"C:\Logs\result.csv";
 
         viewModel.OpenResultLogCommand.Execute(null);
 
@@ -155,9 +155,9 @@ public sealed class SyncWorkspaceViewModelTests
         await viewModel.ExecuteSyncCommand.ExecuteAsync(null);
 
         Assert.Equal("実行ログを保存できませんでした", notifications.WarningTitle);
-        Assert.True(viewModel.HasSyncResult);
-        Assert.Equal(1, viewModel.ResultSuccessCount);
-        Assert.False(viewModel.HasResultLog);
+        Assert.True(viewModel.Result.HasResult);
+        Assert.Equal(1, viewModel.Result.SuccessCount);
+        Assert.False(viewModel.Result.HasLog);
     }
 
     [Fact]
@@ -524,19 +524,19 @@ public sealed class SyncWorkspaceViewModelTests
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["new@example.com"], "members.csv", "C:\\members.csv",
                 new DateTime(2026, 7, 28), "CSV", "email"), true);
-        Assert.False(viewModel.HasSyncResult);
+        Assert.False(viewModel.Result.HasResult);
 
         await viewModel.PreviewCommand.ExecuteAsync(null);
         Assert.True(viewModel.HasPlan);
 
         await viewModel.ExecuteSyncCommand.ExecuteAsync(null);
 
-        Assert.True(viewModel.HasSyncResult);
-        Assert.Equal(1, viewModel.ResultSuccessCount);
-        Assert.Equal(0, viewModel.ResultFailureCount);
-        Assert.False(viewModel.ResultCancelled);
-        Assert.False(viewModel.HasFailedResults);
-        Assert.Equal(0, viewModel.ResultRemainingCount);
+        Assert.True(viewModel.Result.HasResult);
+        Assert.Equal(1, viewModel.Result.SuccessCount);
+        Assert.Equal(0, viewModel.Result.FailureCount);
+        Assert.False(viewModel.Result.Cancelled);
+        Assert.False(viewModel.Result.HasFailedResults);
+        Assert.Equal(0, viewModel.Result.RemainingCount);
     }
 
     [Fact]
@@ -561,9 +561,9 @@ public sealed class SyncWorkspaceViewModelTests
 
         await viewModel.ExecuteSyncCommand.ExecuteAsync(null);
 
-        Assert.Equal(1, viewModel.ResultFailureCount);
-        Assert.True(viewModel.HasFailedResults);
-        SyncResultRowViewModel failed = Assert.Single(viewModel.FailedResults);
+        Assert.Equal(1, viewModel.Result.FailureCount);
+        Assert.True(viewModel.Result.HasFailedResults);
+        SyncResultRowViewModel failed = Assert.Single(viewModel.Result.FailedResults);
         Assert.Equal("削除", failed.KindLabel);
         Assert.Equal("old@example.com", failed.Email);
         Assert.Equal("remove failed", failed.Error);
@@ -601,13 +601,13 @@ public sealed class SyncWorkspaceViewModelTests
         viewModel.SetContext(new TeamInfo("team-1", "開発", null), document, true);
         await viewModel.PreviewCommand.ExecuteAsync(null);
         await viewModel.ExecuteSyncCommand.ExecuteAsync(null);
-        Assert.True(viewModel.HasSyncResult);
+        Assert.True(viewModel.Result.HasResult);
 
         viewModel.SetContext(new TeamInfo("team-2", "別チーム", null), document, true);
 
-        Assert.False(viewModel.HasSyncResult);
-        Assert.Equal(0, viewModel.ResultSuccessCount);
-        Assert.Empty(viewModel.FailedResults);
+        Assert.False(viewModel.Result.HasResult);
+        Assert.Equal(0, viewModel.Result.SuccessCount);
+        Assert.Empty(viewModel.Result.FailedResults);
     }
 
     [Fact]
@@ -654,9 +654,9 @@ public sealed class SyncWorkspaceViewModelTests
         await viewModel.PreviewCommand.ExecuteAsync(null);
 
         List<bool> addStartedWhenIsBusyBecameFalse = new();
-        viewModel.PropertyChanged += (_, e) =>
+        viewModel.Preview.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(SyncWorkspaceViewModel.IsBusy) && !viewModel.IsBusy)
+            if (e.PropertyName == nameof(SyncPreviewDisplayState.IsBusy) && !viewModel.Preview.IsBusy)
             {
                 addStartedWhenIsBusyBecameFalse.Add(addStarted);
             }
@@ -693,7 +693,7 @@ public sealed class SyncWorkspaceViewModelTests
         await viewModel.CancelAndWaitAsync();
 
         Assert.True(execution.IsCompleted);
-        Assert.False(viewModel.IsSyncing);
+        Assert.False(viewModel.Execution.IsRunning);
         Assert.False(viewModel.CancelCommand.CanExecute(null));
     }
 }

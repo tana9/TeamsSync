@@ -54,7 +54,7 @@ public partial class MainWindow
 
         Snackbar? snackbar = SnackbarPresenter.Content;
         if (DecideEscapeAction(DialogHost.Content is not null,
-                _viewModel.SyncWorkspace.IsSyncing, snackbar?.IsShown == true) != EscapeAction.DismissSnackbar)
+                _viewModel.SyncWorkspace.Execution.IsRunning, snackbar?.IsShown == true) != EscapeAction.DismissSnackbar)
         {
             return;
         }
@@ -81,7 +81,7 @@ public partial class MainWindow
     /// <summary>同期実行中はウィンドウを閉じる前にキャンセル完了を待ってから終了する</summary>
     private async void OnClosing(object? sender, CancelEventArgs e)
     {
-        if (_closeAfterCancellation || !_viewModel.SyncWorkspace.IsSyncing)
+        if (_closeAfterCancellation || !_viewModel.SyncWorkspace.Execution.IsRunning)
         {
             return;
         }

@@ -91,13 +91,13 @@ public partial class ScenarioWindow
                 {
                     for (int attempt = 0;
                          attempt < 600 && !execution.IsCompleted &&
-                         !_viewModel.SyncWorkspace.IsSyncing;
+                         !_viewModel.SyncWorkspace.Execution.IsRunning;
                          attempt++)
                     {
                         await Task.Delay(100);
                     }
 
-                    if (_viewModel.SyncWorkspace.IsSyncing)
+                    if (_viewModel.SyncWorkspace.Execution.IsRunning)
                     {
                         await Task.Delay(250);
                         _viewModel.SyncWorkspace.CancelCommand.Execute(null);

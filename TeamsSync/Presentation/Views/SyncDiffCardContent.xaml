@@ -87,7 +87,7 @@
             <ui:DataGrid.Style>
                 <Style TargetType="ui:DataGrid" BasedOn="{StaticResource {x:Type ui:DataGrid}}">
                     <Style.Triggers>
-                        <DataTrigger Binding="{Binding IsBusy}" Value="True">
+                        <DataTrigger Binding="{Binding Preview.IsBusy}" Value="True">
                             <Setter Property="IsEnabled" Value="False" />
                         </DataTrigger>
                     </Style.Triggers>
@@ -216,12 +216,12 @@
             </StackPanel>
         </Grid>
         <Grid Grid.Row="2" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-              Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}">
+              Visibility="{Binding Preview.IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="200">
-                <ProgressBar Minimum="0" Maximum="{Binding PreviewProgressMaximum}"
-                             Value="{Binding PreviewProgressValue}" Height="6"
+                <ProgressBar Minimum="0" Maximum="{Binding Preview.ProgressMaximum}"
+                             Value="{Binding Preview.ProgressValue}" Height="6"
                              AutomationProperties.Name="差分確認の進捗" />
-                <TextBlock Text="{Binding PreviewProgressText}" Margin="0,8,0,0" HorizontalAlignment="Center"
+                <TextBlock Text="{Binding Preview.ProgressText}" Margin="0,8,0,0" HorizontalAlignment="Center"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                            AutomationProperties.LiveSetting="Polite" />
             </StackPanel>

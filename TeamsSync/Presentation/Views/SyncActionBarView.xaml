@@ -11,7 +11,7 @@
                 <Style TargetType="Grid">
                     <Setter Property="Visibility" Value="Collapsed" />
                     <Style.Triggers>
-                        <DataTrigger Binding="{Binding SyncWorkspace.IsSyncing}" Value="True">
+                        <DataTrigger Binding="{Binding SyncWorkspace.Execution.IsRunning}" Value="True">
                             <Setter Property="Visibility" Value="Visible" />
                         </DataTrigger>
                     </Style.Triggers>
@@ -22,9 +22,9 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
                 <ProgressBar AutomationProperties.Name="同期進捗" Minimum="0"
-                             Maximum="{Binding SyncWorkspace.ProgressMaximum}"
-                             Value="{Binding SyncWorkspace.ProgressValue}" Height="6" />
-                <TextBlock Text="{Binding SyncWorkspace.ProgressText}" Margin="0,4,0,0" FontSize="12"
+                             Maximum="{Binding SyncWorkspace.Execution.ProgressMaximum}"
+                             Value="{Binding SyncWorkspace.Execution.ProgressValue}" Height="6" />
+                <TextBlock Text="{Binding SyncWorkspace.Execution.ProgressText}" Margin="0,4,0,0" FontSize="12"
                            AutomationProperties.LiveSetting="Polite" />
             </StackPanel>
             <ui:Button Grid.Column="1" Content="_キャンセル" Command="{Binding SyncWorkspace.CancelCommand}"
@@ -71,7 +71,7 @@
         <Border Grid.Row="2" Margin="0,8,0,0" Padding="10,8" CornerRadius="4" BorderThickness="1"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultSolidBrush}"
                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                Visibility="{Binding SyncWorkspace.HasSyncResult, Converter={StaticResource BooleanToVisibilityConverter}}"
+                Visibility="{Binding SyncWorkspace.Result.HasResult, Converter={StaticResource BooleanToVisibilityConverter}}"
                 AutomationProperties.Name="同期実行結果">
             <StackPanel>
                 <StackPanel Orientation="Horizontal">
@@ -79,12 +79,12 @@
                         <ui:SymbolIcon.Style>
                             <Style TargetType="ui:SymbolIcon">
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding SyncWorkspace.HasFailedResults}" Value="True">
+                                    <DataTrigger Binding="{Binding SyncWorkspace.Result.HasFailedResults}" Value="True">
                                         <Setter Property="Symbol" Value="Warning24" />
                                         <Setter Property="Foreground"
                                                 Value="{DynamicResource SystemFillColorCriticalBrush}" />
                                     </DataTrigger>
-                                    <DataTrigger Binding="{Binding SyncWorkspace.ResultCancelled}" Value="True">
+                                    <DataTrigger Binding="{Binding SyncWorkspace.Result.Cancelled}" Value="True">
                                         <Setter Property="Symbol" Value="Warning24" />
                                         <Setter Property="Foreground"
                                                 Value="{DynamicResource SystemFillColorCautionBrush}" />
@@ -93,14 +93,14 @@
                             </Style>
                         </ui:SymbolIcon.Style>
                     </ui:SymbolIcon>
-                    <TextBlock Text="{Binding SyncWorkspace.ResultSummaryText}" FontWeight="SemiBold"
+                    <TextBlock Text="{Binding SyncWorkspace.Result.SummaryText}" FontWeight="SemiBold"
                                VerticalAlignment="Center" />
                 </StackPanel>
-                <TextBlock Text="{Binding SyncWorkspace.ResultRemainingText}" FontSize="12" Margin="22,2,0,0"
+                <TextBlock Text="{Binding SyncWorkspace.Result.RemainingText}" FontSize="12" Margin="22,2,0,0"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                           Visibility="{Binding SyncWorkspace.HasResultRemainingCount, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                           Visibility="{Binding SyncWorkspace.Result.HasRemainingCount, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 <TextBlock Margin="22,4,0,0" FontSize="12"
-                           Visibility="{Binding SyncWorkspace.HasResultLog, Converter={StaticResource BooleanToVisibilityConverter}}">
+                           Visibility="{Binding SyncWorkspace.Result.HasLog, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Run Text="実行ログを保存しました: " />
                     <Hyperlink Command="{Binding SyncWorkspace.OpenResultLogCommand}"
                                ToolTip="同期結果CSVを既定のアプリで開く">
@@ -112,12 +112,12 @@
                      差分DataGridの「エラーのみ表示」と同様、成功分を除いた「絞り込み済み」の一覧として見せる。 -->
                 <Border Margin="22,8,0,0" Padding="8" CornerRadius="4" BorderThickness="1"
                         BorderBrush="{DynamicResource SystemFillColorCriticalBrush}"
-                        Visibility="{Binding SyncWorkspace.HasFailedResults, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        Visibility="{Binding SyncWorkspace.Result.HasFailedResults, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <StackPanel>
                         <TextBlock Text="失敗した操作" FontSize="12" FontWeight="SemiBold"
                                    Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
                         <ScrollViewer MaxHeight="120" Margin="0,4,0,0" VerticalScrollBarVisibility="Auto">
-                            <ItemsControl ItemsSource="{Binding SyncWorkspace.FailedResults}"
+                            <ItemsControl ItemsSource="{Binding SyncWorkspace.Result.FailedResults}"
                                           AutomationProperties.Name="失敗した操作の一覧">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
@@ -136,10 +136,10 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </ScrollViewer>
-                        <TextBlock Text="{Binding SyncWorkspace.HiddenFailedResultsText}"
+                        <TextBlock Text="{Binding SyncWorkspace.Result.HiddenFailedResultsText}"
                                    Margin="0,6,0,0" FontSize="12" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                   Visibility="{Binding SyncWorkspace.HasHiddenFailedResults, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                   Visibility="{Binding SyncWorkspace.Result.HasHiddenFailedResults, Converter={StaticResource BooleanToVisibilityConverter}}" />
                         <TextBlock Text="次に行うこと: 「差分を確認」で最新の状態を取得し、内容を確認してから再実行してください。"
                                    FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />

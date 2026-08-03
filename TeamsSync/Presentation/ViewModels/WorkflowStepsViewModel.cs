@@ -39,8 +39,7 @@ public sealed class WorkflowStepsViewModel : ObservableObject
         memberFile.DocumentChanged += NotifySteps;
         syncWorkspace.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName is nameof(SyncWorkspaceViewModel.HasPlan)
-                or nameof(SyncWorkspaceViewModel.HasSyncResult))
+            if (e.PropertyName == nameof(SyncWorkspaceViewModel.HasPlan))
             {
                 NotifySteps();
             }

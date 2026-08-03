@@ -3,6 +3,15 @@
 `TODO.md`から、全項目が完了した (チェックボックスが全て`[x]`の)セクションをここへ移動した履歴。 新しい完了項目は`TODO.md`
 側で管理し、セクション内が全て完了した時点でここへ移動する。
 
+### 同期画面の状態管理を整理する
+
+- [x] 同期プランの作成・無効化時に`SyncUnavailableReason`の変更通知を必ず発行し、実行ボタンの説明が古い状態で残らないようにする
+- [x] `SyncWorkspaceViewModel`の本番用コンストラクターは`SyncExecutionCoordinator`を必須依存とし、内部生成との二重経路をなくす
+- [x] プレビュー状態、同期実行状態、結果表示状態を`SyncPreviewDisplayState`、`SyncExecutionDisplayState`、`SyncResultDisplayState`へ分離し、`SyncWorkspaceViewModel`に集中していた手動の`PropertyChanged`・コマンド更新を削減する
+- [x] プラン作成・無効化の状態遷移で、計算プロパティの値だけでなく必要な`PropertyChanged`とコマンド実行可否通知が発行されることを自動テストする
+
+完了条件: 同期画面の状態変更が一元管理され、機能追加時に表示更新やコマンド状態の通知漏れが発生しにくい。
+
 ### 同期判定の業務ルールをDomain Modelへ集約する
 
 - [x] `TeamSyncService`の`ClassifyResolutions`、`ClassifyExistingMember`、`ComputeRemovals`
