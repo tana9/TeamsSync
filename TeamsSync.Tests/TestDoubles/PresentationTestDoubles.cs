@@ -7,10 +7,31 @@ using TeamsSync.Application.Services;
 using TeamsSync.Domain.Teams;
 using TeamsSync.Infrastructure.Files;
 using TeamsSync.Presentation.Services;
+using TeamsSync.Presentation.ViewModels;
 
 using Xunit.Sdk;
 
 namespace TeamsSync.Tests.TestDoubles;
+
+internal static class SyncWorkspaceViewModelFactory
+{
+    public static SyncWorkspaceViewModel Create(ISyncPlanService planService, ISyncExecutor executor,
+        ISyncResultWriter resultWriter, ISyncConfirmationService confirmation, INotificationService notifications,
+        ISavedFileLauncher? savedFileLauncher = null)
+    {
+        SyncExecutionCoordinator coordinator = new(planService, executor, resultWriter);
+        return new SyncWorkspaceViewModel(planService, coordinator, confirmation, notifications,
+            savedFileLauncher ?? new UnavailableSavedFileLauncher());
+    }
+
+    private sealed class UnavailableSavedFileLauncher : ISavedFileLauncher
+    {
+        public void Open(string path)
+        {
+            throw new InvalidOperationException("保存済みファイルを開くサービスが構成されていません。");
+        }
+    }
+}
 
 // Presentation層のテストから共有する、外部依存を持たないテストダブルとDispatcherヘルパー。
 // 各テストは必要な振る舞いだけをプロパティやデリゲートで明示的に設定する

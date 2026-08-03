@@ -61,15 +61,6 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         SelectedMode = Modes[0];
     }
 
-    /// <summary>外部サービスを簡易実装へ差し替える単体テスト用コンストラクター</summary>
-    internal SyncWorkspaceViewModel(ISyncPlanService syncService, ISyncExecutor syncExecutor,
-        ISyncResultWriter resultWriter, ISyncConfirmationService confirmation, INotificationService notifications,
-        ISavedFileLauncher? savedFileLauncher = null)
-        : this(syncService, new SyncExecutionCoordinator(syncService, syncExecutor, resultWriter),
-            confirmation, notifications, savedFileLauncher ?? UnavailableSavedFileLauncher.Instance)
-    {
-    }
-
     /// <summary>差分確認・再検証などの処理中かどうか</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RetryRemainingCommand))]
@@ -155,7 +146,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanRetryResult))]
     [NotifyCanExecuteChangedFor(nameof(RetryRemainingCommand))]
-    public partial int ResultRemainingCount { get; set; } = -1; // -1: 最終状態を未確認(再取得前または再取得失敗)
+    public partial int? ResultRemainingCount { get; set; }
 
     /// <summary>差分一覧に適用中の絞り込みフィルター</summary>
     [ObservableProperty]
@@ -231,7 +222,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         SyncWorkspaceTextFormatter.BuildResultSummaryText(ResultCancelled, ResultSuccessCount, ResultFailureCount);
 
     /// <summary>未反映件数が確認済み(0以上)かどうか</summary>
-    public bool HasResultRemainingCount => ResultRemainingCount >= 0;
+    public bool HasResultRemainingCount => ResultRemainingCount.HasValue;
 
     /// <summary>未反映件数を示すテキスト</summary>
     public string ResultRemainingText => SyncWorkspaceTextFormatter.BuildResultRemainingText(ResultRemainingCount);
@@ -404,7 +395,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     }
 
     /// <summary>未反映件数の変化に応じて関連プロパティを通知する</summary>
-    partial void OnResultRemainingCountChanged(int value)
+    partial void OnResultRemainingCountChanged(int? value)
     {
         OnPropertyChanged(nameof(ResultRemainingText));
         OnPropertyChanged(nameof(HasResultRemainingCount));
@@ -625,7 +616,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         }
 
         InvalidatePlan(false);
-        ResultRemainingCount = -1;
+        ResultRemainingCount = null;
         ShowResultNotification(true, "最終状態を確認できませんでした",
             $"操作結果は保存済みです。差分を再確認してください。{Environment.NewLine}{outcome.ReconciliationError?.Message}");
         StatusChanged?.Invoke("最終状態を確認できませんでした。差分を再確認してください", true);
@@ -754,7 +745,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             ResultSuccessCount = 0;
             ResultFailureCount = 0;
             ResultCancelled = false;
-            ResultRemainingCount = -1;
+            ResultRemainingCount = null;
             FailedResults.Clear();
             OnPropertyChanged(nameof(HasFailedResults));
             NotifyFailedResultVisibility();
@@ -884,16 +875,5 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         ExecuteSyncCommand.NotifyCanExecuteChanged();
         CancelCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(SyncUnavailableReason));
-    }
-}
-
-/// <summary>テストなどでファイル起動を使用しない場合の安全な既定実装</summary>
-file sealed class UnavailableSavedFileLauncher : ISavedFileLauncher
-{
-    public static UnavailableSavedFileLauncher Instance { get; } = new();
-
-    public void Open(string path)
-    {
-        throw new InvalidOperationException("保存済みファイルを開くサービスが構成されていません。");
     }
 }

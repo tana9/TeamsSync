@@ -40,9 +40,9 @@ public sealed class SyncWorkspaceTextFormatterTests
     }
 
     [Fact]
-    public void BuildResultRemainingText_負の値の場合は空文字を返す()
+    public void BuildResultRemainingText_未確認の場合は空文字を返す()
     {
-        Assert.Equal("", SyncWorkspaceTextFormatter.BuildResultRemainingText(-1));
+        Assert.Equal("", SyncWorkspaceTextFormatter.BuildResultRemainingText(null));
     }
 
     [Fact]

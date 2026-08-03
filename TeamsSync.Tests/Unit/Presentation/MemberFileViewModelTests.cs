@@ -156,7 +156,7 @@ public sealed class MemberFileViewModelTests
         };
         MemberFileViewModel memberFile = new(reader, new MemberTextParser(), preferences,
             new FakeDialogs(), notifications, gateway, new FakeDialogs());
-        SyncWorkspaceViewModel workspace = new(new SyncPlanService(gateway), new SyncExecutor(gateway),
+        SyncWorkspaceViewModel workspace = SyncWorkspaceViewModelFactory.Create(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), new FakeDialogs(), notifications);
         MainWindowViewModel main = new(new FakeAuthenticationService(), gateway, notifications,
             preferences, teamSelection, memberFile, workspace,

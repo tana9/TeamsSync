@@ -20,10 +20,10 @@ public static class SyncWorkspaceTextFormatter
                 : $"同期完了 — 成功 {successCount}件";
     }
 
-    /// <summary>未反映の残り件数を示すテキストを組み立てる(負数の場合は空文字)</summary>
-    public static string BuildResultRemainingText(int remainingCount)
+    /// <summary>未反映の残り件数を示すテキストを組み立てる(未確認の場合は空文字)</summary>
+    public static string BuildResultRemainingText(int? remainingCount)
     {
-        return remainingCount < 0 ? "" : $"未反映 {remainingCount}件";
+        return remainingCount is null ? "" : $"未反映 {remainingCount}件";
     }
 
     /// <summary>入力元・検出列・件数を示す要約テキストを組み立てる</summary>
