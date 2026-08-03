@@ -38,7 +38,7 @@ TeamsSync の今後の改善項目。メンバー削除を伴うアプリケー�
 
 ### ViewModelの責務と状態更新をさらに整理する
 
-- [ ] `SyncWorkspaceViewModel`から差分プラン、一覧フィルター、削除警告の状態を専用コンポーネントへ分離する
+- [x] `SyncWorkspaceViewModel`から差分プラン、一覧フィルター、削除警告の状態を`SyncPlanDisplayState`へ分離する
 - [x] `MemberFileViewModel`に分散しているコマンド実行可否の更新を一つのメソッドへ集約する
 - [x] `SyncResultDisplayState`の公開setterを廃止し、実行開始・結果適用・未反映件数更新・確認失敗・クリアの目的別APIに限定する
 - [ ] `MainWindowViewModel`と`WorkflowStepsViewModel`のイベント購読について、Singleton前提を明示するか解除可能な購読管理へ統一する

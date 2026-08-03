@@ -1,6 +1,4 @@
-using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Windows.Data;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -23,7 +21,6 @@ namespace TeamsSync.Presentation.ViewModels;
 public partial class SyncWorkspaceViewModel : ObservableObject
 {
     private readonly BusyOperationRunner _busyRunner;
-    private readonly BulkObservableCollection<SyncChangeRowViewModel> _changes = [];
     private readonly ISyncConfirmationService _confirmation;
     private readonly SyncExecutionCoordinator _executionCoordinator;
     private readonly INotificationService _notifications;
@@ -34,7 +31,6 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     private bool _externallyBusy;
     private SyncPlan? _lastExecutedPlan;
     private SyncExecutionResult? _lastResult;
-    private SyncPlan? _plan;
     private bool _signedIn;
     private CancellationTokenSource? _syncCancellation;
     private TaskCompletionSource? _syncCompletion;
@@ -53,59 +49,28 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         _savedFileLauncher = savedFileLauncher;
         _busyRunner = new BusyOperationRunner(_notifications,
             (message, isError) => StatusChanged?.Invoke(message, isError), Preview.SetBusy);
-        ChangesView = CollectionViewSource.GetDefaultView(Changes);
-        ChangesView.Filter = FilterChange;
-        Changes.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasChanges));
+        Plan.PropertyChanged += OnPlanPropertyChanged;
         Result.PropertyChanged += OnResultPropertyChanged;
         Preview.PropertyChanged += OnOperationStatePropertyChanged;
         Execution.PropertyChanged += OnOperationStatePropertyChanged;
-        SelectedFilter = Filters[0];
         SelectedMode = Modes[0];
     }
 
     /// <summary>差分確認・再検証の表示状態</summary>
     public SyncPreviewDisplayState Preview { get; } = new();
 
-    /// <summary>削除警告(InfoBar)を表示中かどうか</summary>
-    [ObservableProperty]
-    public partial bool IsRemovalWarningOpen { get; set; }
-
     /// <summary>Teamsへの同期実行の表示状態</summary>
     public SyncExecutionDisplayState Execution { get; } = new();
 
-    /// <summary>削除警告InfoBarの本文</summary>
-    [ObservableProperty]
-    public partial string RemovalWarningMessage { get; set; } = "";
-
-    /// <summary>削除警告InfoBarのタイトル</summary>
-    [ObservableProperty]
-    public partial string RemovalWarningTitle { get; set; } = "";
-
-    // 「3 同期モード」「差分確認・実行」の手順が完了しているかを画面の手順表示へ伝えるための状態。
-    /// <summary>差分確認済みかどうか(同期モード変更でfalseに戻る)</summary>
-    [ObservableProperty]
-    public partial bool HasPlan { get; set; }
+    /// <summary>同期プラン、差分一覧、フィルター、削除警告の表示状態</summary>
+    public SyncPlanDisplayState Plan { get; } = new();
 
     /// <summary>直近の同期実行結果を表示する状態</summary>
     public SyncResultDisplayState Result { get; } = new();
 
-    /// <summary>差分一覧に適用中の絞り込みフィルター</summary>
-    [ObservableProperty]
-    public partial ChangeFilter SelectedFilter { get; set; }
-
     /// <summary>選択中の同期モード</summary>
     [ObservableProperty]
     public partial SyncModeOption SelectedMode { get; set; }
-
-    /// <summary>差分件数の要約テキスト</summary>
-    [ObservableProperty]
-    public partial string SummaryText { get; set; } = "";
-
-    /// <summary>差分一覧の行データ</summary>
-    public ObservableCollection<SyncChangeRowViewModel> Changes => _changes;
-
-    /// <summary>絞り込みフィルターを適用した<see cref="Changes" />のビュー</summary>
-    public ICollectionView ChangesView { get; }
 
     /// <summary>同期モード選択コンボボックスの選択肢</summary>
     public IReadOnlyList<SyncModeOption> Modes { get; } =
@@ -114,21 +79,6 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         new(SyncMode.RemoveSpecified, SyncWorkspaceTextFormatter.BuildModeLabel(SyncMode.RemoveSpecified)),
         new(SyncMode.FullSync, SyncWorkspaceTextFormatter.BuildModeLabel(SyncMode.FullSync))
     ];
-
-    /// <summary>差分一覧の絞り込みフィルターの選択肢</summary>
-    public IReadOnlyList<ChangeFilter> Filters { get; } =
-    [
-        new("変更あり", null, true), new("すべて", null), new("追加", ChangeKind.Add),
-        new("削除", ChangeKind.Remove), new("所有者", ChangeKind.Protected),
-        new("未所属", ChangeKind.NotMember),
-        new("エラー", ChangeKind.Error), new("変更なし", ChangeKind.Keep)
-    ];
-
-    /// <summary>差分一覧に1件以上の項目があるかどうか</summary>
-    public bool HasChanges => Changes.Count > 0;
-
-    /// <summary>差分一覧に未解決(エラー)の項目があるかどうか</summary>
-    public bool HasErrors => _plan?.HasErrors ?? false;
 
     /// <summary>同期を実行できない理由の説明文(実行可能な場合はその旨)</summary>
     public string SyncUnavailableReason => GetSyncUnavailableReason();
@@ -148,20 +98,6 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     /// <summary>差分未確認時に表示する案内メッセージ</summary>
     public string EmptyStateMessage =>
         SyncWorkspaceTextFormatter.BuildEmptyStateMessage(_signedIn, _team, _document);
-
-    // 既定の「変更あり」フィルターは追加・削除・エラーのみを表示するため、全員が変更なしの場合は
-    // 一覧が0行になる。HasChangesは絞り込み前の件数(変更なし行を含む)で判定しており、
-    // このときはtrueのままでEmptyStateMessage側のオーバーレイは出ないため、
-    // ただの空白の表にならないよう専用の案内を別途表示する。
-    // 「変更なし」フィルターなどへ切り替えて実際に行が表示されているときは、案内を隠す必要があるため
-    // 現在のフィルターの該当件数もあわせて判定する。SelectedFilter.CountはUpdateFilterCountsが
-    // ChangesViewと同じ述語で既に算出済みのため、ChangesViewを再列挙する必要はない
-    /// <summary>差分確認の結果、追加・削除ともに0件で新たに行う変更がなく、かつ現在のフィルターでは一覧に何も表示されないかどうか</summary>
-    public bool HasNoChangesToApply =>
-        _plan is not null && _plan.HasNoActionableChanges && SelectedFilter.Count == 0;
-
-    /// <summary>変更なし(同期済み)の場合に一覧領域へ表示する案内文</summary>
-    public string NoChangesMessage => _plan is null ? "" : SyncWorkspaceTextFormatter.BuildPreviewStatusText(_plan);
 
     /// <summary>ラジオボタン用に「追加のみ」モードが選択されているかどうかを表す。設定すると当該モードへ切り替える</summary>
     public bool IsAddOnlySelected
@@ -240,20 +176,13 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         NotifyCommandStates();
     }
 
-    /// <summary>選択フィルターの変更に応じて差分一覧のビューを再フィルターする</summary>
-    partial void OnSelectedFilterChanged(ChangeFilter value)
-    {
-        ChangesView.Refresh();
-        OnPropertyChanged(nameof(HasNoChangesToApply));
-    }
-
     /// <summary>同期モードの変更に応じて関連プロパティを通知し、既存の差分プランを無効化する</summary>
     partial void OnSelectedModeChanged(SyncModeOption value)
     {
         OnPropertyChanged(nameof(IsAddOnlySelected));
         OnPropertyChanged(nameof(IsRemoveSpecifiedSelected));
         OnPropertyChanged(nameof(IsFullSyncSelected));
-        bool hadPlan = _plan is not null;
+        bool hadPlan = Plan.Current is not null;
         InvalidatePlan();
         if (hadPlan)
         {
@@ -334,9 +263,9 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         {
             await _busyRunner.RunAsync(async () =>
             {
-                if (_plan is null || _document is null ||
+                if (Plan.Current is null || _document is null ||
                     !await _confirmation.ConfirmSyncAsync(new SyncConfirmation(
-                        _plan, _document.FileName, $"{InputSummary}{Environment.NewLine}{InputPreview}")))
+                        Plan.Current, _document.FileName, $"{InputSummary}{Environment.NewLine}{InputPreview}")))
                 {
                     return;
                 }
@@ -368,7 +297,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         return await _busyRunner.RunAsync(async () =>
             {
                 StatusChanged?.Invoke("実行直前のメンバー構成を確認しています…", false);
-                SyncPlanRevalidation revalidation = await _executionCoordinator.RevalidateAsync(_plan!);
+                SyncPlanRevalidation revalidation = await _executionCoordinator.RevalidateAsync(Plan.Current!);
                 // ApplyPlan既定の案内文はこの後の分岐でより具体的なメッセージに置き換えるため、
                 // 同じ内容をスクリーンリーダーへ二重に読み上げさせないようannounceStatus: falseで抑制する
                 ApplyPlan(revalidation.LatestPlan, false);
@@ -393,16 +322,16 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     private async Task RunSyncAndReconcileAsync()
     {
         _syncCancellation = new CancellationTokenSource();
-        Execution.Start(_plan!.AddCount + _plan.RemoveCount);
+        Execution.Start(Plan.Current!.AddCount + Plan.Current.RemoveCount);
         Result.BeginExecution();
         try
         {
             Progress<SyncProgress> progress = new(ReportSyncProgress);
-            _lastExecutedPlan = _plan;
+            _lastExecutedPlan = Plan.Current;
             SyncAuditContext auditContext = new(Guid.NewGuid(),
                 _document!.FileName, _document.ContentSha256, _tenantId, _actorObjectId);
             SyncExecutionOutcome outcome = await _executionCoordinator.ExecuteAsync(
-                _plan, auditContext, progress,
+                Plan.Current, auditContext, progress,
                 () => StatusChanged?.Invoke("Teams側の最新状態を確認しています…", false),
                 _syncCancellation.Token);
             _lastResult = outcome.Execution;
@@ -444,10 +373,8 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         // 中止までに着手した件数(_lastResult.Operations)を差し引いた残りを「未反映」として表示する。
         // Teams側の最新状態はまだ再取得していないため、件数は目安であることをResultRemainingTextの文言側で示す
         Result.SetRemainingCount(Math.Max(0,
-            _plan!.AddCount + _plan.RemoveCount - _lastResult!.Operations.Count));
-        _plan = null;
-        OnPropertyChanged(nameof(HasNoChangesToApply));
-        OnPropertyChanged(nameof(NoChangesMessage));
+            Plan.Current!.AddCount + Plan.Current.RemoveCount - _lastResult!.Operations.Count));
+        Plan.Clear();
         ExecuteSyncCommand.NotifyCanExecuteChanged();
         ShowResultNotification(true, "同期を中止しました",
             $"{_lastResult!.SuccessCount}件は処理済みです。差分を再確認してください。");
@@ -550,6 +477,17 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         }
     }
 
+    /// <summary>差分プラン状態の変化を、ViewModelが持つコマンドの実行可否へ反映する</summary>
+    private void OnPlanPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(SyncPlanDisplayState.HasPlan)
+            or nameof(SyncPlanDisplayState.HasErrors))
+        {
+            ExecuteSyncCommand.NotifyCanExecuteChanged();
+            OnPropertyChanged(nameof(SyncUnavailableReason));
+        }
+    }
+
     private bool CanOpenResultLog()
     {
         return Result.HasLog;
@@ -557,21 +495,21 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
     private bool CanExecuteSync()
     {
-        return !_externallyBusy && !Preview.IsBusy && !Execution.IsRunning && (_plan?.CanExecute ?? false);
+        return !_externallyBusy && !Preview.IsBusy && !Execution.IsRunning && (Plan.Current?.CanExecute ?? false);
     }
 
     /// <summary>現在の状態から、同期を実行できない理由(または実行可能である旨)を判定する</summary>
     private string GetSyncUnavailableReason()
     {
         return SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(
-            Execution.IsRunning, Preview.IsBusy, _externallyBusy, _signedIn, _team, _document, _plan);
+            Execution.IsRunning, Preview.IsBusy, _externallyBusy, _signedIn, _team, _document, Plan.Current);
     }
 
     /// <summary>差分一覧の絞り込みを「エラー」フィルターへ切り替える</summary>
     [RelayCommand]
     private void ShowErrors()
     {
-        SelectedFilter = Filters.Single(filter => filter.Kind == ChangeKind.Error);
+        Plan.SelectErrors();
     }
 
     /// <summary>実行中の同期をキャンセルし、後処理が完了するまで待機する</summary>
@@ -603,15 +541,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     /// </summary>
     private void InvalidatePlan(bool clearResult = true)
     {
-        _plan = null;
-        HasPlan = false;
-        Changes.Clear();
-        SummaryText = "";
-        IsRemovalWarningOpen = false;
-        OnPropertyChanged(nameof(HasNoChangesToApply));
-        OnPropertyChanged(nameof(NoChangesMessage));
-        // 件数表示を未確認状態(-1)に戻す。理由はSyncWorkspaceTextFormatter.ClearFilterCounts参照
-        ClearFilterCounts();
+        Plan.Clear();
         if (clearResult)
         {
             _lastResult = null;
@@ -634,16 +564,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     /// </param>
     private void ApplyPlan(SyncPlan plan, bool announceStatus = true)
     {
-        _plan = plan;
-        HasPlan = true;
-        ReplaceChanges(plan.Changes);
-        PlanPresentation presentation = SyncWorkspaceTextFormatter.BuildPlan(plan);
-        SummaryText = presentation.Summary;
-        IsRemovalWarningOpen = plan.RemoveCount > 0;
-        RemovalWarningTitle = presentation.RemovalTitle;
-        RemovalWarningMessage = presentation.RemovalMessage;
-        OnPropertyChanged(nameof(HasNoChangesToApply));
-        OnPropertyChanged(nameof(NoChangesMessage));
+        Plan.Apply(plan);
         if (announceStatus)
         {
             StatusChanged?.Invoke(SyncWorkspaceTextFormatter.BuildPreviewStatusText(plan), plan.HasErrors);
@@ -663,52 +584,6 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
         ExecuteSyncCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(SyncUnavailableReason));
-    }
-
-    /// <summary>差分一覧を種別順(エラー→削除→追加→所有者→その他)に並べ替えて差し替える</summary>
-    private void ReplaceChanges(IEnumerable<SyncChange> changes)
-    {
-        _changes.ReplaceAll(changes.OrderBy(x => x.Kind switch
-            {
-                ChangeKind.Error => 0, ChangeKind.Remove => 1, ChangeKind.Add => 2, ChangeKind.Protected => 3,
-                _ => 4
-            })
-            .Select(change => new SyncChangeRowViewModel(change)));
-
-        ChangesView.Refresh();
-        UpdateFilterCounts();
-    }
-
-    /// <summary>差分一覧の内容からフィルターごとの該当件数を再計算する</summary>
-    private void UpdateFilterCounts()
-    {
-        SyncWorkspaceTextFormatter.UpdateFilterCounts(Filters, Changes);
-        CollectionViewSource.GetDefaultView(Filters).Refresh();
-        OnPropertyChanged(nameof(HasErrors));
-    }
-
-    /// <summary>フィルターの件数表示を未確認状態へ戻す</summary>
-    private void ClearFilterCounts()
-    {
-        SyncWorkspaceTextFormatter.ClearFilterCounts(Filters);
-        CollectionViewSource.GetDefaultView(Filters).Refresh();
-        OnPropertyChanged(nameof(HasErrors));
-    }
-
-    /// <summary>差分一覧の1項目が現在選択中のフィルター条件に一致するかどうかを判定する</summary>
-    private bool FilterChange(object item)
-    {
-        if (item is not SyncChangeRowViewModel row)
-        {
-            return false;
-        }
-
-        if (SelectedFilter.ChangesOnly)
-        {
-            return ChangeFilter.MatchesChangesOnly(row.Kind);
-        }
-
-        return SelectedFilter.Kind is null || row.Kind == SelectedFilter.Kind;
     }
 
     /// <summary>各コマンドの実行可否を再評価させ、同期不可理由のプロパティ変更を通知する</summary>

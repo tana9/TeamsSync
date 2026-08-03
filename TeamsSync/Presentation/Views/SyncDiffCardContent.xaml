@@ -26,18 +26,18 @@
                         Margin="20,0,0,0" VerticalAlignment="Center">
                 <TextBlock Text="表示:" VerticalAlignment="Center" Margin="0,0,8,0"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                <ComboBox Width="130" ItemsSource="{Binding Filters}"
-                          SelectedItem="{Binding SelectedFilter}"
+                <ComboBox Width="130" ItemsSource="{Binding Plan.Filters}"
+                          SelectedItem="{Binding Plan.SelectedFilter}"
                           DisplayMemberPath="DisplayText"
-                          IsEnabled="{Binding HasChanges}"
+                          IsEnabled="{Binding Plan.HasChanges}"
                           AutomationProperties.Name="差分フィルター" />
                 <ui:Button Content="エラーのみ表示" Command="{Binding ShowErrorsCommand}"
                            Icon="{ui:SymbolIcon Symbol=ErrorCircle24}"
                            Margin="8,0,0,0" Appearance="Secondary"
-                           Visibility="{Binding HasErrors, Converter={StaticResource BooleanToVisibilityConverter}}"
+                           Visibility="{Binding Plan.HasErrors, Converter={StaticResource BooleanToVisibilityConverter}}"
                            AutomationProperties.Name="同期差分のエラーのみ表示" />
             </StackPanel>
-            <TextBlock x:Name="SummaryTextBlock" Grid.Column="2" Text="{Binding SummaryText}"
+            <TextBlock x:Name="SummaryTextBlock" Grid.Column="2" Text="{Binding Plan.SummaryText}"
                        VerticalAlignment="Center" AutomationProperties.Name="同期差分の集計"
                        AutomationProperties.LiveSetting="Polite" Focusable="True"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
@@ -74,7 +74,7 @@
                        Foreground="{DynamicResource SystemFillColorCautionBrush}"
                        Visibility="{Binding IsNameColumn, Converter={StaticResource BooleanToVisibilityConverter}}" />
         </StackPanel>
-        <ui:DataGrid x:Name="ChangesGrid" Grid.Row="2" ItemsSource="{Binding ChangesView}"
+        <ui:DataGrid x:Name="ChangesGrid" Grid.Row="2" ItemsSource="{Binding Plan.ChangesView}"
                      AutoGenerateColumns="False" IsReadOnly="True"
                      CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                      SelectionMode="Single" ColumnHeaderHeight="36"
@@ -190,7 +190,7 @@
                 <Style TargetType="Grid">
                     <Setter Property="Visibility" Value="Collapsed" />
                     <Style.Triggers>
-                        <DataTrigger Binding="{Binding HasChanges}" Value="False">
+                        <DataTrigger Binding="{Binding Plan.HasChanges}" Value="False">
                             <Setter Property="Visibility" Value="Visible" />
                         </DataTrigger>
                     </Style.Triggers>
@@ -207,11 +207,11 @@
              一覧が0行の空白テーブルになってしまう。HasChangesは絞り込み前の件数で判定しており
              このときtrueのままなので、上のオーバーレイとは別に、この状態専用の案内を出す。 -->
         <Grid Grid.Row="2" Margin="0,36,0,0" IsHitTestVisible="False"
-              Visibility="{Binding HasNoChangesToApply, Converter={StaticResource BooleanToVisibilityConverter}}">
+              Visibility="{Binding Plan.HasNoChangesToApply, Converter={StaticResource BooleanToVisibilityConverter}}">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                 <ui:SymbolIcon Symbol="CheckmarkCircle24" FontSize="28" HorizontalAlignment="Center"
                                Foreground="{DynamicResource SystemFillColorSuccessBrush}" />
-                <TextBlock Text="{Binding NoChangesMessage}" Margin="0,8,0,0"
+                <TextBlock Text="{Binding Plan.NoChangesMessage}" Margin="0,8,0,0"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
             </StackPanel>
         </Grid>

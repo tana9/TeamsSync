@@ -37,7 +37,7 @@ public partial class SyncDiffCardContent
             }
 
             SyncChangeRowViewModel? firstError =
-                viewModel.Changes.FirstOrDefault(change => change.Kind == ChangeKind.Error);
+                viewModel.Plan.Changes.FirstOrDefault(change => change.Kind == ChangeKind.Error);
             if (firstError is not null && ChangesGrid.Items.Contains(firstError))
             {
                 ChangesGrid.SelectedItem = firstError;

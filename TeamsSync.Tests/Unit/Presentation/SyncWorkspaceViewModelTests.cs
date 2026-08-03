@@ -72,13 +72,13 @@ public sealed class SyncWorkspaceViewModelTests
 
         await viewModel.PreviewCommand.ExecuteAsync(null);
 
-        Assert.True(viewModel.HasNoChangesToApply);
-        Assert.Equal("変更はありません。すでに同期済みです", viewModel.NoChangesMessage);
+        Assert.True(viewModel.Plan.HasNoChangesToApply);
+        Assert.Equal("変更はありません。すでに同期済みです", viewModel.Plan.NoChangesMessage);
 
         viewModel.SetContext(new TeamInfo("team-2", "営業", null), null, true);
 
-        Assert.False(viewModel.HasNoChangesToApply);
-        Assert.Equal("", viewModel.NoChangesMessage);
+        Assert.False(viewModel.Plan.HasNoChangesToApply);
+        Assert.Equal("", viewModel.Plan.NoChangesMessage);
     }
 
     [Fact]
@@ -94,11 +94,11 @@ public sealed class SyncWorkspaceViewModelTests
             new MemberListDocument(["user@example.com"], "members.csv", "C:\\members.csv",
                 new DateTime(2026, 8, 1), "CSV", "email"), true);
         await viewModel.PreviewCommand.ExecuteAsync(null);
-        Assert.True(viewModel.HasNoChangesToApply);
+        Assert.True(viewModel.Plan.HasNoChangesToApply);
 
-        viewModel.SelectedFilter = viewModel.Filters.Single(filter => filter.Kind == ChangeKind.Keep);
+        viewModel.Plan.SelectedFilter = viewModel.Plan.Filters.Single(filter => filter.Kind == ChangeKind.Keep);
 
-        Assert.False(viewModel.HasNoChangesToApply);
+        Assert.False(viewModel.Plan.HasNoChangesToApply);
     }
 
     [Fact]
@@ -177,7 +177,7 @@ public sealed class SyncWorkspaceViewModelTests
         await viewModel.PreviewCommand.ExecuteAsync(null);
 
         Assert.Contains("チームに反映できます", viewModel.SyncUnavailableReason);
-        Assert.Contains(viewModel.Filters, filter => filter.Kind == ChangeKind.Add && filter.Count == 1);
+        Assert.Contains(viewModel.Plan.Filters, filter => filter.Kind == ChangeKind.Add && filter.Count == 1);
         Assert.Contains("列: email", viewModel.InputSummary);
 
         // メンバーリストの再指定で差分が無効化されたときは、古い件数を0件と表示するのではなく
@@ -185,7 +185,7 @@ public sealed class SyncWorkspaceViewModelTests
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["missing@example.com", "other@example.com"], "members2.csv",
                 "C:\\members2.csv", DateTime.Now, "CSV", "email"), true);
-        Assert.All(viewModel.Filters, filter => Assert.Equal(-1, filter.Count));
+        Assert.All(viewModel.Plan.Filters, filter => Assert.Equal(-1, filter.Count));
     }
 
     [Fact]
@@ -202,13 +202,14 @@ public sealed class SyncWorkspaceViewModelTests
         List<string?> raisedProperties = [];
         int executeCanExecuteChanged = 0;
         viewModel.PropertyChanged += (_, args) => raisedProperties.Add(args.PropertyName);
+        viewModel.Plan.PropertyChanged += (_, args) => raisedProperties.Add(args.PropertyName);
         viewModel.ExecuteSyncCommand.CanExecuteChanged += (_, _) => executeCanExecuteChanged++;
 
         await viewModel.PreviewCommand.ExecuteAsync(null);
 
-        Assert.Contains(nameof(SyncWorkspaceViewModel.HasPlan), raisedProperties);
-        Assert.Contains(nameof(SyncWorkspaceViewModel.HasErrors), raisedProperties);
-        Assert.Contains(nameof(SyncWorkspaceViewModel.HasNoChangesToApply), raisedProperties);
+        Assert.Contains(nameof(SyncPlanDisplayState.HasPlan), raisedProperties);
+        Assert.Contains(nameof(SyncPlanDisplayState.HasErrors), raisedProperties);
+        Assert.Contains(nameof(SyncPlanDisplayState.HasNoChangesToApply), raisedProperties);
         Assert.Contains(nameof(SyncWorkspaceViewModel.SyncUnavailableReason), raisedProperties);
         Assert.True(executeCanExecuteChanged > 0);
         Assert.True(viewModel.ExecuteSyncCommand.CanExecute(null));
@@ -219,9 +220,9 @@ public sealed class SyncWorkspaceViewModelTests
 
         viewModel.IsFullSyncSelected = true;
 
-        Assert.Contains(nameof(SyncWorkspaceViewModel.HasPlan), raisedProperties);
-        Assert.Contains(nameof(SyncWorkspaceViewModel.HasErrors), raisedProperties);
-        Assert.Contains(nameof(SyncWorkspaceViewModel.HasNoChangesToApply), raisedProperties);
+        Assert.Contains(nameof(SyncPlanDisplayState.HasPlan), raisedProperties);
+        Assert.Contains(nameof(SyncPlanDisplayState.HasErrors), raisedProperties);
+        Assert.Contains(nameof(SyncPlanDisplayState.HasNoChangesToApply), raisedProperties);
         Assert.Contains(nameof(SyncWorkspaceViewModel.SyncUnavailableReason), raisedProperties);
         Assert.True(executeCanExecuteChanged > 0);
         Assert.False(viewModel.ExecuteSyncCommand.CanExecute(null));
@@ -244,13 +245,13 @@ public sealed class SyncWorkspaceViewModelTests
             new MemberListDocument(["missing@example.com"], "members.csv", "C:\\members.csv",
                 DateTime.Now, "CSV", "email"), true);
 
-        ChangeFilter selectedFilter = viewModel.SelectedFilter;
+        ChangeFilter selectedFilter = viewModel.Plan.SelectedFilter;
         List<string?> raisedProperties = new();
         selectedFilter.PropertyChanged += (_, e) => raisedProperties.Add(e.PropertyName);
 
         await viewModel.PreviewCommand.ExecuteAsync(null);
 
-        Assert.Same(selectedFilter, viewModel.SelectedFilter);
+        Assert.Same(selectedFilter, viewModel.Plan.SelectedFilter);
         Assert.Contains(nameof(ChangeFilter.DisplayText), raisedProperties);
         Assert.Equal("変更あり (1)", selectedFilter.DisplayText);
     }
@@ -271,9 +272,9 @@ public sealed class SyncWorkspaceViewModelTests
         Assert.True(viewModel.PreviewCommand.CanExecute(null));
         await viewModel.PreviewCommand.ExecuteAsync(null);
 
-        Assert.Single(viewModel.Changes);
-        Assert.Equal(ChangeKind.Add, viewModel.Changes[0].Kind);
-        Assert.Contains("追加 1", viewModel.SummaryText);
+        Assert.Single(viewModel.Plan.Changes);
+        Assert.Equal(ChangeKind.Add, viewModel.Plan.Changes[0].Kind);
+        Assert.Contains("追加 1", viewModel.Plan.SummaryText);
         Assert.True(viewModel.ExecuteSyncCommand.CanExecute(null));
     }
 
@@ -305,10 +306,10 @@ public sealed class SyncWorkspaceViewModelTests
         await viewModel.PreviewCommand.ExecuteAsync(null);
 
         Assert.True(viewModel.IsRemoveSpecifiedSelected);
-        Assert.Single(viewModel.Changes, change => change.Kind == ChangeKind.Remove);
-        Assert.Single(viewModel.Changes, change => change.Kind == ChangeKind.Protected);
-        Assert.DoesNotContain(viewModel.Changes, change => change.Change.UserId == "other-user");
-        Assert.Contains("指定した一般メンバー", viewModel.RemovalWarningMessage);
+        Assert.Single(viewModel.Plan.Changes, change => change.Kind == ChangeKind.Remove);
+        Assert.Single(viewModel.Plan.Changes, change => change.Kind == ChangeKind.Protected);
+        Assert.DoesNotContain(viewModel.Plan.Changes, change => change.Change.UserId == "other-user");
+        Assert.Contains("指定した一般メンバー", viewModel.Plan.RemovalWarningMessage);
 
         await viewModel.ExecuteSyncCommand.ExecuteAsync(null);
 
@@ -331,13 +332,13 @@ public sealed class SyncWorkspaceViewModelTests
             new DateTime(2026, 7, 28), "CSV", "email");
         viewModel.SetContext(team, document, true);
         await viewModel.PreviewCommand.ExecuteAsync(null);
-        Assert.Single(viewModel.Changes);
+        Assert.Single(viewModel.Plan.Changes);
         List<string> notifications = new();
         viewModel.StatusChanged += (message, _) => notifications.Add(message);
 
         viewModel.IsFullSyncSelected = true;
 
-        Assert.Empty(viewModel.Changes);
+        Assert.Empty(viewModel.Plan.Changes);
         Assert.Contains(notifications, message => message.Contains("クリア"));
     }
 
@@ -398,13 +399,13 @@ public sealed class SyncWorkspaceViewModelTests
             new DateTime(2026, 7, 28), "CSV", "email");
         viewModel.SetContext(team, document, true);
         await viewModel.PreviewCommand.ExecuteAsync(null);
-        Assert.Contains(viewModel.Changes, change => change.Kind == ChangeKind.Remove);
+        Assert.Contains(viewModel.Plan.Changes, change => change.Kind == ChangeKind.Remove);
 
         await viewModel.ExecuteSyncCommand.ExecuteAsync(null);
 
         Assert.Empty(gateway.Added);
         Assert.Empty(gateway.Removed);
-        Assert.DoesNotContain(viewModel.Changes, change => change.Kind == ChangeKind.Remove);
+        Assert.DoesNotContain(viewModel.Plan.Changes, change => change.Kind == ChangeKind.Remove);
         Assert.Contains("変更", dialogs.WarningTitle);
         Assert.True(viewModel.ExecuteSyncCommand.CanExecute(null));
     }
@@ -431,8 +432,8 @@ public sealed class SyncWorkspaceViewModelTests
 
         await viewModel.ExecuteSyncCommand.ExecuteAsync(null);
 
-        Assert.DoesNotContain(viewModel.Changes, change => change.Kind == ChangeKind.Add);
-        Assert.Single(viewModel.Changes, change => change.Kind == ChangeKind.Remove);
+        Assert.DoesNotContain(viewModel.Plan.Changes, change => change.Kind == ChangeKind.Add);
+        Assert.Single(viewModel.Plan.Changes, change => change.Kind == ChangeKind.Remove);
         Assert.True(viewModel.ExecuteSyncCommand.CanExecute(null));
 
         gateway.OnRemove = (_, membershipId, _) =>
@@ -468,13 +469,13 @@ public sealed class SyncWorkspaceViewModelTests
             "C:\\members.csv", new DateTime(2026, 7, 28), "CSV", "email");
         viewModel.SetContext(new TeamInfo("team-1", "開発", null), document, true);
         await viewModel.PreviewCommand.ExecuteAsync(null);
-        Assert.Contains(viewModel.Changes, change => change.Kind == ChangeKind.Add);
-        Assert.Contains(viewModel.Changes, change => change.Kind == ChangeKind.Remove);
-        Assert.Contains(viewModel.Changes, change => change.Kind == ChangeKind.Keep);
+        Assert.Contains(viewModel.Plan.Changes, change => change.Kind == ChangeKind.Add);
+        Assert.Contains(viewModel.Plan.Changes, change => change.Kind == ChangeKind.Remove);
+        Assert.Contains(viewModel.Plan.Changes, change => change.Kind == ChangeKind.Keep);
 
-        viewModel.SelectedFilter = viewModel.Filters.Single(filter => filter.Kind == ChangeKind.Add);
+        viewModel.Plan.SelectedFilter = viewModel.Plan.Filters.Single(filter => filter.Kind == ChangeKind.Add);
 
-        List<SyncChangeRowViewModel> filtered = viewModel.ChangesView.Cast<SyncChangeRowViewModel>().ToList();
+        List<SyncChangeRowViewModel> filtered = viewModel.Plan.ChangesView.Cast<SyncChangeRowViewModel>().ToList();
         Assert.Single(filtered);
         Assert.Equal(ChangeKind.Add, filtered[0].Kind);
     }
@@ -496,11 +497,11 @@ public sealed class SyncWorkspaceViewModelTests
             new MemberListDocument(["new1@example.com", "new2@example.com"], "members.csv", @"C:\members.csv",
                 new DateTime(2026, 8, 1), "CSV", "email"), true);
         List<NotifyCollectionChangedAction> actions = [];
-        viewModel.Changes.CollectionChanged += (_, args) => actions.Add(args.Action);
+        viewModel.Plan.Changes.CollectionChanged += (_, args) => actions.Add(args.Action);
 
         await viewModel.PreviewCommand.ExecuteAsync(null);
 
-        Assert.Equal(2, viewModel.Changes.Count);
+        Assert.Equal(2, viewModel.Plan.Changes.Count);
         Assert.Equal([NotifyCollectionChangedAction.Reset], actions);
     }
 
@@ -527,7 +528,7 @@ public sealed class SyncWorkspaceViewModelTests
         Assert.False(viewModel.Result.HasResult);
 
         await viewModel.PreviewCommand.ExecuteAsync(null);
-        Assert.True(viewModel.HasPlan);
+        Assert.True(viewModel.Plan.HasPlan);
 
         await viewModel.ExecuteSyncCommand.ExecuteAsync(null);
 
@@ -575,7 +576,7 @@ public sealed class SyncWorkspaceViewModelTests
         await viewModel.RetryRemainingCommand.ExecuteAsync(null);
 
         Assert.Equal("最新状態から未反映分を再プレビューしました", status);
-        Assert.Contains(viewModel.Changes,
+        Assert.Contains(viewModel.Plan.Changes,
             change => change.Kind == ChangeKind.Remove && change.Email == "old@example.com");
 
         gateway.OnGetMembers = (_, _) =>

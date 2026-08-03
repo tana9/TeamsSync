@@ -37,9 +37,9 @@ public sealed class WorkflowStepsViewModel : ObservableObject
             }
         };
         memberFile.DocumentChanged += NotifySteps;
-        syncWorkspace.PropertyChanged += (_, e) =>
+        syncWorkspace.Plan.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(SyncWorkspaceViewModel.HasPlan))
+            if (e.PropertyName == nameof(SyncPlanDisplayState.HasPlan))
             {
                 NotifySteps();
             }
@@ -65,7 +65,7 @@ public sealed class WorkflowStepsViewModel : ObservableObject
     /// <summary>手順3(同期モード)の進捗状態</summary>
     public WorkflowStepState Step3State => Step2State != WorkflowStepState.Completed
         ? WorkflowStepState.Upcoming
-        : _syncWorkspace.HasPlan
+        : _syncWorkspace.Plan.HasPlan
             ? WorkflowStepState.Completed
             : WorkflowStepState.Current;
 

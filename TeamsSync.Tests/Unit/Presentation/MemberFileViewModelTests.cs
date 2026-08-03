@@ -187,7 +187,7 @@ public sealed class MemberFileViewModelTests
         }
 
         Assert.False(workspace.ExecuteSyncCommand.CanExecute(null));
-        Assert.Empty(workspace.Changes);
+        Assert.Empty(workspace.Plan.Changes);
     }
 
     [Fact]

@@ -119,10 +119,10 @@
                         <views:SyncModeSelectorView DataContext="{Binding SyncWorkspace}" />
                     </ui:Card>
 
-                    <ui:InfoBar IsOpen="{Binding SyncWorkspace.IsRemovalWarningOpen}"
-                                Visibility="{Binding SyncWorkspace.IsRemovalWarningOpen, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                Title="{Binding SyncWorkspace.RemovalWarningTitle}"
-                                Message="{Binding SyncWorkspace.RemovalWarningMessage}"
+                    <ui:InfoBar IsOpen="{Binding SyncWorkspace.Plan.IsRemovalWarningOpen}"
+                                Visibility="{Binding SyncWorkspace.Plan.IsRemovalWarningOpen, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                Title="{Binding SyncWorkspace.Plan.RemovalWarningTitle}"
+                                Message="{Binding SyncWorkspace.Plan.RemovalWarningMessage}"
                                 Severity="Warning"
                                 Margin="0,0,0,12"
                                 IsClosable="False" AutomationProperties.LiveSetting="Assertive" />
