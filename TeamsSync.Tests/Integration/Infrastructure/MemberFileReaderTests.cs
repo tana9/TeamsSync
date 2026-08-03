@@ -35,7 +35,7 @@ public sealed class MemberFileReaderTests : IDisposable
         using (Stream stream = archive.CreateEntry("xl/sharedStrings.xml", CompressionLevel.SmallestSize).Open())
         {
             byte[] block = new byte[1024 * 1024];
-            for (int i = 0; i <= MemberListReader.MaximumExpandedArchiveBytes / block.Length; i++)
+            for (int i = 0; i <= MemberFileSecurityValidator.MaximumExpandedArchiveBytes / block.Length; i++)
             {
                 stream.Write(block);
             }
@@ -238,13 +238,13 @@ public sealed class MemberFileReaderTests : IDisposable
     {
         string path = Path.Combine(_directory, "rows-at-limit.csv");
         // ヘッダー1行 + データ(MaximumRows-1)行 = 合計MaximumRows行で上限ちょうど
-        IEnumerable<string> lines = Enumerable.Range(0, MemberListReader.MaximumRows - 1)
+        IEnumerable<string> lines = Enumerable.Range(0, MemberFileSecurityValidator.MaximumRows - 1)
             .Select(i => $"user{i}@example.com");
         File.WriteAllText(path, "email\n" + string.Join('\n', lines) + "\n");
 
         MemberListDocument result = new MemberListReader().Read(path, CancellationToken.None);
 
-        Assert.Equal(MemberListReader.MaximumRows - 1, result.Addresses.Count);
+        Assert.Equal(MemberFileSecurityValidator.MaximumRows - 1, result.Addresses.Count);
     }
 
     [Fact]
@@ -252,7 +252,7 @@ public sealed class MemberFileReaderTests : IDisposable
     {
         string path = Path.Combine(_directory, "rows-over-limit.csv");
         // ヘッダー1行 + データMaximumRows行 = 合計MaximumRows+1行で上限超過
-        IEnumerable<string> lines = Enumerable.Range(0, MemberListReader.MaximumRows)
+        IEnumerable<string> lines = Enumerable.Range(0, MemberFileSecurityValidator.MaximumRows)
             .Select(i => $"user{i}@example.com");
         File.WriteAllText(path, "email\n" + string.Join('\n', lines) + "\n");
 
@@ -266,7 +266,7 @@ public sealed class MemberFileReaderTests : IDisposable
     {
         string path = Path.Combine(_directory, "columns-over-limit.csv");
         string wideRow =
-            string.Join(',', Enumerable.Range(0, MemberListReader.MaximumColumns + 1).Select(i => $"v{i}"));
+            string.Join(',', Enumerable.Range(0, MemberFileSecurityValidator.MaximumColumns + 1).Select(i => $"v{i}"));
         File.WriteAllText(path, wideRow + "\n");
 
         InvalidDataException ex =
@@ -279,7 +279,7 @@ public sealed class MemberFileReaderTests : IDisposable
     {
         string path = Path.Combine(_directory, "huge.csv");
         // 内容の妥当性を問わず、サイズ判定はFileInfo.Lengthだけで行われるためダミーバイト列で十分
-        File.WriteAllBytes(path, new byte[MemberListReader.MaximumFileSizeBytes + 1]);
+        File.WriteAllBytes(path, new byte[MemberFileSecurityValidator.MaximumFileSizeBytes + 1]);
 
         InvalidDataException ex =
             Assert.Throws<InvalidDataException>(() => new MemberListReader().Read(path, CancellationToken.None));
@@ -294,7 +294,7 @@ public sealed class MemberFileReaderTests : IDisposable
         {
             IXLWorksheet sheet = book.AddWorksheet("Members");
             sheet.Cell(1, 1).Value = "email";
-            for (int row = 0; row < MemberListReader.MaximumRows; row++)
+            for (int row = 0; row < MemberFileSecurityValidator.MaximumRows; row++)
             {
                 sheet.Cell(row + 2, 1).Value = $"user{row}@example.com";
             }
@@ -314,7 +314,7 @@ public sealed class MemberFileReaderTests : IDisposable
         using (XLWorkbook book = new())
         {
             IXLWorksheet sheet = book.AddWorksheet("Members");
-            for (int column = 1; column <= MemberListReader.MaximumColumns + 1; column++)
+            for (int column = 1; column <= MemberFileSecurityValidator.MaximumColumns + 1; column++)
             {
                 sheet.Cell(1, column).Value = $"col{column}";
             }

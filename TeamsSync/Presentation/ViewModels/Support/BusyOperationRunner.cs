@@ -1,6 +1,6 @@
 using TeamsSync.Presentation.Services;
 
-namespace TeamsSync.Presentation.ViewModels;
+namespace TeamsSync.Presentation.ViewModels.Support;
 
 /// <summary>
 ///     実行中フラグの管理と、キャンセル/例外発生時の共通ステータス報告をViewModelへ委譲するヘルパー。

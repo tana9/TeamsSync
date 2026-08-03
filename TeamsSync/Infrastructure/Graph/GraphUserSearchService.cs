@@ -8,7 +8,7 @@ namespace TeamsSync.Infrastructure.Graph;
 ///     直接参照(UPN/メールの完全一致)でユーザーが見つからなかった場合の、
 ///     ディレクトリユーザー検索フォールバックを担当する
 /// </summary>
-internal sealed class GraphUserSearchService(GraphSdkClient sdk)
+public sealed class GraphUserSearchService(GraphSdkClient sdk)
 {
     // 直接参照(UPN/メールの完全一致)で見つからない場合のフォールバック。
     // 1) mail/UPNの完全一致フィルター、2) 表示名の全文検索、3) 表示名の前方一致、の順に緩めて試す。

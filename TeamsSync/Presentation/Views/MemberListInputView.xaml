@@ -2,40 +2,19 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-             xmlns:vm="clr-namespace:TeamsSync.Presentation.ViewModels">
+             xmlns:vm="clr-namespace:TeamsSync.Presentation.ViewModels"
+             xmlns:views="clr-namespace:TeamsSync.Presentation.Views">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="{StaticResource SectionLabelColumnWidth}" /><ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
         <StackPanel VerticalAlignment="Top" Margin="0,4,0,0">
-            <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="DocumentSearch24" FontSize="16" Margin="0,0,6,0"
-                               VerticalAlignment="Center" AutomationProperties.Name="" />
-                <TextBlock Text="2  メンバーリスト" FontWeight="SemiBold" VerticalAlignment="Center" />
-            </StackPanel>
-            <TextBlock Text="同期する一般メンバーの一覧を指定します" FontSize="12"
-                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                       TextWrapping="Wrap" />
-            <!-- チーム選択済みでまだメンバーリスト未指定のときだけ、この場所に表示する。 -->
-            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                <StackPanel.Style>
-                    <Style TargetType="StackPanel">
-                        <Setter Property="Visibility" Value="Collapsed" />
-                        <Style.Triggers>
-                            <DataTrigger
-                                Binding="{Binding DataContext.WorkflowSteps.Step2State, RelativeSource={RelativeSource AncestorType=Window}}"
-                                Value="{x:Static vm:WorkflowStepState.Current}">
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </StackPanel.Style>
-                <ui:SymbolIcon Symbol="ErrorCircle24" FontSize="14" Margin="0,0,4,0" VerticalAlignment="Center"
-                               Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
-                <TextBlock Text="ファイルまたはテキストを指定してください" FontSize="12" VerticalAlignment="Center"
-                           Foreground="{DynamicResource SystemFillColorCriticalBrush}"
-                           AutomationProperties.LiveSetting="Polite" />
-            </StackPanel>
+            <views:StepHeaderView IconSymbol="DocumentSearch24" HeaderText="2  メンバーリスト"
+                                   SubtitleText="同期する一般メンバーの一覧を指定します" />
+            <!-- チーム選択済みでまだメンバーリスト未指定のときだけ、この場所に表示する -->
+            <views:StepIncompleteWarningView Margin="0,4,0,0"
+                StepState="{Binding DataContext.WorkflowSteps.Step2State, RelativeSource={RelativeSource AncestorType=Window}}"
+                Message="ファイルまたはテキストを指定してください" />
         </StackPanel>
         <TabControl Grid.Column="1" AutomationProperties.Name="メンバー入力方法"
                     SelectedIndex="{Binding SelectedInputIndex}">
@@ -54,7 +33,7 @@
                         <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Top">
-                        <ui:TextBox Text="{Binding FilePath}" IsReadOnly="True"
+                        <ui:TextBox Text="{Binding FileLoad.Path}" IsReadOnly="True"
                                     ClearButtonEnabled="False"
                                     IsTabStop="False" AutomationProperties.Name="選択したメンバーリストのパス" />
                         <TextBlock Text="CSV または Excel（.xlsx）ファイルを選択できます" Margin="4,4,0,0" FontSize="12"
@@ -70,9 +49,9 @@
                         <StackPanel Orientation="Horizontal" Margin="4,4,0,0">
                             <ui:ProgressRing Width="14" Height="14" Margin="0,0,6,0" IsIndeterminate="True"
                                              VerticalAlignment="Center"
-                                             Visibility="{Binding IsLoadingFile, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                             Visibility="{Binding FileLoad.IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"
                                              AutomationProperties.Name="ファイルを読み込み中" />
-                            <TextBlock Text="{Binding FileInfoText}" FontSize="12" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding FileLoad.InfoText}" FontSize="12" VerticalAlignment="Center" />
                         </StackPanel>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Top">
@@ -84,7 +63,7 @@
                         <ui:Button Content="キャンセル" Command="{Binding CancelLoadCommand}"
                                    Margin="0,8,0,0" Appearance="Secondary"
                                    ToolTip="ファイル読込をキャンセル"
-                                   Visibility="{Binding IsLoadingFile, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                   Visibility="{Binding FileLoad.IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"
                                    AutomationProperties.Name="ファイル読込をキャンセル" />
                         <ui:Button Content="テキストとして編集" Command="{Binding CopyFileContentToTextCommand}"
                                    Margin="0,8,0,0" Appearance="Secondary"
@@ -106,13 +85,13 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" /><ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="{Binding PasteInfoText}" FontSize="12" VerticalAlignment="Center"
+                        <TextBlock Text="{Binding PasteInput.InfoText}" FontSize="12" VerticalAlignment="Center"
                                    TextWrapping="Wrap">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsPasteError}" Value="True">
+                                        <DataTrigger Binding="{Binding PasteInput.HasError}" Value="True">
                                             <Setter Property="Foreground"
                                                     Value="{DynamicResource SystemFillColorCriticalBrush}" />
                                             <Setter Property="FontWeight" Value="SemiBold" />
@@ -122,7 +101,7 @@
                             </TextBlock.Style>
                         </TextBlock>
                         <!-- 狭いウィンドウ幅でも右端がクリップされないよう、固定幅Autoの水平StackPanelではなく
-                             折り返し可能なWrapPanelにする。列もAutoから*へ変更し、実際に折り返せる有限幅を与える。 -->
+                             折り返し可能なWrapPanelにする。列もAutoから*へ変更し、実際に折り返せる有限幅を与える -->
                         <WrapPanel Grid.Column="1" HorizontalAlignment="Right">
                             <ui:ProgressRing Width="16" Height="16" Margin="8,0" IsIndeterminate="True"
                                              Visibility="{Binding Import.IsFetchingMembers, Converter={StaticResource BooleanToVisibilityConverter}}"
@@ -137,11 +116,11 @@
                                        Visibility="{Binding Import.IsImportingMembers, Converter={StaticResource BooleanToVisibilityConverter}}"
                                        AutomationProperties.Name="現在のメンバーの取り込みをキャンセル" />
                             <ui:ProgressRing Width="16" Height="16" Margin="8,0" IsIndeterminate="True"
-                                             Visibility="{Binding IsParsing, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                             Visibility="{Binding PasteInput.IsParsing, Converter={StaticResource BooleanToVisibilityConverter}}"
                                              AutomationProperties.Name="貼り付け入力を解析中" />
                             <ui:Button Content="解析をキャンセル" Command="{Binding CancelParsingCommand}"
                                        Margin="8,4,0,4" Appearance="Secondary"
-                                       Visibility="{Binding IsParsing, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                       Visibility="{Binding PasteInput.IsParsing, Converter={StaticResource BooleanToVisibilityConverter}}"
                                        AutomationProperties.Name="貼り付け入力の解析をキャンセル" />
                             <ui:Button Content="入力を_反映" Command="{Binding ApplyPastedTextInputCommand}"
                                        Margin="8,4,0,4"
@@ -149,7 +128,7 @@
                                        AutomationProperties.Name="貼り付け入力を反映">
                                 <!-- 貼り付けテキストが変更されて未反映のときは、次にすべき操作として強調する。
                                      配色自体はApplicationResources.xamlのui:Button既定スタイル(Appearance=Primaryトリガー)に
-                                     任せ、ここではAppearanceを切り替える条件だけを追加する。 -->
+                                     任せ、ここではAppearanceを切り替える条件だけを追加する -->
                                 <ui:Button.Style>
                                     <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
                                         <Style.Triggers>

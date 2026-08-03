@@ -3,6 +3,7 @@ using System.Net;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
+using Microsoft.Extensions.Logging;
 
 using Polly.Retry;
 
@@ -33,6 +34,13 @@ public static class DependencyInjection
         services.AddGraphHttpClients();
         services.AddSingleton<GraphHttpClient>();
         services.AddSingleton<GraphSdkClient>();
+        // TeamMembersBatchFetcherは非ジェネリックのILoggerを受け取る構成のため、GraphTeamsGateway自身の
+        // ロガーカテゴリ(ILogger<GraphTeamsGateway>)を明示的に渡すファクトリー登録にし、
+        // 所有チーム判定に関するログが従来どおり同じカテゴリへまとまるようにする
+        services.AddSingleton(provider => new TeamMembersBatchFetcher(
+            provider.GetRequiredService<GraphHttpClient>(),
+            provider.GetRequiredService<ILogger<GraphTeamsGateway>>()));
+        services.AddSingleton<GraphUserSearchService>();
         services.AddSingleton<ITeamsGateway, GraphTeamsGateway>();
         services.AddSingleton<IMemberListReader, MemberListReader>();
         services.AddSingleton<IMemberTextParser, MemberTextParser>();

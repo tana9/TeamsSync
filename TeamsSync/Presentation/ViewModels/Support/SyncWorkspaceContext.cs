@@ -1,7 +1,7 @@
 using TeamsSync.Domain.Teams;
 using TeamsSync.Application.Models;
 
-namespace TeamsSync.Presentation.ViewModels;
+namespace TeamsSync.Presentation.ViewModels.Support;
 
 /// <summary>同期画面で共有する選択チーム、入力文書、認証コンテキストを保持する。</summary>
 internal sealed class SyncWorkspaceContext

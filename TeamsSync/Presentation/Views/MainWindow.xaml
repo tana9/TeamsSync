@@ -15,7 +15,7 @@
          角丸など)が継承されず、素のWPFコントロールの見た目にフォールバックしてしまう。
          そのためBasedOn拡張は、既定スタイルを含むApplication.Resourcesとは別レベルの
          Window.Resourcesに置く必要がある。UiHarness等でView単体をプレビューする場合は
-         このWindow.Resourcesの外側になるため、ここで定義した強調配色は適用されない。 -->
+         このWindow.Resourcesの外側になるため、ここで定義した強調配色は適用されない -->
     <ui:FluentWindow.Resources>
         <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
             <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
@@ -28,7 +28,7 @@
                     <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
                     <!-- ui:Buttonはホバー/押下時の描画にBackground/Foregroundではなく
                          MouseOverBackground/PressedBackground等の専用プロパティを参照するため、
-                         これらを明示しないとホバー時にボタンの文字ごと消えて見える。 -->
+                         これらを明示しないとホバー時にボタンの文字ごと消えて見える -->
                     <Setter Property="MouseOverBackground" Value="#0E5EAA" />
                     <Setter Property="MouseOverBorderBrush" Value="#0E5EAA" />
                     <Setter Property="PressedBackground" Value="#0B4A86" />
@@ -89,10 +89,10 @@
                  実測し、下段カードの最低保証分(MinHeight=208+SyncActionBarView上マージン8=216、
                  いずれも固定値でこの先も変わらない前提)だけを固定のConverterParameterとして扱う。
                  SyncActionBarViewはGrid上*行ではなくAuto行で、その実測高さは自身のコンテンツ量だけで
-                 決まり上段ScrollViewerのMaxHeightには依存しないため、循環参照は発生しない。 -->
+                 決まり上段ScrollViewerのMaxHeightには依存しないため、循環参照は発生しない -->
             <!-- MarginはScrollViewer自体ではなく内側のStackPanelへ付ける。ScrollViewer自体のMarginは
                  コンテンツとスクロールバーの間の余白にはならず、スクロールバー表示時にコンテンツの
-                 右端とスクロールバーが密着してしまう。 -->
+                 右端とスクロールバーが密着してしまう -->
             <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
                 <ScrollViewer.MaxHeight>
@@ -114,7 +114,7 @@
                     </ui:Card>
 
                     <!-- 「同期モード」を独立した手順3として扱う。以前はメンバーリストのカードに同居しており、
-                         番号なしの選択肢に見えていたため、専用カードへ分離して手順番号を付けた。 -->
+                         番号なしの選択肢に見えていたため、専用カードへ分離して手順番号を付けた -->
                     <ui:Card IsEnabled="{Binding InputsEnabled}" Padding="12" Margin="0,0,0,12">
                         <views:SyncModeSelectorView DataContext="{Binding SyncWorkspace}" />
                     </ui:Card>
@@ -131,7 +131,7 @@
 
             <!-- 手順3(直前カードまたは削除警告InfoBar)の下マージンだけでカード間隔(12px)を確保するため、
                  ここでは上マージンを付けない。以前は両側に12pxずつ付けており、他のカード間(12px)の
-                 2倍の間隔になっていた。 -->
+                 2倍の間隔になっていた -->
             <ui:Card Grid.Row="1" Padding="12" MinHeight="208" Margin="0,0,16,0"
                      VerticalAlignment="Stretch" VerticalContentAlignment="Stretch">
                 <views:SyncDiffCardContent DataContext="{Binding SyncWorkspace}" VerticalAlignment="Stretch" />

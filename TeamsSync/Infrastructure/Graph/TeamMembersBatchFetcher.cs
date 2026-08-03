@@ -12,7 +12,7 @@ namespace TeamsSync.Infrastructure.Graph;
 ///     待機のうえ再試行する。バッチ送信とスロットリング再試行のみを担当し、
 ///     再試行上限に達してもなお取得できなかった項目は呼び出し元の個別フォールバックに委ねる
 /// </summary>
-internal sealed class TeamMembersBatchFetcher(GraphHttpClient http, ILogger logger)
+public sealed class TeamMembersBatchFetcher(GraphHttpClient http, ILogger logger)
 {
     // バッチ内429/503の再試行上限。無限ループを避けつつ、一時的なスロットリングから回復する猶予を与える
     private const int MaxBatchAttempts = 3;
@@ -42,7 +42,7 @@ internal sealed class TeamMembersBatchFetcher(GraphHttpClient http, ILogger logg
             bool isLastAttempt = attempt == MaxBatchAttempts;
             List<(string Id, string Url)> requests = pending.Select(index => (
                 Id: index.ToString(CultureInfo.InvariantCulture),
-                Url: $"/teams/{candidates[index].Id}/members?$top=999")).ToList();
+                Url: $"/teams/{candidates[index].Id}/members?$top={GraphHttpClient.MaxMembersPageSize}")).ToList();
             Dictionary<string, JsonElement> responses = await http.SendBatchAsync(requests, cancellationToken);
 
             List<int> retryable = [];

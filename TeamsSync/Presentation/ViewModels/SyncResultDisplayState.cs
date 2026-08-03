@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 using TeamsSync.Application.Models;
+using TeamsSync.Presentation.ViewModels.Support;
 
 namespace TeamsSync.Presentation.ViewModels;
 

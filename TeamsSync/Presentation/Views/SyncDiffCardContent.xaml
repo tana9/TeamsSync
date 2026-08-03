@@ -3,7 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:domain="clr-namespace:TeamsSync.Domain.Teams"
-             xmlns:vm="clr-namespace:TeamsSync.Presentation.ViewModels">
+             xmlns:vm="clr-namespace:TeamsSync.Presentation.ViewModels"
+             xmlns:views="clr-namespace:TeamsSync.Presentation.Views">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" />
@@ -13,15 +14,8 @@
                 <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <StackPanel VerticalAlignment="Center">
-                <StackPanel Orientation="Horizontal">
-                    <ui:SymbolIcon Symbol="DocumentTableSearch24" FontSize="16" Margin="0,0,6,0"
-                                   VerticalAlignment="Center" AutomationProperties.Name="" />
-                    <TextBlock Text="4  同期差分" FontWeight="SemiBold" VerticalAlignment="Center" />
-                </StackPanel>
-                <TextBlock Text="追加・削除される変更内容を確認します" FontSize="12"
-                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-            </StackPanel>
+            <views:StepHeaderView IconSymbol="DocumentTableSearch24" HeaderText="4  同期差分"
+                                   SubtitleText="追加・削除される変更内容を確認します" />
             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left"
                         Margin="20,0,0,0" VerticalAlignment="Center">
                 <TextBlock Text="表示:" VerticalAlignment="Center" Margin="0,0,8,0"
@@ -43,14 +37,14 @@
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
             <!-- 差分確認カードの内容を更新するボタンのため、下部の固定アクションバーではなく
                  このカード自体に置く。手順4がカードとしてこの下段固定領域に常に表示されているため
-                 (MainWindow.xaml参照)、カード1〜3をスクロールしていてもこのボタンは常に見える。 -->
+                 (MainWindow.xaml参照)、カード1〜3をスクロールしていてもこのボタンは常に見える -->
             <ui:Button Grid.Column="3" Content="差分を_確認" Command="{Binding PreviewCommand}"
                        Icon="{ui:SymbolIcon Symbol=DocumentTableSearch24}" Margin="12,0,0,0"
                        ToolTip="同期差分を確認"
                        AutomationProperties.Name="同期差分を確認">
                 <!-- 同期モードは既定値があり選択操作が不要なため、Step3が現在の操作の間はボタンを強調する。
                      配色自体はApplicationResources.xamlのui:Button既定スタイル(Appearance=Primaryトリガー)に
-                     任せ、ここではAppearanceを切り替える条件だけを追加する。 -->
+                     任せ、ここではAppearanceを切り替える条件だけを追加する -->
                 <ui:Button.Style>
                     <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
                         <Style.Triggers>
@@ -83,7 +77,7 @@
                      AutomationProperties.Name="同期差分一覧">
             <!-- 読込中はGrid.Row="2"に重なるオーバーレイが視覚的にDataGridを覆うが、
                  既定ではTabキーによるフォーカスはヒットテストと無関係に背後の行へ入ってしまう。
-                 IsBusy中はDataGrid自体を無効化し、キーボードフォーカスも到達しないようにする。 -->
+                 IsBusy中はDataGrid自体を無効化し、キーボードフォーカスも到達しないようにする -->
             <ui:DataGrid.Style>
                 <Style TargetType="ui:DataGrid" BasedOn="{StaticResource {x:Type ui:DataGrid}}">
                     <Style.Triggers>
@@ -94,16 +88,16 @@
                 </Style>
             </ui:DataGrid.Style>
             <!-- コピー(Ctrl+C)のために選択自体は残すが、選択のたびに行がハイライトされて
-                 目障りだったため、選択時の見た目を通常時とほぼ変わらないように抑える。 -->
+                 目障りだったため、選択時の見た目を通常時とほぼ変わらないように抑える -->
             <ui:DataGrid.CellStyle>
                 <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
                     <Setter Property="VerticalContentAlignment" Value="Center" />
                     <!-- 選択時に既定スタイルの境界線幅が変わると、セル内容が1pxずれて
-                         操作Badgeが動いて見えるため、通常時から幅を0に固定する。 -->
+                         操作Badgeが動いて見えるため、通常時から幅を0に固定する -->
                     <Setter Property="BorderThickness" Value="0" />
                     <Setter Property="Padding" Value="0" />
                     <!-- Adorner上の枠はレイアウトを変えないため、キーボードフォーカスを
-                         視認可能に保ちながらセル内容の1px移動を防げる。 -->
+                         視認可能に保ちながらセル内容の1px移動を防げる -->
                     <Setter Property="FocusVisualStyle" Value="{StaticResource StableCellFocusVisualStyle}" />
                     <Style.Triggers>
                         <Trigger Property="IsSelected" Value="True">
@@ -121,7 +115,7 @@
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <!-- 枠線なしの塗りつぶしだけにすることで、このアプリのui:Button(角丸+枠線+塗りつぶし)と
-                                 見た目が紛らわしくならないようにしている。判定はクリックできない状態表示。 -->
+                                 見た目が紛らわしくならないようにしている。判定はクリックできない状態表示 -->
                             <Border HorizontalAlignment="Left" Padding="12,4" CornerRadius="4">
                                 <Border.Style>
                                     <Style TargetType="Border">
@@ -205,7 +199,7 @@
         </Grid>
         <!-- 既定の「変更あり」フィルターは変更なし行を除外するため、全員が変更なしの場合は
              一覧が0行の空白テーブルになってしまう。HasChangesは絞り込み前の件数で判定しており
-             このときtrueのままなので、上のオーバーレイとは別に、この状態専用の案内を出す。 -->
+             このときtrueのままなので、上のオーバーレイとは別に、この状態専用の案内を出す -->
         <Grid Grid.Row="2" Margin="0,36,0,0" IsHitTestVisible="False"
               Visibility="{Binding Plan.HasNoChangesToApply, Converter={StaticResource BooleanToVisibilityConverter}}">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -218,8 +212,11 @@
         <Grid Grid.Row="2" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
               Visibility="{Binding Preview.IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="200">
+                <!-- ProgressBar.Value(RangeBase.ValueProperty)は既定でTwoWayバインドのため、
+                     読み取り専用のProgressValueへ既定のまま束縛すると起動時に例外になる。
+                     明示的にOneWayを指定する -->
                 <ProgressBar Minimum="0" Maximum="{Binding Preview.ProgressMaximum}"
-                             Value="{Binding Preview.ProgressValue}" Height="6"
+                             Value="{Binding Preview.ProgressValue, Mode=OneWay}" Height="6"
                              AutomationProperties.Name="差分確認の進捗" />
                 <TextBlock Text="{Binding Preview.ProgressText}" Margin="0,8,0,0" HorizontalAlignment="Center"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"

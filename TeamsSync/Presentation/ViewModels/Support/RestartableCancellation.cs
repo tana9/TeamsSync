@@ -1,4 +1,4 @@
-namespace TeamsSync.Presentation.ViewModels;
+namespace TeamsSync.Presentation.ViewModels.Support;
 
 /// <summary>
 ///     直前の実行をキャンセル・破棄してから新しい非同期操作を開始する、単発実行の

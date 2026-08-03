@@ -127,25 +127,27 @@ public sealed record SyncPlan(
     SyncMode Mode = SyncMode.FullSync)
 {
     /// <summary>追加対象の件数</summary>
-    public int AddCount => Changes.Count(x => x.Kind == ChangeKind.Add);
+    public int AddCount => CountOf(ChangeKind.Add);
 
     /// <summary>削除対象の件数</summary>
-    public int RemoveCount => Changes.Count(x => x.Kind == ChangeKind.Remove);
+    public int RemoveCount => CountOf(ChangeKind.Remove);
 
     /// <summary>変更なしの件数</summary>
-    public int KeepCount => Changes.Count(x => x.Kind == ChangeKind.Keep);
+    public int KeepCount => CountOf(ChangeKind.Keep);
 
     /// <summary>所有者として保護された件数</summary>
-    public int ProtectedCount => Changes.Count(x => x.Kind == ChangeKind.Protected);
+    public int ProtectedCount => CountOf(ChangeKind.Protected);
 
     /// <summary>指定削除の入力に含まれる、チーム未所属ユーザーの件数</summary>
-    public int NotMemberCount => Changes.Count(x => x.Kind == ChangeKind.NotMember);
+    public int NotMemberCount => CountOf(ChangeKind.NotMember);
 
     /// <summary>未解決(エラー)の件数</summary>
-    public int ErrorCount => Changes.Count(x => x.Kind == ChangeKind.Error);
+    public int ErrorCount => CountOf(ChangeKind.Error);
 
     /// <summary>利用者が個別に除外した件数</summary>
-    public int ExcludedCount => Changes.Count(x => x.Kind == ChangeKind.Excluded);
+    public int ExcludedCount => CountOf(ChangeKind.Excluded);
+
+    private int CountOf(ChangeKind kind) => Changes.Count(x => x.Kind == kind);
 
     /// <summary>未解決の変更が1件以上あるかどうか</summary>
     public bool HasErrors => ErrorCount > 0;

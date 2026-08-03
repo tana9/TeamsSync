@@ -65,7 +65,7 @@
              このテキストは常時表示される静的な状態表示であり、動的な読み上げ通知は
              SyncActionBarViewのStatusText(初期値「サインインしてください」、こちらもLiveSetting="Polite")
              側に一本化する。両方にLiveSettingを付けると、サインアウト時などに意味の重複する
-             ライブリージョンが同時に読み上げられてしまうため、ここでは付けない。 -->
+             ライブリージョンが同時に読み上げられてしまうため、ここでは付けない -->
         <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right"
                     Margin="0,4,0,0"
                     Visibility="{Binding SignIn.IsNotSignedIn, Converter={StaticResource BooleanToVisibilityConverter}}">

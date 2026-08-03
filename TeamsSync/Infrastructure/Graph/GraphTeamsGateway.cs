@@ -30,20 +30,22 @@ public sealed class GraphTeamsGateway : ITeamsGateway
     private const int OwnedTeamBatchSize = 20;
     private readonly TeamMembersBatchFetcher _batchFetcher;
 
-    private readonly GraphHttpClient _http;
     private readonly ILogger<GraphTeamsGateway> _logger;
     private readonly TeamOwnershipCache _ownershipCache = new();
     private readonly GraphSdkClient _sdk;
     private readonly GraphUserSearchService _userSearch;
 
-    /// <summary>コンストラクター</summary>
-    public GraphTeamsGateway(GraphHttpClient http, GraphSdkClient sdk, ILogger<GraphTeamsGateway> logger)
+    /// <summary>
+    ///     コンストラクター。<paramref name="batchFetcher" />・<paramref name="userSearch" />を
+    ///     コンストラクター注入にすることで、単体テストからモックへ差し替えられるようにする
+    /// </summary>
+    public GraphTeamsGateway(GraphSdkClient sdk, ILogger<GraphTeamsGateway> logger,
+        TeamMembersBatchFetcher batchFetcher, GraphUserSearchService userSearch)
     {
-        _http = http;
         _sdk = sdk;
         _logger = logger;
-        _batchFetcher = new TeamMembersBatchFetcher(http, logger);
-        _userSearch = new GraphUserSearchService(sdk);
+        _batchFetcher = batchFetcher;
+        _userSearch = userSearch;
     }
 
     /// <summary>サインイン中のユーザー自身の情報を取得する</summary>
@@ -51,8 +53,9 @@ public sealed class GraphTeamsGateway : ITeamsGateway
         CancellationToken cancellationToken = default)
     {
         User user = await _sdk.GetMeAsync(cancellationToken);
-        return (Required(user.Id, "id"), Required(user.DisplayName, "displayName"),
-            Required(user.UserPrincipalName, "userPrincipalName"));
+        return (GraphResponseParser.Required(user.Id, "id"),
+            GraphResponseParser.Required(user.DisplayName, "displayName"),
+            GraphResponseParser.Required(user.UserPrincipalName, "userPrincipalName"));
     }
 
     /// <summary>
@@ -66,7 +69,8 @@ public sealed class GraphTeamsGateway : ITeamsGateway
         // 既定ページサイズのまま@odata.nextLinkでページングする
         IReadOnlyList<Team> teams = await _sdk.GetJoinedTeamsAsync(cancellationToken);
         List<TeamInfo> candidates = teams.Select(x => new TeamInfo(
-            Required(x.Id, "id"), Required(x.DisplayName, "displayName"), x.Description)).ToList();
+            GraphResponseParser.Required(x.Id, "id"), GraphResponseParser.Required(x.DisplayName, "displayName"),
+            x.Description)).ToList();
 
         Stopwatch stopwatch = Stopwatch.StartNew();
         int cacheHits = 0;
@@ -202,10 +206,5 @@ public sealed class GraphTeamsGateway : ITeamsGateway
                 team.Id, ex.StatusCode);
             return null;
         }
-    }
-
-    private static string Required(string? value, string name)
-    {
-        return value ?? throw new InvalidDataException($"{name} がありません。");
     }
 }

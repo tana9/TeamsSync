@@ -44,31 +44,38 @@ public sealed class MsalAuthenticationService(
         cancellationToken.ThrowIfCancellationRequested();
         IPublicClientApplication app = GetOrCreateApp();
         IAccount? account = (await app.GetAccountsAsync()).FirstOrDefault();
-        try
+
+        AuthenticationResult? silentResult = null;
+        if (!interactive && account is not null)
         {
-            if (!interactive && account is not null)
+            try
             {
-                _result = await app.AcquireTokenSilent(Scopes, account).ExecuteAsync(cancellationToken);
+                silentResult = await app.AcquireTokenSilent(Scopes, account).ExecuteAsync(cancellationToken);
             }
-            else
+            catch (MsalUiRequiredException)
             {
-                throw new MsalUiRequiredException("interactive_required", "Interactive sign-in required.");
+                // サイレント取得できなかった場合は対話型サインインへフォールバックする
             }
-        }
-        catch (MsalUiRequiredException)
-        {
-            logger.LogInformation("Microsoft Entra IDの対話型サインインを開始します");
-            _result = await app.AcquireTokenInteractive(Scopes)
-                .WithAccount(account).WithPrompt(Prompt.SelectAccount)
-                .WithSystemWebViewOptions(new SystemWebViewOptions
-                {
-                    HtmlMessageSuccess = SignInSuccessHtml, HtmlMessageError = SignInErrorHtml
-                })
-                .ExecuteAsync(cancellationToken);
-            logger.LogInformation("Microsoft Entra IDへのサインインが完了しました");
         }
 
+        _result = silentResult ?? await AcquireInteractiveAsync(app, account, cancellationToken);
         return _result.AccessToken;
+    }
+
+    /// <summary>システムブラウザーでの対話型サインインを実行する</summary>
+    private async Task<AuthenticationResult> AcquireInteractiveAsync(IPublicClientApplication app,
+        IAccount? account, CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Microsoft Entra IDの対話型サインインを開始します");
+        AuthenticationResult result = await app.AcquireTokenInteractive(Scopes)
+            .WithAccount(account).WithPrompt(Prompt.SelectAccount)
+            .WithSystemWebViewOptions(new SystemWebViewOptions
+            {
+                HtmlMessageSuccess = SignInSuccessHtml, HtmlMessageError = SignInErrorHtml
+            })
+            .ExecuteAsync(cancellationToken);
+        logger.LogInformation("Microsoft Entra IDへのサインインが完了しました");
+        return result;
     }
 
     /// <summary>

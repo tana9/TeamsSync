@@ -78,7 +78,7 @@ public partial class MainWindowViewModel : ObservableObject
         };
         SyncWorkspace.Execution.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(SyncExecutionDisplayState.IsRunning))
+            if (e.PropertyName == nameof(SyncExecutionDisplayState.IsBusy))
             {
                 UpdateAvailability();
             }
@@ -145,12 +145,12 @@ public partial class MainWindowViewModel : ObservableObject
     private void UpdateAvailability()
     {
         bool memberImportActive = MemberFile.Import.IsImportingMembers;
-        bool syncActive = SyncWorkspace.Preview.IsBusy || SyncWorkspace.Execution.IsRunning;
+        bool syncActive = SyncWorkspace.Preview.IsBusy || SyncWorkspace.Execution.IsBusy;
         InputsEnabled = SignIn is { IsSignedIn: true, IsBusy: false } && !TeamSelection.IsBusy && !syncActive;
         InputsEnabled &= !memberImportActive;
         TeamSelection.SetExternalBusy(SignIn.IsBusy || syncActive || memberImportActive);
         MemberFile.SetEnabled(InputsEnabled);
         SyncWorkspace.SetExternalBusy(SignIn.IsBusy || TeamSelection.IsBusy || memberImportActive);
-        SignIn.SetExternalBusy(SyncWorkspace.Execution.IsRunning || memberImportActive);
+        SignIn.SetExternalBusy(SyncWorkspace.Execution.IsBusy || memberImportActive);
     }
 }

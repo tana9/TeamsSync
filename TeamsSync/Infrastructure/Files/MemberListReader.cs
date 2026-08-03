@@ -18,15 +18,6 @@ namespace TeamsSync.Infrastructure.Files;
 /// </summary>
 public sealed class MemberListReader : IMemberListReader
 {
-    /// <summary>入力ファイルに許容する最大サイズ(バイト)</summary>
-    public const long MaximumFileSizeBytes = MemberFileSecurityValidator.MaximumFileSizeBytes;
-    /// <summary>入力ファイルに許容する最大行数</summary>
-    public const int MaximumRows = MemberFileSecurityValidator.MaximumRows;
-    /// <summary>入力ファイルに許容する最大列数</summary>
-    public const int MaximumColumns = MemberFileSecurityValidator.MaximumColumns;
-    /// <summary>Excelファイルの展開後データに許容する最大サイズ(バイト)</summary>
-    public const long MaximumExpandedArchiveBytes = MemberFileSecurityValidator.MaximumExpandedArchiveBytes;
-
     // Excelなどが排他的にファイルを開いている場合のWin32エラーコード(ERROR_SHARING_VIOLATION)に対応するHResult
     private const int SharingViolationHResult = unchecked((int)0x80070020);
 
@@ -101,7 +92,7 @@ public sealed class MemberListReader : IMemberListReader
         CancellationToken cancellationToken)
     {
         Encoding encoding = CsvEncodingDetector.Detect(path);
-        using FileStream stream = OpenShared(path);
+        using FileStream stream = SharedFileAccess.Open(path);
         using StreamReader reader = new(stream, encoding);
         using CsvReader csv = new(reader, CsvReaderConfiguration);
         List<string[]> rows = [];
@@ -138,12 +129,12 @@ public sealed class MemberListReader : IMemberListReader
     private static (IEnumerable<string>, string, string, bool) ReadExcel(string path,
         CancellationToken cancellationToken)
     {
-        using (FileStream archiveStream = OpenShared(path))
+        using (FileStream archiveStream = SharedFileAccess.Open(path))
         {
             MemberFileSecurityValidator.ValidateExcelArchive(archiveStream, cancellationToken);
         }
 
-        using FileStream stream = OpenShared(path);
+        using FileStream stream = SharedFileAccess.Open(path);
         using XLWorkbook book = new(stream);
         IXLWorksheet sheet = book.Worksheets.FirstOrDefault() ?? throw new InvalidDataException("Excelにワークシートがありません。");
 
@@ -207,18 +198,8 @@ public sealed class MemberListReader : IMemberListReader
     /// <summary>ファイル内容のSHA-256ハッシュを16進文字列で計算する</summary>
     private static string ComputeSha256(string path)
     {
-        using FileStream stream = OpenShared(path);
+        using FileStream stream = SharedFileAccess.Open(path);
         return MemberFileSecurityValidator.ComputeSha256(stream);
-    }
-
-    // Excelなどが書込み用に開いたまま読み取り共有は許可しているケースを読めるようにするため、
-    // File.OpenRead既定のFileShare.ReadWriteへ緩め、他プロセスの読み書きを妨げないようにする。
-    // 完全排他(FileShare.None)のロックはこれでも読めないため、読込前後のSHA256比較(Read参照)で
-    // 途中変更を検知して安全側に倒す
-    /// <summary>他プロセスによる読み書きを妨げないよう共有モードでファイルを開く</summary>
-    private static FileStream OpenShared(string path)
-    {
-        return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
     }
 
     /// <summary>ヘッダー名の表記揺れ(前後空白・アンダースコア・空白・大文字小文字)を吸収する</summary>

@@ -5,6 +5,7 @@ using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 using TeamsSync.Domain.Teams;
+using TeamsSync.Presentation.ViewModels.Support;
 
 namespace TeamsSync.Presentation.ViewModels;
 

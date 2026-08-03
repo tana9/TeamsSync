@@ -1,5 +1,3 @@
-using System.Net;
-
 using Microsoft.Extensions.Logging;
 
 using TeamsSync.Application.Abstractions;
@@ -7,7 +5,7 @@ using TeamsSync.Application.Abstractions;
 namespace TeamsSync.Infrastructure.Graph;
 
 /// <summary>SDK要求を既存の名前付きHttpClientへ転送し、診断情報と例外形式を維持する</summary>
-internal sealed partial class GraphSdkTransportHandler(HttpClient transport, ILogger<GraphHttpClient> logger,
+internal sealed class GraphSdkTransportHandler(HttpClient transport, ILogger<GraphHttpClient> logger,
     IIdentifierGenerator? identifierGenerator = null)
     : HttpMessageHandler
 {
@@ -27,31 +25,8 @@ internal sealed partial class GraphSdkTransportHandler(HttpClient transport, ILo
             return response;
         }
 
-        string body = await response.Content.ReadAsStringAsync(cancellationToken);
-        HttpStatusCode status = response.StatusCode;
-        string? requestId = Header(response, "request-id");
-        string returnedClientRequestId = Header(response, "client-request-id") ?? clientRequestId;
-        if (expectedNotFound && status == HttpStatusCode.NotFound)
-        {
-            LogFallbackToSearch(logger, status, requestId, returnedClientRequestId);
-        }
-        else if (logger.IsEnabled(LogLevel.Error))
-        {
-            // DiagnosticSummary(body)はJSON解析を伴うため、Errorログが無効な場合は評価しない(CA1873)。
-            // [LoggerMessage]は内部でIsEnabledを判定するが、呼び出し側の引数(DiagnosticSummaryの呼び出し)
-            // 自体はC#の評価順序上どのみ実行されてしまうため、このガードは生成メソッド化後も必要
-            LogGraphCallFailed(logger, status, requestId, returnedClientRequestId,
-                GraphErrorFormatter.DiagnosticSummary(body));
-        }
-
-        response.Dispose();
-        throw new GraphException(status, GraphErrorFormatter.Format(status, body, requestId, returnedClientRequestId),
-            requestId, returnedClientRequestId);
-    }
-
-    private static string? Header(HttpResponseMessage response, string name)
-    {
-        return response.Headers.TryGetValues(name, out IEnumerable<string>? values) ? values.FirstOrDefault() : null;
+        throw await GraphErrorHandler.HandleAsync(response, clientRequestId, expectedNotFound, logger,
+            cancellationToken);
     }
 
     private static async Task<HttpRequestMessage> CloneAsync(HttpRequestMessage source,
@@ -79,16 +54,4 @@ internal sealed partial class GraphSdkTransportHandler(HttpClient transport, ILo
 
         return clone;
     }
-
-    [LoggerMessage(EventId = 1, Level = LogLevel.Debug,
-        Message =
-            "ユーザーの直接参照で見つからなかったため検索へ切り替えます。StatusCode={StatusCode}, RequestId={RequestId}, ClientRequestId={ClientRequestId}")]
-    private static partial void LogFallbackToSearch(ILogger logger, HttpStatusCode statusCode,
-        string? requestId, string clientRequestId);
-
-    [LoggerMessage(EventId = 2, Level = LogLevel.Error,
-        Message =
-            "Graph API呼び出しに失敗しました。StatusCode={StatusCode}, RequestId={RequestId}, ClientRequestId={ClientRequestId}, Diagnostic={Diagnostic}")]
-    private static partial void LogGraphCallFailed(ILogger logger, HttpStatusCode statusCode,
-        string? requestId, string clientRequestId, string diagnostic);
 }

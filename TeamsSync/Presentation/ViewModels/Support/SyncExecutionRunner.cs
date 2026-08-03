@@ -3,7 +3,7 @@ using TeamsSync.Application.Models;
 using TeamsSync.Application.Services;
 using TeamsSync.Domain.Teams;
 
-namespace TeamsSync.Presentation.ViewModels;
+namespace TeamsSync.Presentation.ViewModels.Support;
 
 /// <summary>同期実行に必要な監査コンテキストとキャンセルを画面状態から切り離す。</summary>
 internal sealed class SyncExecutionRunner(SyncExecutionCoordinator coordinator,

@@ -84,15 +84,6 @@ public sealed class MemberTextParser(TimeProvider? timeProvider = null) : IMembe
             "テキスト貼り付け", "1行1ユーザー", hash);
     }
 
-    /// <summary>
-    ///     貼り付けテキストを1行1件として検証・解析する。タブ・制御文字・行長超過・件数超過は
-    ///     <see cref="InvalidDataException" />として拒否する
-    /// </summary>
-    public MemberListDocument Parse(string text)
-    {
-        return Parse(text, CancellationToken.None);
-    }
-
     /// <summary>`表示名 &lt;メールアドレス&gt;`形式の場合は山括弧内だけを識別子として返す</summary>
     private static string ParseLine(ReadOnlySpan<char> line, int lineNumber)
     {

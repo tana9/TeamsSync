@@ -21,9 +21,12 @@
                 <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <StackPanel>
+                <!-- ProgressBar.Value(RangeBase.ValueProperty)は既定でTwoWayバインドのため、
+                     読み取り専用のProgressValueへ既定のまま束縛すると起動時に例外になる。
+                     明示的にOneWayを指定する -->
                 <ProgressBar AutomationProperties.Name="同期進捗" Minimum="0"
                              Maximum="{Binding SyncWorkspace.Execution.ProgressMaximum}"
-                             Value="{Binding SyncWorkspace.Execution.ProgressValue}" Height="6" />
+                             Value="{Binding SyncWorkspace.Execution.ProgressValue, Mode=OneWay}" Height="6" />
                 <TextBlock Text="{Binding SyncWorkspace.Execution.ProgressText}" Margin="0,4,0,0" FontSize="12"
                            AutomationProperties.LiveSetting="Polite" />
             </StackPanel>
@@ -67,7 +70,7 @@
         </Grid>
 
         <!-- Snackbar(一時通知)は自動で消えるため、成功・失敗・中止・処理済み件数・未反映件数はここに残す。
-             読み上げは上のStatusTextで既に一度案内済みのため、ここはLiveSettingを付けず閲覧用の情報とする。 -->
+             読み上げは上のStatusTextで既に一度案内済みのため、ここはLiveSettingを付けず閲覧用の情報とする -->
         <Border Grid.Row="2" Margin="0,8,0,0" Padding="10,8" CornerRadius="4" BorderThickness="1"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultSolidBrush}"
                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
@@ -109,7 +112,7 @@
                 </TextBlock>
 
                 <!-- 失敗した操作だけを一覧化し、原因(Error)と次に行うことを併記する。
-                     差分DataGridの「エラーのみ表示」と同様、成功分を除いた「絞り込み済み」の一覧として見せる。 -->
+                     差分DataGridの「エラーのみ表示」と同様、成功分を除いた「絞り込み済み」の一覧として見せる -->
                 <Border Margin="22,8,0,0" Padding="8" CornerRadius="4" BorderThickness="1"
                         BorderBrush="{DynamicResource SystemFillColorCriticalBrush}"
                         Visibility="{Binding SyncWorkspace.Result.HasFailedResults, Converter={StaticResource BooleanToVisibilityConverter}}">

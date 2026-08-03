@@ -35,6 +35,10 @@ public sealed record AddressResolution(
 /// </summary>
 public static class SyncPlanFactory
 {
+    // 同一ユーザーが複数表記で重複指定された際、2件目以降のEmailを最初の行へ結合する区切り文字。
+    // 表示用の結合記号のため、UI側の解析やテストと同期させる際の参照点として定数化している
+    private const string DuplicateAddressSeparator = " ／ ";
+
     /// <summary>
     ///     アドレスごとの解決結果を追加・維持・保護・エラーへ分類し、完全同期モードでは
     ///     リスト外の一般メンバーの削除も加えて、同期プランを作成する
@@ -70,7 +74,10 @@ public static class SyncPlanFactory
         {
             if (rowIndexByUserId.TryGetValue(userId, out int index))
             {
-                changes[index] = changes[index] with { Email = $"{changes[index].Email} ／ {address}" };
+                changes[index] = changes[index] with
+                {
+                    Email = $"{changes[index].Email}{DuplicateAddressSeparator}{address}"
+                };
                 return;
             }
 

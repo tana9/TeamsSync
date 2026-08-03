@@ -54,7 +54,9 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
         IReadOnlyList<SyncChange> plannedOperations = plan.Operations;
         if (plannedOperations.Count == 0 && result.Operations.Count > 0)
         {
-            // 古い呼び出し元や単体利用との互換性を保つ。通常の同期では必ずプラン側に操作が存在する
+            // 実際の同期(SyncExecutionCoordinator.ExecuteAsync)ではresult.OperationsはSyncExecutorが
+            // plan.Operationsを1件ずつ実行して積み上げるため、この分岐は本番経路では到達しない。
+            // プラン全体を組み立てずに実行結果の出力だけを検証したいテストのための簡易経路として残している
             foreach (SyncOperationResult item in result.Operations)
             {
                 WriteRow(writer, plan, item.Kind, item.DisplayName, item.Email,

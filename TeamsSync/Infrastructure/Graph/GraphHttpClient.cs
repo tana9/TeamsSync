@@ -13,7 +13,7 @@ namespace TeamsSync.Infrastructure.Graph;
 ///     Microsoft Graphへの生のHTTP通信(認証ヘッダー付与、エラー変換、ページング、バッチ)を担う。
 ///     チーム・ユーザーに関するドメインロジックは<see cref="GraphTeamsGateway" />が持つ
 /// </summary>
-public sealed partial class GraphHttpClient(
+public sealed class GraphHttpClient(
     IHttpClientFactory httpClientFactory,
     IAuthenticationService auth,
     ILogger<GraphHttpClient> logger,
@@ -24,6 +24,10 @@ public sealed partial class GraphHttpClient(
 
     /// <summary>Graph APIの更新要求に使用する名前付きHTTPクライアントの名前</summary>
     public const string WriteHttpClientName = "MicrosoftGraph.Write";
+
+    /// <summary>チームメンバー一覧取得で指定する最大ページサイズ($top)。Graphが許容する上限値</summary>
+    public const int MaxMembersPageSize = 999;
+
     private static readonly Uri GraphBase = new("https://graph.microsoft.com/v1.0/");
     private readonly IIdentifierGenerator _identifierGenerator = identifierGenerator ?? new IdentifierGenerator();
 
@@ -96,7 +100,7 @@ public sealed partial class GraphHttpClient(
         await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using JsonDocument doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
         return doc.RootElement.GetProperty("responses").EnumerateArray()
-            .ToDictionary(r => Required(r, "id"), r => r.Clone());
+            .ToDictionary(r => GraphResponseParser.Required(r, "id"), r => r.Clone());
     }
 
     /// <summary>
@@ -143,61 +147,9 @@ public sealed partial class GraphHttpClient(
             return response;
         }
 
-        string text = await response.Content.ReadAsStringAsync(cancellationToken);
-        HttpStatusCode status = response.StatusCode;
-        string? requestId = Header(response, "request-id");
-        string returnedClientRequestId = Header(response, "client-request-id") ?? clientRequestId;
-        if (expectedNotFound && status == HttpStatusCode.NotFound)
-        {
-            LogFallbackToSearch(logger, status, requestId, returnedClientRequestId);
-        }
-        else if (logger.IsEnabled(LogLevel.Error))
-        {
-            // DiagnosticSummary(text)はJSON解析を伴うため、Errorログが無効な場合は評価しない(CA1873)。
-            // [LoggerMessage]は内部でIsEnabledを判定するが、呼び出し側の引数(DiagnosticSummaryの呼び出し)
-            // 自体はC#の評価順序上どのみ実行されてしまうため、このガードは生成メソッド化後も必要
-            LogGraphCallFailed(logger, status, requestId, returnedClientRequestId,
-                GraphErrorFormatter.DiagnosticSummary(text));
-        }
-
-        response.Dispose();
-        throw new GraphException(status, GraphErrorFormatter.Format(status, text, requestId, returnedClientRequestId),
-            requestId, returnedClientRequestId);
+        throw await GraphErrorHandler.HandleAsync(response, clientRequestId, expectedNotFound, logger,
+            cancellationToken);
     }
-
-    /// <summary>レスポンスヘッダーの最初の値を取得する(存在しない場合はnull)</summary>
-    private static string? Header(HttpResponseMessage response, string name)
-    {
-        return response.Headers.TryGetValues(name, out IEnumerable<string>? values) ? values.FirstOrDefault() : null;
-    }
-
-    /// <summary>JSON要素から文字列プロパティを取得する。存在しない場合は例外をスローする</summary>
-    public static string Required(JsonElement element, string name)
-    {
-        return element.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.String
-            ? value.GetString()!
-            : throw new InvalidDataException($"{name} がありません。");
-    }
-
-    /// <summary>JSON要素から文字列プロパティを取得する。存在しない場合はnullを返す</summary>
-    public static string? Optional(JsonElement element, string name)
-    {
-        return element.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.String
-            ? value.GetString()
-            : null;
-    }
-
-    [LoggerMessage(EventId = 1, Level = LogLevel.Debug,
-        Message =
-            "ユーザーの直接参照で見つからなかったため検索へ切り替えます。StatusCode={StatusCode}, RequestId={RequestId}, ClientRequestId={ClientRequestId}")]
-    private static partial void LogFallbackToSearch(ILogger logger, HttpStatusCode statusCode,
-        string? requestId, string clientRequestId);
-
-    [LoggerMessage(EventId = 2, Level = LogLevel.Error,
-        Message =
-            "Graph API呼び出しに失敗しました。StatusCode={StatusCode}, RequestId={RequestId}, ClientRequestId={ClientRequestId}, Diagnostic={Diagnostic}")]
-    private static partial void LogGraphCallFailed(ILogger logger, HttpStatusCode statusCode,
-        string? requestId, string clientRequestId, string diagnostic);
 }
 
 /// <summary>Microsoft Graph API呼び出しが失敗したことを表す例外</summary>

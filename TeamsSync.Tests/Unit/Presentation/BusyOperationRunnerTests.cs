@@ -1,4 +1,4 @@
-using TeamsSync.Presentation.ViewModels;
+using TeamsSync.Presentation.ViewModels.Support;
 using TeamsSync.Tests.TestDoubles;
 
 namespace TeamsSync.Tests.Unit.Presentation;

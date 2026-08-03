@@ -2,7 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 
 using TeamsSync.Domain.Teams;
-using TeamsSync.Presentation.ViewModels;
+using TeamsSync.Presentation.ViewModels.Support;
 
 using Wpf.Ui;
 using Wpf.Ui.Controls;
@@ -54,16 +54,8 @@ public sealed class WpfSyncConfirmationService(
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
         };
 
-        ContentDialog dialog = new()
-        {
-            Title = ConfirmationDialogHelper.BuildTitle("同期の最終確認"),
-            Content = scrollViewer,
-            PrimaryButtonText = "チームに反映",
-            PrimaryButtonIcon = new SymbolIcon { Symbol = SymbolRegular.ArrowSync24 },
-            CloseButtonText = "キャンセル",
-            CloseButtonIcon = new SymbolIcon { Symbol = SymbolRegular.Dismiss24 },
-            DefaultButton = ContentDialogButton.Close
-        };
+        ContentDialog dialog = ConfirmationDialogHelper.BuildConfirmDialog("同期の最終確認", scrollViewer,
+            "チームに反映", SymbolRegular.ArrowSync24);
 
         return await ConfirmationDialogHelper.ShowRestoringFocusAsync(contentDialogs, dialog, cancellationToken) ==
                ContentDialogResult.Primary;

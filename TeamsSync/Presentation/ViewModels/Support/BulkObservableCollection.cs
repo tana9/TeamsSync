@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 
-namespace TeamsSync.Presentation.ViewModels;
+namespace TeamsSync.Presentation.ViewModels.Support;
 
 /// <summary>複数項目を1回のReset通知で差し替えられるObservableCollection</summary>
 internal sealed class BulkObservableCollection<T> : ObservableCollection<T>

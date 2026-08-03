@@ -1,7 +1,9 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using Microsoft.Graph.Models;
+using Microsoft.Kiota.Abstractions;
 using Microsoft.Kiota.Abstractions.Authentication;
+using Microsoft.Kiota.Abstractions.Serialization;
 
 using TeamsSync.Application.Abstractions;
 
@@ -52,21 +54,7 @@ public sealed class GraphSdkClient
     public async Task<IReadOnlyList<Team>> GetJoinedTeamsAsync(CancellationToken cancellationToken)
     {
         TeamCollectionResponse? response = await _read.Me.JoinedTeams.GetAsync(cancellationToken: cancellationToken);
-        List<Team> result = [];
-        if (response is null)
-        {
-            return result;
-        }
-
-        PageIterator<Team, TeamCollectionResponse> iterator =
-            PageIterator<Team, TeamCollectionResponse>.CreatePageIterator(
-                _read, response, item =>
-                {
-                    result.Add(item);
-                    return true;
-                });
-        await iterator.IterateAsync(cancellationToken);
-        return result;
+        return await CollectAllPagesAsync<Team, TeamCollectionResponse>(response, cancellationToken);
     }
 
     /// <summary>指定したチームのすべてのメンバーを取得する</summary>
@@ -77,23 +65,10 @@ public sealed class GraphSdkClient
         CancellationToken cancellationToken)
     {
         ConversationMemberCollectionResponse? response = await _read.Teams[teamId].Members.GetAsync(
-            config => config.QueryParameters.Top = 999,
+            config => config.QueryParameters.Top = GraphHttpClient.MaxMembersPageSize,
             cancellationToken);
-        List<ConversationMember> result = [];
-        if (response is null)
-        {
-            return result;
-        }
-
-        PageIterator<ConversationMember, ConversationMemberCollectionResponse> iterator =
-            PageIterator<ConversationMember, ConversationMemberCollectionResponse>.CreatePageIterator(
-                _read, response, item =>
-                {
-                    result.Add(item);
-                    return true;
-                });
-        await iterator.IterateAsync(cancellationToken);
-        return result;
+        return await CollectAllPagesAsync<ConversationMember, ConversationMemberCollectionResponse>(
+            response, cancellationToken);
     }
 
     /// <summary>指定した識別子に一致するユーザーを取得する</summary>
@@ -130,26 +105,38 @@ public sealed class GraphSdkClient
                 config.Headers.Add("ConsistencyLevel", "eventual");
             }
         }, cancellationToken);
-        List<User> result = [];
+        return await CollectAllPagesAsync<User, UserCollectionResponse>(response, cancellationToken,
+            search is null
+                ? null
+                : request =>
+                {
+                    request.Headers.Add("ConsistencyLevel", "eventual");
+                    return request;
+                });
+    }
+
+    /// <summary>
+    ///     <c>@odata.nextLink</c>を辿って全ページを取得する共通処理。<see cref="GetJoinedTeamsAsync" />・
+    ///     <see cref="GetTeamMembersAsync" />・<see cref="FindUsersAsync" />はいずれも
+    ///     「レスポンスがnullなら空リスト→PageIteratorで全件収集」という同じ骨格のため、ここへ集約している
+    /// </summary>
+    private async Task<IReadOnlyList<TItem>> CollectAllPagesAsync<TItem, TResponse>(TResponse? response,
+        CancellationToken cancellationToken,
+        Func<RequestInformation, RequestInformation>? requestConfigurator = null)
+        where TResponse : class, IParsable, IAdditionalDataHolder, new()
+    {
+        List<TItem> result = [];
         if (response is null)
         {
             return result;
         }
 
-        PageIterator<User, UserCollectionResponse> iterator =
-            PageIterator<User, UserCollectionResponse>.CreatePageIterator(
-                _read, response, item =>
-                {
-                    result.Add(item);
-                    return true;
-                },
-                search is null
-                    ? null
-                    : request =>
-                    {
-                        request.Headers.Add("ConsistencyLevel", "eventual");
-                        return request;
-                    });
+        PageIterator<TItem, TResponse> iterator = PageIterator<TItem, TResponse>.CreatePageIterator(
+            _read, response, item =>
+            {
+                result.Add(item);
+                return true;
+            }, requestConfigurator);
         await iterator.IterateAsync(cancellationToken);
         return result;
     }

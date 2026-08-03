@@ -5,6 +5,9 @@ namespace TeamsSync.Infrastructure.Files;
 /// <summary>CSVファイルの文字コードをBOMまたは内容から判定する</summary>
 internal static class CsvEncodingDetector
 {
+    // StreamReaderでUTF-8として妥当かを検証する際の読み取りバッファサイズ
+    private const int DetectionBufferSize = 8192;
+
     /// <summary>
     ///     BOMからCSVファイルの文字コードを判定する。BOMがない場合はUTF-8として妥当かを検証し、
     ///     妥当でなければShift-JIS(コードページ932)にフォールバックする
@@ -14,7 +17,7 @@ internal static class CsvEncodingDetector
         // BOMの判定は先頭数バイトだけで足りるため、File.ReadAllBytesでファイル全体を読み込まない
         Span<byte> preamble = stackalloc byte[4];
         int read;
-        using (FileStream stream = OpenShared(path))
+        using (FileStream stream = SharedFileAccess.Open(path))
         {
             read = stream.Read(preamble);
         }
@@ -49,9 +52,9 @@ internal static class CsvEncodingDetector
         // byte[]とstringの両方を全体分保持しないため、ReadAllBytes+GetStringよりピークメモリが小さい
         try
         {
-            using FileStream stream = OpenShared(path);
+            using FileStream stream = SharedFileAccess.Open(path);
             using StreamReader reader = new(stream, new UTF8Encoding(false, true), false);
-            char[] buffer = new char[8192];
+            char[] buffer = new char[DetectionBufferSize];
             while (reader.Read(buffer, 0, buffer.Length) > 0)
             {
             }
@@ -63,12 +66,5 @@ internal static class CsvEncodingDetector
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
             return Encoding.GetEncoding(932, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
         }
-    }
-
-    // Excelなどが書込み用に開いたまま読み取り共有は許可しているケースを読めるようにするため、
-    // File.OpenRead既定のFileShare.ReadWriteへ緩め、他プロセスの読み書きを妨げないようにする
-    private static FileStream OpenShared(string path)
-    {
-        return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
     }
 }

@@ -1,6 +1,6 @@
 using TeamsSync.Presentation.Services;
 
-namespace TeamsSync.Presentation.ViewModels;
+namespace TeamsSync.Presentation.ViewModels.Support;
 
 /// <summary>同期結果と結果ログに関する通知表示を担当する。</summary>
 internal sealed class SyncResultPresenter(INotificationService notifications, Func<bool> hasLog, Action openLog)

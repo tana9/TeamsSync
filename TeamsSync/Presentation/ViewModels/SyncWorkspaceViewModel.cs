@@ -8,6 +8,7 @@ using TeamsSync.Application.Models;
 using TeamsSync.Application.Services;
 using TeamsSync.Domain.Teams;
 using TeamsSync.Presentation.Services;
+using TeamsSync.Presentation.ViewModels.Support;
 
 namespace TeamsSync.Presentation.ViewModels;
 
@@ -21,17 +22,16 @@ namespace TeamsSync.Presentation.ViewModels;
 public partial class SyncWorkspaceViewModel : ObservableObject
 {
     private readonly BusyOperationRunner _busyRunner;
+    private readonly BusyOperationRunner _executeBusyRunner;
     private readonly ISyncConfirmationService _confirmation;
     private readonly SyncExecutionCoordinator _executionCoordinator;
     private readonly INotificationService _notifications;
     private readonly ISavedFileLauncher _savedFileLauncher;
     private readonly SyncExecutionRunner _executionRunner;
-    private readonly SyncWorkspaceCommandStateEvaluator _commandState = new();
     private readonly SyncResultPresenter _resultPresenter;
     private readonly ViewModelUiEvents _uiEvents = new();
     private readonly SyncWorkspaceContext _context = new();
     private bool _externallyBusy;
-    private SyncPlan? _lastExecutedPlan;
     private SyncExecutionResult? _lastResult;
     private CancellationTokenSource? _syncCancellation;
     private TaskCompletionSource? _syncCompletion;
@@ -51,6 +51,12 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             () => OpenResultLogCommand.Execute(null));
         _busyRunner = new BusyOperationRunner(_notifications,
             (message, isError) => _uiEvents.Status(message, isError), Preview.SetBusy);
+        // 確認ダイアログ・実行直前の再検証・実際の反映を1つの処理中区間として扱うため、
+        // Preview.IsBusyとは別のExecution.IsPreparingを使う専用のBusyOperationRunnerを持つ。
+        // Preview.IsBusyを共用すると、差分確認カードの「確認しています…」オーバーレイが
+        // 実行中もそのまま(しかも古い進捗のまま)表示され続けてしまう
+        _executeBusyRunner = new BusyOperationRunner(_notifications,
+            (message, isError) => _uiEvents.Status(message, isError), Execution.SetPreparing);
         Plan.PropertyChanged += OnPlanPropertyChanged;
         Result.PropertyChanged += OnResultPropertyChanged;
         Preview.PropertyChanged += OnOperationStatePropertyChanged;
@@ -197,7 +203,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     private void OnOperationStatePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(SyncPreviewDisplayState.IsBusy)
-            or nameof(SyncExecutionDisplayState.IsRunning))
+            or nameof(SyncExecutionDisplayState.IsBusy))
         {
             NotifyCommandStates();
             RetryRemainingCommand.NotifyCanExecuteChanged();
@@ -253,7 +259,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
     private bool CanPreview()
     {
-        return _commandState.CanPreview(_externallyBusy, Preview, Execution, _context.SignedIn,
+        return SyncWorkspaceCommandStateEvaluator.CanPreview(_externallyBusy, Preview, Execution, _context.SignedIn,
             _context.Team, _context.Document);
     }
 
@@ -264,7 +270,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         _syncCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         try
         {
-            await _busyRunner.RunAsync(async () =>
+            await _executeBusyRunner.RunAsync(async () =>
             {
                 if (Plan.Current is null || _context.Document is null ||
                     !await _confirmation.ConfirmSyncAsync(new SyncConfirmation(
@@ -297,7 +303,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     /// <returns>プレビュー時点の同期プランをそのまま実行できる場合はtrue。それ以外の場合はfalse</returns>
     private async Task<bool> RevalidateBeforeExecuteAsync()
     {
-        return await _busyRunner.RunAsync(async () =>
+        return await _executeBusyRunner.RunAsync(async () =>
             {
                 _uiEvents.Status("実行直前のメンバー構成を確認しています…", false);
                 SyncPlanRevalidation revalidation = await _executionCoordinator.RevalidateAsync(Plan.Current!);
@@ -330,7 +336,6 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         try
         {
             Progress<SyncProgress> progress = new(ReportSyncProgress);
-            _lastExecutedPlan = Plan.Current;
             SyncExecutionOutcome outcome = await _executionRunner.RunAsync(
                 Plan.Current, _context.Document!, _context.TenantId, _context.ActorObjectId, progress,
                 () => _uiEvents.Status("Teams側の最新状態を確認しています…", false),
@@ -473,14 +478,14 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
     private bool CanExecuteSync()
     {
-        return _commandState.CanExecuteSync(_externallyBusy, Preview, Execution, Plan.Current);
+        return SyncWorkspaceCommandStateEvaluator.CanExecuteSync(_externallyBusy, Preview, Execution, Plan.Current);
     }
 
     /// <summary>現在の状態から、同期を実行できない理由(または実行可能である旨)を判定する</summary>
     private string GetSyncUnavailableReason()
     {
-        return _commandState.BuildUnavailableReason(_externallyBusy, Preview, Execution, _context.SignedIn,
-            _context.Team, _context.Document, Plan.Current);
+        return SyncWorkspaceCommandStateEvaluator.BuildUnavailableReason(_externallyBusy, Preview, Execution,
+            _context.SignedIn, _context.Team, _context.Document, Plan.Current);
     }
 
     /// <summary>差分一覧の絞り込みを「エラー」フィルターへ切り替える</summary>
@@ -523,7 +528,6 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         if (clearResult)
         {
             _lastResult = null;
-            _lastExecutedPlan = null;
             Result.Clear();
         }
 

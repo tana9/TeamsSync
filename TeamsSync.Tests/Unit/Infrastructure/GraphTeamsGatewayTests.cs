@@ -762,7 +762,9 @@ public sealed class GraphTeamsGatewayTests
             httpLogger ?? NullLogger<GraphHttpClient>.Instance);
         GraphSdkClient sdk = new(new FakeHttpClientFactory(client), authentication,
             httpLogger ?? NullLogger<GraphHttpClient>.Instance);
-        return new GraphTeamsGateway(http, sdk, gatewayLogger ?? NullLogger<GraphTeamsGateway>.Instance);
+        ILogger<GraphTeamsGateway> logger = gatewayLogger ?? NullLogger<GraphTeamsGateway>.Instance;
+        return new GraphTeamsGateway(sdk, logger, new TeamMembersBatchFetcher(http, logger),
+            new GraphUserSearchService(sdk));
     }
 
     private sealed class FakeHttpClientFactory(HttpClient client) : IHttpClientFactory

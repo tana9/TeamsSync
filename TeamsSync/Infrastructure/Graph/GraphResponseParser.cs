@@ -87,20 +87,25 @@ internal static class GraphResponseParser
         return users.Select(ToDirectoryUser).ToList();
     }
 
-    private static string Required(string? value, string name)
+    /// <summary>文字列値がnullでないことを検証する。nullの場合は例外をスローする</summary>
+    public static string Required(string? value, string name)
     {
         return value ?? throw new InvalidDataException($"{name} がありません。");
     }
 
-    /// <summary><see cref="GraphHttpClient.Required" />への委譲</summary>
-    private static string Required(JsonElement element, string name)
+    /// <summary>JSON要素から文字列プロパティを取得する。存在しない場合は例外をスローする</summary>
+    public static string Required(JsonElement element, string name)
     {
-        return GraphHttpClient.Required(element, name);
+        return element.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()!
+            : throw new InvalidDataException($"{name} がありません。");
     }
 
-    /// <summary><see cref="GraphHttpClient.Optional" />への委譲</summary>
-    private static string? Optional(JsonElement element, string name)
+    /// <summary>JSON要素から文字列プロパティを取得する。存在しない場合はnullを返す</summary>
+    public static string? Optional(JsonElement element, string name)
     {
-        return GraphHttpClient.Optional(element, name);
+        return element.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
     }
 }

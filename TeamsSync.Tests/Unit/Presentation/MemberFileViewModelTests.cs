@@ -26,8 +26,8 @@ public sealed class MemberFileViewModelTests
         Assert.Equal(1, viewModel.SelectedInputIndex);
         Assert.Equal($"a@example.com{Environment.NewLine}山田 太郎", viewModel.PastedText);
         Assert.Null(viewModel.Document);
-        Assert.Contains("入力を反映", viewModel.PasteInfoText);
-        Assert.Contains("元ファイルは変更されません", viewModel.PasteInfoText);
+        Assert.Contains("入力を反映", viewModel.PasteInput.InfoText);
+        Assert.Contains("元ファイルは変更されません", viewModel.PasteInput.InfoText);
         Assert.Equal(0, dialogs.FileContentConfirmationCount);
     }
 
@@ -67,7 +67,7 @@ public sealed class MemberFileViewModelTests
         await viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
 
         Assert.Equal(["a@example.com", "b@example.com"], viewModel.Document!.Addresses);
-        Assert.Contains("2件", viewModel.PasteInfoText);
+        Assert.Contains("2件", viewModel.PasteInput.InfoText);
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public sealed class MemberFileViewModelTests
 
         Assert.Same(document, viewModel.Document);
         Assert.True(changed);
-        Assert.Contains("1件", viewModel.FileInfoText);
+        Assert.Contains("1件", viewModel.FileLoad.InfoText);
         viewModel.SetEnabled(false);
         Assert.False(viewModel.BrowseCommand.CanExecute(null));
         Assert.False(viewModel.LoadDroppedFileCommand.CanExecute(document.FullPath));
@@ -133,8 +133,8 @@ public sealed class MemberFileViewModelTests
         await viewModel.LoadDroppedFileCommand.ExecuteAsync("C:\\broken.csv");
 
         Assert.Null(viewModel.Document);
-        Assert.Equal("C:\\broken.csv", viewModel.FilePath);
-        Assert.Contains("読込に失敗", viewModel.FileInfoText);
+        Assert.Equal("C:\\broken.csv", viewModel.FileLoad.Path);
+        Assert.Contains("読込に失敗", viewModel.FileLoad.InfoText);
         Assert.Equal(2, changedCount);
         Assert.Equal("壊れたファイルです", notifications.ErrorMessage);
     }
@@ -203,13 +203,13 @@ public sealed class MemberFileViewModelTests
         Task execution = viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
         await parser.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
 
-        Assert.True(viewModel.IsParsing);
+        Assert.True(viewModel.PasteInput.IsParsing);
         Assert.False(viewModel.ApplyPastedTextInputCommand.CanExecute(null));
 
         parser.Release.Set();
         await execution;
 
-        Assert.False(viewModel.IsParsing);
+        Assert.False(viewModel.PasteInput.IsParsing);
         Assert.NotNull(viewModel.Document);
     }
 
@@ -228,9 +228,9 @@ public sealed class MemberFileViewModelTests
         viewModel.CancelParsingCommand.Execute(null);
         await execution;
 
-        Assert.False(viewModel.IsParsing);
+        Assert.False(viewModel.PasteInput.IsParsing);
         Assert.Null(viewModel.Document);
-        Assert.Contains("キャンセル", viewModel.PasteInfoText);
+        Assert.Contains("キャンセル", viewModel.PasteInput.InfoText);
     }
 
     [Fact]
@@ -245,14 +245,14 @@ public sealed class MemberFileViewModelTests
         Task execution = viewModel.LoadDroppedFileCommand.ExecuteAsync(document.FullPath);
         await reader.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
 
-        Assert.True(viewModel.IsLoadingFile);
+        Assert.True(viewModel.FileLoad.IsLoading);
         Assert.False(viewModel.BrowseCommand.CanExecute(null));
         Assert.False(viewModel.CopyFileContentToTextCommand.CanExecute(null));
 
         reader.Release.Set();
         await execution;
 
-        Assert.False(viewModel.IsLoadingFile);
+        Assert.False(viewModel.FileLoad.IsLoading);
         Assert.Same(document, viewModel.Document);
         Assert.True(viewModel.CopyFileContentToTextCommand.CanExecute(null));
     }
@@ -275,9 +275,9 @@ public sealed class MemberFileViewModelTests
         reader.Release.Set();
         await execution;
 
-        Assert.False(viewModel.IsLoadingFile);
+        Assert.False(viewModel.FileLoad.IsLoading);
         Assert.Null(viewModel.Document);
-        Assert.Contains("キャンセル", viewModel.FileInfoText);
+        Assert.Contains("キャンセル", viewModel.FileLoad.InfoText);
         Assert.True(viewModel.LoadDroppedFileCommand.CanExecute(next.FullPath));
     }
 
@@ -295,8 +295,8 @@ public sealed class MemberFileViewModelTests
         await viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
 
         Assert.Null(viewModel.Document);
-        Assert.True(viewModel.IsPasteError);
-        Assert.Contains("2行目", viewModel.PasteInfoText);
+        Assert.True(viewModel.PasteInput.HasError);
+        Assert.Contains("2行目", viewModel.PasteInput.InfoText);
         Assert.Contains("2行目", status);
     }
 
@@ -317,7 +317,7 @@ public sealed class MemberFileViewModelTests
 
         Assert.NotNull(viewModel.Document);
         Assert.Equal(["user@example.com", "山田 太郎"], viewModel.Document.Addresses);
-        Assert.Contains("重複1件", viewModel.PasteInfoText);
+        Assert.Contains("重複1件", viewModel.PasteInput.InfoText);
 
         viewModel.PastedText = " ";
 

@@ -2,20 +2,14 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:views="clr-namespace:TeamsSync.Presentation.Views"
              AutomationProperties.Name="同期モード">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="{StaticResource SectionLabelColumnWidth}" /><ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
-        <StackPanel VerticalAlignment="Center">
-            <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="ArrowSync24" FontSize="16" Margin="0,0,6,0"
-                               VerticalAlignment="Center" AutomationProperties.Name="" />
-                <TextBlock Text="3  同期モード" FontWeight="SemiBold" VerticalAlignment="Center" />
-            </StackPanel>
-            <TextBlock Text="入力リストを追加・指定削除・完全同期のどれに使うか選択します" FontSize="12"
-                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-        </StackPanel>
+        <views:StepHeaderView IconSymbol="ArrowSync24" HeaderText="3  同期モード"
+                               SubtitleText="入力リストを追加・指定削除・完全同期のどれに使うか選択します" />
         <WrapPanel Grid.Column="1" VerticalAlignment="Center">
             <RadioButton IsChecked="{Binding IsAddOnlySelected, Mode=TwoWay}"
                          GroupName="SyncMode" AutomationProperties.Name="追加のみ（既存メンバーを維持）"

@@ -1,7 +1,8 @@
 using TeamsSync.Application.Models;
 using TeamsSync.Domain.Teams;
+using TeamsSync.Presentation.ViewModels;
 
-namespace TeamsSync.Presentation.ViewModels;
+namespace TeamsSync.Presentation.ViewModels.Support;
 
 // SyncWorkspaceViewModelから表示用テキストの組み立て・フィルター件数の計算だけを切り出した純粋な
 // ヘルパー。Graph API呼び出しや進捗・キャンセルなどの同期実行ロジックとは関心事が異なるため、

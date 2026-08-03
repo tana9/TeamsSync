@@ -1,11 +1,11 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
-using TeamsSync.Application.Abstractions;
 using TeamsSync.Application.Models;
 using TeamsSync.Application.Services;
 using TeamsSync.Domain.Teams;
 using TeamsSync.Presentation.Services;
+using TeamsSync.Presentation.ViewModels.Support;
 
 namespace TeamsSync.Presentation.ViewModels;
 
@@ -15,23 +15,25 @@ public partial class TeamMemberImportViewModel : ObservableObject
     private readonly Func<bool> _canImport;
     private readonly Func<bool> _hasExistingInput;
     private readonly RestartableCancellation _importCancellation = new();
+    private readonly MemberFileInputCoordinator _inputCoordinator;
     private readonly IMemberInputConfirmationService _inputConfirmation;
     private readonly INotificationService _notifications;
     private readonly TeamsAccessService _teamsAccess;
-    private readonly IMemberTextParser _textParser;
     private TeamInfo? _selectedTeam;
 
     /// <summary>
     ///     コンストラクター。<paramref name="canImport" />には入力欄側(ファイル読込中・解析中・
     ///     テキスト貼り付けタブが選択されているかなど)の実行可否を、<paramref name="hasExistingInput" />には
-    ///     置き換え確認が必要な既存入力の有無を、それぞれ呼び出し元(<see cref="MemberFileViewModel" />)から渡す
+    ///     置き換え確認が必要な既存入力の有無を、それぞれ呼び出し元(<see cref="MemberFileViewModel" />)から渡す。
+    ///     <paramref name="inputCoordinator" />は<see cref="MemberFileViewModel" />が持つものを共有し、
+    ///     貼り付け入力と同じ経路(UIスレッド外でのTask.Run実行)でテキストを解析する
     /// </summary>
-    public TeamMemberImportViewModel(TeamsAccessService teamsAccess, IMemberTextParser textParser,
+    internal TeamMemberImportViewModel(TeamsAccessService teamsAccess, MemberFileInputCoordinator inputCoordinator,
         INotificationService notifications, IMemberInputConfirmationService inputConfirmation,
         Func<bool> canImport, Func<bool> hasExistingInput)
     {
         _teamsAccess = teamsAccess;
-        _textParser = textParser;
+        _inputCoordinator = inputCoordinator;
         _notifications = notifications;
         _inputConfirmation = inputConfirmation;
         _canImport = canImport;
@@ -114,7 +116,7 @@ public partial class TeamMemberImportViewModel : ObservableObject
                 return;
             }
 
-            ApplyImportedMembers(import, cts.Token);
+            await ApplyImportedMembersAsync(import, cts.Token);
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
@@ -160,9 +162,10 @@ public partial class TeamMemberImportViewModel : ObservableObject
         }
     }
 
-    private void ApplyImportedMembers(CurrentMemberImport import, CancellationToken cancellationToken)
+    private async Task ApplyImportedMembersAsync(CurrentMemberImport import, CancellationToken cancellationToken)
     {
-        MemberListDocument document = _textParser.Parse(import.Text, cancellationToken) with
+        MemberListDocument parsed = await _inputCoordinator.ParseAsync(import.Text, cancellationToken);
+        MemberListDocument document = parsed with
         {
             FileName = $"Teamsから取り込み - {import.Team.DisplayName}",
             SourceName = $"Teamsから取り込み: {import.Team.DisplayName}"

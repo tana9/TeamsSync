@@ -5,20 +5,10 @@ using TeamsSync.Domain.Teams;
 namespace TeamsSync.Application.Services;
 
 /// <summary>同期実行、監査CSV保存、実行後の最新状態取得を1つのユースケースとして調整する</summary>
-public sealed class SyncExecutionCoordinator
+/// <remarks>分割されたプラン作成・同期実行サービスを使用してユースケースを構成する</remarks>
+public sealed class SyncExecutionCoordinator(ISyncPlanService plans, ISyncExecutor executor,
+    ISyncResultWriter resultWriter)
 {
-    private readonly ISyncExecutor _executor;
-    private readonly ISyncPlanService _plans;
-    private readonly ISyncResultWriter _resultWriter;
-
-    /// <summary>分割されたプラン作成・同期実行サービスを使用してユースケースを構成する</summary>
-    public SyncExecutionCoordinator(ISyncPlanService plans, ISyncExecutor executor, ISyncResultWriter resultWriter)
-    {
-        _plans = plans;
-        _executor = executor;
-        _resultWriter = resultWriter;
-    }
-
     /// <summary>実行直前にプレビュー済みプランを最新のメンバー構成で再検証する</summary>
     /// <param name="plan">再検証するプレビュー済みの同期プラン</param>
     /// <param name="cancellationToken">処理のキャンセルを通知するトークン</param>
@@ -26,14 +16,14 @@ public sealed class SyncExecutionCoordinator
     public Task<SyncPlanRevalidation> RevalidateAsync(SyncPlan plan,
         CancellationToken cancellationToken = default)
     {
-        return _plans.RevalidatePlanAsync(plan, cancellationToken);
+        return plans.RevalidatePlanAsync(plan, cancellationToken);
     }
 
     /// <summary>入力されたチームとアドレスから同期プランを作成する</summary>
     public Task<SyncPlan> BuildPlanAsync(TeamInfo team, IReadOnlyList<string> addresses,
         SyncMode mode, IProgress<int>? progress = null, CancellationToken cancellationToken = default)
     {
-        return _plans.BuildPlanAsync(team, addresses, mode, progress, cancellationToken);
+        return plans.BuildPlanAsync(team, addresses, mode, progress, cancellationToken);
     }
 
     /// <summary>
@@ -50,14 +40,14 @@ public sealed class SyncExecutionCoordinator
         IProgress<SyncProgress>? progress = null, Action? reconciliationStarting = null,
         CancellationToken cancellationToken = default)
     {
-        SyncExecutionResult execution = await _executor.ExecuteAsync(
+        SyncExecutionResult execution = await executor.ExecuteAsync(
             plan, progress, auditContext, cancellationToken);
 
         string resultLogPath = "";
         Exception? logSaveError = null;
         try
         {
-            resultLogPath = _resultWriter.WriteAutoLog(plan, execution, auditContext.ExecutionId);
+            resultLogPath = resultWriter.WriteAutoLog(plan, execution, auditContext.ExecutionId);
         }
         catch (Exception ex)
         {
@@ -71,7 +61,7 @@ public sealed class SyncExecutionCoordinator
             try
             {
                 reconciliationStarting?.Invoke();
-                remainingPlan = await _plans.ReconcileAsync(plan, cancellationToken);
+                remainingPlan = await plans.ReconcileAsync(plan, cancellationToken);
             }
             catch (Exception ex)
             {

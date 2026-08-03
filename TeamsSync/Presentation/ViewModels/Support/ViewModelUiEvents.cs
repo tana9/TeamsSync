@@ -1,4 +1,4 @@
-namespace TeamsSync.Presentation.ViewModels;
+namespace TeamsSync.Presentation.ViewModels.Support;
 
 /// <summary>ViewModelからViewへ渡す状態通知とフォーカス要求を集約する。</summary>
 internal sealed class ViewModelUiEvents

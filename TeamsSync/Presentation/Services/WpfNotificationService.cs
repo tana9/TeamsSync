@@ -73,26 +73,10 @@ public sealed class WpfNotificationService(
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto
             };
             textBox.Loaded += (_, _) => textBox.SelectAll();
-            StackPanel titlePanel = new() { Orientation = Orientation.Horizontal };
-            AutomationProperties.SetName(titlePanel, title);
-            SymbolIcon titleIcon = new()
-            {
-                Symbol = SymbolRegular.ErrorCircle24,
-                FontSize = 20,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 8, 0)
-            };
-            titleIcon.SetResourceReference(SymbolIcon.ForegroundProperty, "SystemFillColorCriticalBrush");
-            titlePanel.Children.Add(titleIcon);
-            titlePanel.Children.Add(new TextBlock
-            {
-                Text = title,
-                FontWeight = FontWeights.SemiBold,
-                FontSize = 20,
-                VerticalAlignment = VerticalAlignment.Center
-            });
+            UIElement dialogTitle = ConfirmationDialogHelper.BuildTitle(title, SymbolRegular.ErrorCircle24,
+                "SystemFillColorCriticalBrush");
             await ConfirmationDialogHelper.ShowRestoringFocusAsync(contentDialogs,
-                new ContentDialog { Title = titlePanel, Content = textBox, CloseButtonText = "閉じる" },
+                new ContentDialog { Title = dialogTitle, Content = textBox, CloseButtonText = "閉じる" },
                 CancellationToken.None);
         }, title, onClosed, logger);
     }

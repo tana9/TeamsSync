@@ -3,8 +3,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace TeamsSync.Presentation.ViewModels;
 
 /// <summary>
-///     画面手順(1 チーム選択 → 2 メンバーリスト → 3 同期モード → 4 同期差分)の進捗状態を、
-///     各画面領域のViewModelの状態から算出する
+///     画面手順のうち手順1〜3(1 チーム選択 → 2 メンバーリスト → 3 同期モード)の進捗状態を、
+///     各画面領域のViewModelの状態から算出する。手順4(同期差分)の進捗は
+///     <see cref="SyncWorkspaceViewModel" />のPlan/Resultが個別に管理するため、ここでは扱わない
 /// </summary>
 public sealed class WorkflowStepsViewModel : ObservableObject
 {

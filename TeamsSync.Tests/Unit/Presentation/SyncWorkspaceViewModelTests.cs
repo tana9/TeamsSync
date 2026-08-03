@@ -633,8 +633,8 @@ public sealed class SyncWorkspaceViewModelTests
     }
 
     // ExecuteSyncAsyncは確認ダイアログ後にRevalidateBeforeExecuteAsyncを呼び、そちらも同じ
-    // _busyRunnerでIsBusyを管理する。入れ子のRunAsyncが互いのIsBusy状態を意識せず
-    // setBusy(false)を呼ぶと、内側(再検証)の完了時点で外側(実際のメンバー追加/削除より前)の
+    // _executeBusyRunnerでExecution.IsPreparingを管理する。入れ子のRunAsyncが互いのIsBusy状態を
+    // 意識せずsetBusy(false)を呼ぶと、内側(再検証)の完了時点で外側(実際のメンバー追加/削除より前)の
     // IsBusyが早期にfalseへ戻ってしまい、画面の入力カードが実行中に一瞬再操作可能になる。
     // IsBusyがfalseに戻る「タイミング」を、実際にメンバー追加処理が始まったかどうかで検証する
     [Fact]
@@ -657,9 +657,9 @@ public sealed class SyncWorkspaceViewModelTests
         await viewModel.PreviewCommand.ExecuteAsync(null);
 
         List<bool> addStartedWhenIsBusyBecameFalse = new();
-        viewModel.Preview.PropertyChanged += (_, e) =>
+        viewModel.Execution.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(SyncPreviewDisplayState.IsBusy) && !viewModel.Preview.IsBusy)
+            if (e.PropertyName == nameof(SyncExecutionDisplayState.IsBusy) && !viewModel.Execution.IsBusy)
             {
                 addStartedWhenIsBusyBecameFalse.Add(addStarted);
             }

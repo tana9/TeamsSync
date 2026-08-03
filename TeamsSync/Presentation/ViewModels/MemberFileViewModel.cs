@@ -1,5 +1,3 @@
-using System.ComponentModel;
-
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -8,6 +6,7 @@ using TeamsSync.Application.Models;
 using TeamsSync.Application.Services;
 using TeamsSync.Domain.Teams;
 using TeamsSync.Presentation.Services;
+using TeamsSync.Presentation.ViewModels.Support;
 
 namespace TeamsSync.Presentation.ViewModels;
 
@@ -20,10 +19,8 @@ public partial class MemberFileViewModel : ObservableObject
 {
     private readonly IFilePickerService _filePicker;
     private readonly IMemberInputConfirmationService _inputConfirmation;
-    private readonly MemberFileLoadState _fileLoad = new();
     private readonly RestartableCancellation _loadCancellation = new();
     private readonly INotificationService _notifications;
-    private readonly MemberPasteInputState _pasteInput = new();
     private readonly RestartableCancellation _parseCancellation = new();
     private readonly IUserPreferences _preferences;
     private readonly MemberFileInputCoordinator _inputCoordinator;
@@ -43,8 +40,9 @@ public partial class MemberFileViewModel : ObservableObject
         _filePicker = filePicker;
         _notifications = notifications;
         _inputConfirmation = inputConfirmation;
-        Import = new TeamMemberImportViewModel(teamsAccess, textParser, notifications, inputConfirmation,
-            () => _enabled && !IsLoadingFile && !IsParsing && SelectedInputIndex == 1,
+        Import = new TeamMemberImportViewModel(teamsAccess, _inputCoordinator, notifications, inputConfirmation,
+            () => _enabled && !FileLoad.IsLoading && !PasteInput.IsParsing &&
+                  SelectedInputIndex == (int)MemberInputMethod.Paste,
             () => Document is not null || _documents.FileDocument is not null || !string.IsNullOrWhiteSpace(PastedText));
         Import.Imported += OnMembersImported;
         Import.StatusChanged += (message, isError) => _uiEvents.Status(message, isError);
@@ -55,28 +53,18 @@ public partial class MemberFileViewModel : ObservableObject
                 NotifyCommandStates();
             }
         };
-        _fileLoad.PropertyChanged += OnInputStatePropertyChanged;
-        _pasteInput.PropertyChanged += OnInputStatePropertyChanged;
+        // FileLoad/PasteInputはSyncWorkspaceViewModelのPreview/Executionと同様、XAMLから
+        // 直接バインドされる公開の子状態。ここではコマンドの実行可否を再評価する必要があるため購読する
+        FileLoad.PropertyChanged += (_, _) => NotifyCommandStates();
+        PasteInput.PropertyChanged += (_, _) => NotifyCommandStates();
         DocumentChanged += () => OnPropertyChanged(nameof(HasUnappliedPastedText));
     }
 
-    /// <summary>ファイル入力の状態説明テキスト</summary>
-    public string FileInfoText { get => _fileLoad.InfoText; private set => _fileLoad.InfoText = value; }
+    /// <summary>ファイル入力の読込中状態と表示状態</summary>
+    public MemberFileLoadState FileLoad { get; } = new();
 
-    /// <summary>選択中のファイルパス</summary>
-    public string FilePath { get => _fileLoad.Path; private set => _fileLoad.Path = value; }
-
-    /// <summary>テキスト貼り付け入力の状態説明テキスト</summary>
-    public string PasteInfoText { get => _pasteInput.InfoText; private set => _pasteInput.InfoText = value; }
-
-    /// <summary>貼り付けテキストを解析中かどうか</summary>
-    public bool IsParsing { get => _pasteInput.IsParsing; private set => _pasteInput.IsParsing = value; }
-
-    /// <summary>ファイルを読み込み中かどうか</summary>
-    public bool IsLoadingFile { get => _fileLoad.IsLoading; private set => _fileLoad.IsLoading = value; }
-
-    /// <summary>貼り付け入力の解析でエラーが発生したかどうか</summary>
-    public bool IsPasteError { get => _pasteInput.HasError; private set => _pasteInput.HasError = value; }
+    /// <summary>テキスト貼り付け入力の解析状態と表示状態</summary>
+    public MemberPasteInputState PasteInput { get; } = new();
 
     /// <summary>テキスト貼り付け入力欄の内容</summary>
     public string PastedText
@@ -122,7 +110,8 @@ public partial class MemberFileViewModel : ObservableObject
 
     /// <summary>テキスト貼り付け入力に、まだ「入力を反映」していない変更があるかどうか</summary>
     public bool HasUnappliedPastedText =>
-        SelectedInputIndex == 1 && Document is null && !string.IsNullOrWhiteSpace(PastedText);
+        SelectedInputIndex == (int)MemberInputMethod.Paste && Document is null &&
+        !string.IsNullOrWhiteSpace(PastedText);
 
     /// <summary><see cref="Document" />が変化したときに発行される</summary>
     public event Action? DocumentChanged;
@@ -175,31 +164,30 @@ public partial class MemberFileViewModel : ObservableObject
         Document = document;
         if (pasteInfo is not null)
         {
-            PasteInfoText = pasteInfo;
+            // pasteInfoが返るのは反映済みの貼り付け文書がない場合だけなので、以前のエラー表示が
+            // 案内文へ置き換わった後もHasErrorが残って赤字強調のままにならないようにする
+            PasteInput.InfoText = pasteInfo;
+            PasteInput.HasError = false;
         }
 
-        DocumentChanged?.Invoke();
-        if (document is not null)
-        {
-            _uiEvents.Status($"{document.Addresses.Count}件の一意な氏名／メールアドレスを読み込みました", false);
-        }
+        NotifyDocumentChanged();
         NotifyCommandStates();
     }
 
     /// <summary>貼り付けテキストの変更を検知し、反映前の文書を無効化して状態を更新する</summary>
     private void OnPastedTextChanged(string value)
     {
-        if (SelectedInputIndex != 1)
+        if (SelectedInputIndex != (int)MemberInputMethod.Paste)
         {
             return;
         }
 
         Document = null;
         _selectionCoordinator.InvalidatePastedDocument();
-        PasteInfoText = string.IsNullOrWhiteSpace(value)
+        PasteInput.InfoText = string.IsNullOrWhiteSpace(value)
             ? "1行につき1ユーザー（氏名またはメールアドレス）"
             : "内容が変更されました。「入力を反映」を押してください";
-        IsPasteError = false;
+        PasteInput.HasError = false;
         DocumentChanged?.Invoke();
         NotifyCommandStates();
     }
@@ -211,6 +199,7 @@ public partial class MemberFileViewModel : ObservableObject
         string? path = _filePicker.PickMemberFile(_preferences.LastFolder);
         if (path is not null)
         {
+            SelectedInputIndex = (int)MemberInputMethod.File;
             await Load(path);
         }
     }
@@ -224,17 +213,17 @@ public partial class MemberFileViewModel : ObservableObject
             return;
         }
 
-        SelectedInputIndex = 0;
+        SelectedInputIndex = (int)MemberInputMethod.File;
         await Load(path);
     }
 
     private bool CanLoad()
     {
-        return _enabled && !IsLoadingFile && !Import.IsImportingMembers;
+        return _enabled && !FileLoad.IsLoading && !Import.IsImportingMembers;
     }
 
     // CSV/Excelの解析は行数・列数によって時間がかかりうるため、貼り付け入力(ApplyPastedTextInputAsync)と同様に
-    // UIスレッド外(Task.Run)で実行し、IsLoadingFileで処理中表示、CancellationTokenSourceでキャンセルを可能にする
+    // UIスレッド外(Task.Run)で実行し、FileLoad.IsLoadingで処理中表示、CancellationTokenSourceでキャンセルを可能にする
     /// <summary>
     ///     指定したパスのファイルをUIスレッド外で読み込み、成功時は<see cref="Document" />と
     ///     前回フォルダー設定を更新する。失敗・キャンセル時は状態を適切にロールバックする
@@ -242,17 +231,17 @@ public partial class MemberFileViewModel : ObservableObject
     private async Task Load(string path)
     {
         CancellationTokenSource cts = _loadCancellation.Begin();
-        IsLoadingFile = true;
-        FilePath = path;
-        FileInfoText = "ファイルを読み込んでいます…";
+        FileLoad.IsLoading = true;
+        FileLoad.Path = path;
+        FileLoad.InfoText = "ファイルを読み込んでいます…";
         NotifyCommandStates();
         try
         {
             MemberListDocument document = await _inputCoordinator.LoadAsync(path, cts.Token);
             _documents.SetFileDocument(document);
             Document = document;
-            FilePath = path;
-            FileInfoText =
+            FileLoad.Path = path;
+            FileLoad.InfoText =
                 $"{Document.Addresses.Count}件 • {Document.SourceName} • 列: {Document.DetectedColumn} • 更新: {Document.LastModified:g}";
             _preferences.LastFolder = Path.GetDirectoryName(path);
             try
@@ -271,14 +260,14 @@ public partial class MemberFileViewModel : ObservableObject
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
             // 利用者によるキャンセル。以前の文書は変更せず、その旨だけを表示する
-            FileInfoText = "読込をキャンセルしました";
+            FileLoad.InfoText = "読込をキャンセルしました";
         }
         catch (Exception ex)
         {
             _documents.SetFileDocument(null);
             Document = null;
-            FilePath = path;
-            FileInfoText = $"読込に失敗しました: {Path.GetFileName(path)}";
+            FileLoad.Path = path;
+            FileLoad.InfoText = $"読込に失敗しました: {Path.GetFileName(path)}";
             DocumentChanged?.Invoke();
             NotifyCommandStates();
             _uiEvents.Status("ファイルを読み込めなかったため、以前の同期差分を無効化しました", true);
@@ -288,7 +277,7 @@ public partial class MemberFileViewModel : ObservableObject
         }
         finally
         {
-            IsLoadingFile = false;
+            FileLoad.IsLoading = false;
             _loadCancellation.End(cts);
             NotifyCommandStates();
         }
@@ -303,7 +292,7 @@ public partial class MemberFileViewModel : ObservableObject
 
     private bool CanCancelLoad()
     {
-        return IsLoadingFile && _loadCancellation.IsActive;
+        return FileLoad.IsLoading && _loadCancellation.IsActive;
     }
 
     /// <summary>ファイルから読み取った識別子を1行1件のテキストへコピーし、編集できる状態にする</summary>
@@ -324,15 +313,16 @@ public partial class MemberFileViewModel : ObservableObject
         }
 
         string text = string.Join(Environment.NewLine, fileDocument.Addresses);
-        SelectedInputIndex = 1;
+        SelectedInputIndex = (int)MemberInputMethod.Paste;
         PastedText = text;
-        PasteInfoText = "ファイル内容をコピーしました。編集後に「入力を反映」を押してください（元ファイルは変更されません）";
+        PasteInput.InfoText = "ファイル内容をコピーしました。編集後に「入力を反映」を押してください（元ファイルは変更されません）";
         _uiEvents.Status("ファイル内容をテキストへコピーしました。編集後に入力を反映してください", false);
     }
 
     private bool CanCopyFileContentToText()
     {
-        return _enabled && !IsLoadingFile && !IsParsing && !Import.IsImportingMembers && _documents.FileDocument is not null;
+        return _enabled && !FileLoad.IsLoading && !PasteInput.IsParsing && !Import.IsImportingMembers &&
+               _documents.FileDocument is not null;
     }
 
     /// <summary>貼り付けテキストをUIスレッド外で解析し、成功時は<see cref="Document" />へ反映する</summary>
@@ -346,16 +336,16 @@ public partial class MemberFileViewModel : ObservableObject
 
         CancellationTokenSource cts = _parseCancellation.Begin();
         string text = PastedText;
-        IsParsing = true;
-        IsPasteError = false;
-        PasteInfoText = "入力内容を解析しています…";
+        PasteInput.IsParsing = true;
+        PasteInput.HasError = false;
+        PasteInput.InfoText = "入力内容を解析しています…";
         NotifyCommandStates();
         try
         {
             MemberListDocument document = await _inputCoordinator.ParseAsync(text, cts.Token);
             if (!string.Equals(text, PastedText, StringComparison.Ordinal))
             {
-                PasteInfoText = "解析中に内容が変更されました。「入力を反映」を押してください";
+                PasteInput.InfoText = "解析中に内容が変更されました。「入力を反映」を押してください";
                 return;
             }
 
@@ -363,26 +353,26 @@ public partial class MemberFileViewModel : ObservableObject
             Document = document;
             int entered = text.Split(["\r\n", "\n", "\r"], StringSplitOptions.RemoveEmptyEntries).Length;
             int duplicates = Math.Max(0, entered - document.Addresses.Count);
-            PasteInfoText = $"{document.Addresses.Count}件 • 重複{duplicates}件を除外";
+            PasteInput.InfoText = $"{document.Addresses.Count}件 • 重複{duplicates}件を除外";
             NotifyDocumentChanged();
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
-            PasteInfoText = "入力内容の解析をキャンセルしました";
+            PasteInput.InfoText = "入力内容の解析をキャンセルしました";
         }
         catch (Exception ex)
         {
             _documents.SetPastedDocument(null);
             Document = null;
-            IsPasteError = true;
-            PasteInfoText = ex.Message;
+            PasteInput.HasError = true;
+            PasteInput.InfoText = ex.Message;
             DocumentChanged?.Invoke();
             _uiEvents.Status($"貼り付け入力を確認してください: {ex.Message}", true);
             _uiEvents.RequestFocus();
         }
         finally
         {
-            IsParsing = false;
+            PasteInput.IsParsing = false;
             NotifyCommandStates();
             _parseCancellation.End(cts);
         }
@@ -396,44 +386,24 @@ public partial class MemberFileViewModel : ObservableObject
 
     private bool CanCancelParsing()
     {
-        return IsParsing && _parseCancellation.IsActive;
+        return PasteInput.IsParsing && _parseCancellation.IsActive;
     }
 
     private bool CanApplyPastedText()
     {
-        return _enabled && !IsParsing && !Import.IsImportingMembers && SelectedInputIndex == 1 &&
-               !string.IsNullOrWhiteSpace(PastedText);
-    }
-
-    private void OnInputStatePropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        string? propertyName = sender switch
-        {
-            MemberFileLoadState when e.PropertyName == nameof(MemberFileLoadState.InfoText) => nameof(FileInfoText),
-            MemberFileLoadState when e.PropertyName == nameof(MemberFileLoadState.Path) => nameof(FilePath),
-            MemberFileLoadState when e.PropertyName == nameof(MemberFileLoadState.IsLoading) => nameof(IsLoadingFile),
-            MemberPasteInputState when e.PropertyName == nameof(MemberPasteInputState.InfoText) => nameof(PasteInfoText),
-            MemberPasteInputState when e.PropertyName == nameof(MemberPasteInputState.IsParsing) => nameof(IsParsing),
-            MemberPasteInputState when e.PropertyName == nameof(MemberPasteInputState.HasError) => nameof(IsPasteError),
-            _ => null
-        };
-        if (propertyName is not null)
-        {
-            OnPropertyChanged(propertyName);
-        }
-
-        NotifyCommandStates();
+        return _enabled && !PasteInput.IsParsing && !Import.IsImportingMembers &&
+               SelectedInputIndex == (int)MemberInputMethod.Paste && !string.IsNullOrWhiteSpace(PastedText);
     }
 
     /// <summary>Teamsからの取り込み結果を入力欄へ反映し、テキスト貼り付けタブへ切り替える</summary>
     private void OnMembersImported(TeamInfo team, string text, MemberListDocument document)
     {
-        SelectedInputIndex = 1;
+        SelectedInputIndex = (int)MemberInputMethod.Paste;
         PastedText = text;
         _documents.SetPastedDocument(document);
         Document = document;
-        IsPasteError = false;
-        PasteInfoText = $"{document.Addresses.Count}件 • Teamsから取り込み: {team.DisplayName}";
+        PasteInput.HasError = false;
+        PasteInput.InfoText = $"{document.Addresses.Count}件 • Teamsから取り込み: {team.DisplayName}";
         NotifyDocumentChanged();
     }
 

@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 using TeamsSync.Application.Models;
 using TeamsSync.Domain.Teams;
+using TeamsSync.Presentation.ViewModels.Support;
 
 namespace TeamsSync.Presentation.ViewModels;
 
@@ -38,7 +39,17 @@ public sealed partial class SyncPreviewDisplayState : ObservableObject
 /// <summary>Teamsへの同期実行と進捗表示の状態を管理する</summary>
 public sealed partial class SyncExecutionDisplayState : ObservableObject
 {
+    // IsRunningは進捗バーが動く実際のGraph API呼び出し中だけをtrueにする(Start〜Stopの区間)。
+    // 確認ダイアログの応答待ちや実行直前の再検証(RevalidateBeforeExecuteAsync)は、まだ
+    // Start前でIsRunning=falseだが、その間もPreviewや他画面の操作を止めたいため、
+    // その区間を含めた「実行フロー全体の処理中」をIsPreparingとして別に持つ。
+    // 差分確認カード(Preview.IsBusy用)とは異なる進捗UIのため、両者を混同しないようにする
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBusy))]
+    public partial bool IsPreparing { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBusy))]
     public partial bool IsRunning { get; private set; }
 
     [ObservableProperty]
@@ -49,6 +60,14 @@ public sealed partial class SyncExecutionDisplayState : ObservableObject
 
     [ObservableProperty]
     public partial int ProgressValue { get; private set; }
+
+    /// <summary>確認・再検証・実行のいずれかの区間にあるかどうか</summary>
+    public bool IsBusy => IsPreparing || IsRunning;
+
+    public void SetPreparing(bool value)
+    {
+        IsPreparing = value;
+    }
 
     public void Start(int total)
     {

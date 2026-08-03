@@ -34,7 +34,60 @@ TeamsSync の今後の改善項目。メンバー削除を伴うアプリケー�
 
 完了条件: テナントやGraph APIから取得した文字列を含む結果CSVを表計算ソフトで開いても、セルが数式として評価されない。
 
+### 同期実行の安全ゲートと取りこぼし記録を修正する
+
+- [ ] 実行直前の再検証結果(`MembershipSnapshot`)を`SyncPlan.EnsureExecutable`または`SyncExecutor.ExecuteAsync`の実行判定に組み込み、プレビュー後にOwnerへ昇格したメンバーが削除されないようにする（`TeamModels.cs:178-191`、`SyncExecutor.cs:19-79`、`SyncPlanService.cs:42-48`。現状は再検証結果が実行経路に配線されておらず、Owner保護を迂回しうる。コードレビューで指摘、2026-08-03）
+- [ ] `AddressResolver.TryResolveFromRoster`が氏名一致で確定した場合でも、ディレクトリ側に別人の候補がないか確認するか、氏名一致はメール一致より確度が低いことをUI・監査ログへ明示する（`AddressResolver.cs:14-26`、`SyncPlanService.cs:87-91`。現状はロスターに同姓同名が1人いるだけで、無警告のまま別人へ取り違えうる。コードレビューで指摘、2026-08-03）
+- [ ] FullSyncで同姓同名の衝突(`AmbiguousCurrentMember`)を起こした現メンバーが`wantedIds`に含まれず削除候補として表示される挙動を修正する（`SyncPlanFactory.cs:85-88, 139-150`。実行自体はHasErrorsでブロックされるが、差分表示が実態と矛盾する。コードレビューで指摘、2026-08-03）
+- [ ] キャンセル時、サーバー側では成功していた操作が`OperationCanceledException`により未記録のまま取りこぼされる問題と、キャンセル時に限り`ReconcileAsync`(最新状態との差分検出)がスキップされる問題を修正する（`SyncExecutor.cs:109-112`、`SyncExecutionCoordinator.cs:67-80`。既存テストが取りこぼし自体を実証済み。コードレビューで指摘、2026-08-03）
+
+完了条件: 実行直前の状態変化とキャンセル時の取りこぼしが検出・記録され、同姓同名の衝突が差分表示や削除判定を誤らせない。
+
+### 認証の安全性を高める
+
+- [ ] `MsalAuthenticationService`の共有結果フィールドを排他化し、`GetOwnedTeamsAsync`の並列トークン取得で誤ったアカウントのトークンが返る、または複数の対話サインインが同時に起動する競合を解消する（`MsalAuthenticationService.cs:41-72`。コードレビューで指摘、2026-08-03）
+- [ ] `TenantId`設定の変更が、`ClientId`が同じ場合キャッシュされた`IPublicClientApplication`へ反映されない問題を修正する（同ファイル97-116行。テナント制限の強化がプロセス再起動まで黙って無効化される。コードレビューで指摘、2026-08-03）
+
+完了条件: 認証トークンの取り違え・同時サインイン、テナント制限の無効化が発生しない。
+
 ## 優先度: 中
+
+### コード品質レビューで見つかった重複・命名を整理する(2026-08-03)
+
+- [x] `SyncExecutionCoordinator`を、同フォルダの他クラスと同様プライマリコンストラクターへ揃える（`Application\Services\SyncExecutionCoordinator.cs:8-20`）
+- [x] `Application\Abstractions\RuntimeServices.cs`のXMLコメント末尾に残る「。」を削除する
+- [x] `TeamModels.cs`の`AddCount`/`RemoveCount`等7件の件数プロパティを`CountOf(ChangeKind)`ヘルパーへ集約する（`Domain\Teams\TeamModels.cs:130-148`）
+- [x] `SyncPlanFactory.cs`の重複アドレス結合区切り文字`" ／ "`を名前付き定数化する（`Domain\Teams\SyncPlanFactory.cs:73`）
+- [x] `GraphHttpClient.SendOnceAsync`と`GraphSdkTransportHandler.SendAsync`のエラー判定・ログ出力・`GraphException`化ロジック（コメント含め重複）を共通ヘルパーへ切り出す（`GraphErrorHandler`を新設）
+- [x] `Required`/`Optional`ヘルパーが`GraphHttpClient`・`GraphResponseParser`・`GraphTeamsGateway`の3箇所に分散重複しているのを1箇所へ集約する（`GraphResponseParser`へ統一）
+- [x] `GraphSdkClient`の`GetJoinedTeamsAsync`/`GetTeamMembersAsync`/`FindUsersAsync`に重複するページング処理をジェネリックヘルパーへ抽出する（`CollectAllPagesAsync<TItem, TResponse>`）
+- [x] `GraphTeamsGateway`が`TeamOwnershipCache`/`TeamMembersBatchFetcher`/`GraphUserSearchService`を`new`で直接生成しておりモック差し替えができない問題をDI経由に変更する（`TeamMembersBatchFetcher`/`GraphUserSearchService`をコンストラクター注入化。`TeamOwnershipCache`はパラメーターなしのため据え置き）
+- [x] Graphページサイズ上限`999`が`GraphSdkClient.cs`と`TeamMembersBatchFetcher.cs`に生の数値で重複しているのを共有定数化する（`GraphHttpClient.MaxMembersPageSize`）
+- [x] `MsalAuthenticationService.GetTokenAsync`が対話サインイン分岐を例外のスロー・キャッチで表現している箇所を、素直な条件分岐へ書き換える
+- [x] `SyncResultWriter.WriteCsv`の、本番コードパスでは到達不能な後方互換フォールバック分岐とその誤解を招くコメントを削除する（実装は既存テスト(`CreatePlan`ヘルパーで空プランを使う複数のテスト)がこの分岐へ依存していたため削除は見送り、コメントを実態(テスト用の簡易経路)に合わせて修正するに留めた。`Infrastructure\Files\SyncResultWriter.cs:54-63`）
+- [x] `CsvEncodingDetector`と`MemberListReader`に重複する`OpenShared`ヘルパー(実装・コメントとも同一)を共有ヘルパーへ集約する（`SharedFileAccess`を新設）
+- [x] `MemberListReader`が`MemberFileSecurityValidator`の`internal`定数をそのまま再公開している未使用の`public const`4つを削除する（`InternalsVisibleTo`済みでテストは直接参照可能）
+- [x] `MemberTextParser`の本番未使用・インターフェース外の公開オーバーロード`Parse(string)`を削除または`internal`化する（削除）
+- [x] `CsvEncodingDetector.cs`のバッファサイズ`8192`を名前付き定数化する
+- [x] 確認ダイアログの骨格（アイコン・ボタン構成）が`WpfMemberInputConfirmationService`(2箇所)と`WpfSyncConfirmationService`で重複しているのを`ConfirmationDialogHelper`のファクトリメソッドへ集約する（`BuildConfirmDialog`を新設）
+- [x] `WpfNotificationService`が`ConfirmationDialogHelper.BuildTitle`と同じタイトル構築を再実装している箇所を共通化する（`BuildTitle`にアイコン・強調色の引数を追加して共用）
+- [x] `MemberListInputView`/`SyncModeSelectorView`/`TeamSelectionCardContent`/`SyncDiffCardContent`で完全重複している手順見出しXAMLブロックを共有`Style`かユーザーコントロールへ切り出す（`StepHeaderView`ユーザーコントロールを新設）
+- [x] `MemberListInputView`と`TeamSelectionCardContent`で重複する「未入力警告」バナーXAMLを共有`Style`へ切り出す（`StepIncompleteWarningView`ユーザーコントロールを新設）
+- [x] `IUserInteractionService.cs`に同名の型が存在しない（6つの無関係な型の寄せ集め）問題を、実態に合わせてファイル名を変更するかファイル分割で解消する（`PresentationPorts.cs`へリネーム）
+- [x] XAMLのコメントに残る末尾「。」を、.csファイルの規約（末尾の句点は付けない）に合わせてトリムする
+- [x] `MemberFileViewModel`/`MemberInputDocumentState`/`MemberInputSelectionCoordinator`にまたがる入力方法(0/1)の生リテラル比較を、`enum MemberInputMethod`を使った比較へ置き換える（`SelectedInputIndex`自体はTabControlバインド用にint型のまま維持し、比較箇所だけ`(int)MemberInputMethod.Xxx`へ置換）
+- [x] `MemberFileViewModel.OnSelectedInputIndexChanged`が`NotifyDocumentChanged()`と同じ処理を再実装している箇所を、呼び出しへ置き換える
+- [x] `TeamMemberImportViewModel`が`MemberFileInputCoordinator.ParseAsync`と同じ`Task.Run`解析パターンを再実装している箇所を、コーディネーター共有へ変更する
+- [x] `SyncWorkspaceCommandStateEvaluator`だけが不要にインスタンスクラスになっている（同役割の`SyncWorkspaceTextFormatter`は`static`）のを揃える
+- [x] `WorkflowStepState`/`WorkflowStepsViewModel`のコメントが「4 同期差分」を含む4手順を謳うが、実装は`Step1State`〜`Step3State`の3つのみである不一致を解消する（手順4はSyncWorkspaceViewModel側で個別管理する旨を明記）
+
+完了条件: コードレビューで指摘された重複ロジック・マジックナンバー・コメント規約違反・命名の不整合が解消され、同種の処理が単一の実装箇所に集約されている。
+
+### (副次的に発見)起動時クラッシュを修正する
+
+- [x] `SyncActionBarView.xaml`/`SyncDiffCardContent.xaml`の`ProgressBar.Value`が、既定でTwoWayバインドされる`RangeBase.ValueProperty`のまま読み取り専用の`ProgressValue`へ束縛されており、起動直後のレイアウトパスで`InvalidOperationException`が発生しアプリが必ず落ちる状態だった（今回のコード品質修正とは無関係の既存バグ。コミット履歴で存在を確認済み）。両箇所へ`Mode=OneWay`を明示して修正し、`TeamsSync.UiHarness`で実際に起動して解消を確認した
+
+完了条件: `MainWindow`が例外なく起動し、差分確認・同期実行の進捗バーが表示される。
 
 ### ViewModelの責務と状態更新をさらに整理する
 
@@ -57,6 +110,16 @@ TeamsSync の今後の改善項目。メンバー削除を伴うアプリケー�
 - [x] `.editorconfig`とRoslyn analyzerで非同期処理、例外処理、命名、複雑度などの静的検査をCIへ追加する（SDK analyzerを有効化し、レビュー済みの基準ルールを明示）
 
 完了条件: 主要ViewModelの変更影響範囲と障害原因を追跡しやすく、時刻や乱数に依存しないテストと静的検査で品質を継続的に維持できる。
+
+### コードレビューで見つかった残りの防御的修正
+
+- [ ] `GraphSdkClient.AddMemberAsync`が受け取る`userId`をエスケープまたは検証し、将来GUID以外の値が渡された場合のOData束縛文字列注入を防ぐ（`GraphSdkClient.cs:168`。現在の呼び出し経路はGraphが返すGUIDのみのため実害なし。コードレビューで指摘、2026-08-03）
+- [ ] 貼り付けテキストの制御文字フィルタがUnicode行区切り・段落区切り(U+2028/U+2029)を素通りさせる問題を修正する（`MemberTextParser.cs:23-27, 48-59`。コードレビューで指摘、2026-08-03）
+- [ ] Excel読込で列数不一致の行が無警告で除外される挙動をCSVと揃え、除外・欠落をエラーまたは警告として明示する（`MemberListReader.cs:184` と `116-120`の非対称。コードレビューで指摘、2026-08-03）
+- [ ] 同期中にウィンドウを閉じる際のガード(`_closeAfterCancellation`)を`await`前に設定し、待機中の再クローズ操作で二重キャンセル・未処理例外が起きないようにする（`MainWindow.xaml.cs:82-110`。コードレビューで指摘、2026-08-03）
+- [ ] 「テキストとして編集」確認ダイアログ後のフォーカス復元が、直後のタブ切替でボタンがビジュアルツリーから外れて失敗する問題を修正する（`ConfirmationDialogHelper.cs:52-67`、`WpfMemberInputConfirmationService.cs:38-58`。コードレビューで指摘、2026-08-03）
+
+完了条件: 上記いずれも再現条件下で例外・情報欠落・フォーカス消失が発生しない。
 
 ### 初回利用時の操作順序と同期モードを分かりやすくする
 
@@ -207,8 +270,9 @@ TeamsSync の今後の改善項目。メンバー削除を伴うアプリケー�
 - [x] 必要に応じて圧縮率の異常値を拒否し、大量の小さなエントリーによるCPU・オブジェクト数の負荷を防ぐ
 - [ ] 上限内のXLSXをClosedXMLで読み込んだ際の実メモリ使用量を計測し、100MBの展開後サイズ上限が妥当か見直す
 - [x] エントリー数、単一エントリーサイズ、圧縮率の上限直前・上限超過テストを追加する
+- [ ] 現状の検証はZIPヘッダーの自己申告サイズ・圧縮率のみで、ヘッダー偽装で上限をすり抜けたファイルは`ClosedXML`の実展開時に負荷がかかる（`MemberFileSecurityValidator.cs:74-118`）。DoS対策は低優先度・簡易チェックまでの方針のため、実展開バイト数を都度計測する本格対応はせず、現状のヘッダーチェックのままとする（コードレビューで指摘、2026-08-03。方針確認済み）
 
-完了条件: 圧縮後サイズと展開後合計サイズだけでは検出できない、極端な構造のXLSXを過大なCPU・メモリ消費の前に拒否できる。
+完了条件: 圧縮後サイズと展開後合計サイズだけでは検出できない、極端な構造のXLSXを過大なCPU・メモリ消費の前に拒否できる（ヘッダー偽装への完全な対策は対象外）。
 
 ### 配布と更新の仕組みを整備する
 

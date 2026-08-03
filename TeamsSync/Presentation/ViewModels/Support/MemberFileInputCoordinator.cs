@@ -1,7 +1,7 @@
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Application.Models;
 
-namespace TeamsSync.Presentation.ViewModels;
+namespace TeamsSync.Presentation.ViewModels.Support;
 
 /// <summary>ファイル読込と貼り付け解析のバックグラウンド実行を調整する。</summary>
 internal sealed class MemberFileInputCoordinator(IMemberListReader reader, IMemberTextParser parser)
