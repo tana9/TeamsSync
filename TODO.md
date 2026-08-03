@@ -44,7 +44,7 @@ TeamsSync の今後の改善項目。メンバー削除を伴うアプリケー�
 - [ ] `MainWindowViewModel`と`WorkflowStepsViewModel`のイベント購読について、Singleton前提を明示するか解除可能な購読管理へ統一する
 - [ ] `MemberFileViewModel`のファイル読込状態と貼り付け解析状態を小さな状態モデルへ分離し、文書切り替えと非同期処理の責務を明確にする
 - [ ] `SyncWorkspaceViewModel`の確認、再検証、同期実行、キャンセル、最終状態取得をアプリケーション層の調整クラスへ寄せられるか検証し、ViewModel固有の通知・フォーカス処理と分離する
-- [ ] `ChangeFilter.Count`の未確認状態を`-1`ではなく`int?`で表し、件数の有無を型で判別できるようにする
+- [x] `ChangeFilter.Count`の未確認状態を`-1`ではなく`int?`で表し、件数の有無を型で判別できるようにする
 
 完了条件: 各ViewModelの責務と状態更新経路が明確で、機能追加時のコマンド通知漏れや不整合状態を防止できる。
 

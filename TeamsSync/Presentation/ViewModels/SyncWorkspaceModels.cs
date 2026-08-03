@@ -30,8 +30,8 @@ public sealed record ChangeFilter(string Label, ChangeKind? Kind, bool ChangesOn
     // CollectionViewSource.Refresh()を呼ぶだけではドロップダウン内のリストは更新されても、
     // 選択中アイテムの表示テキストだけが古いままになる。DisplayTextへINotifyPropertyChangedで
     // 変更通知することで、選択中の表示も含めて確実に更新されるようにする
-    /// <summary>このフィルターに該当する件数(未確認の場合は-1)</summary>
-    public int Count
+    /// <summary>このフィルターに該当する件数(未確認の場合はnull)</summary>
+    public int? Count
     {
         get;
         set
@@ -43,12 +43,16 @@ public sealed record ChangeFilter(string Label, ChangeKind? Kind, bool ChangesOn
 
             field = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Count)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasCount)));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DisplayText)));
         }
-    } = -1;
+    }
+
+    /// <summary>件数を確認済みかどうか</summary>
+    public bool HasCount => Count.HasValue;
 
     /// <summary>件数を含めたコンボボックス表示用テキスト(未確認の場合は件数なし)</summary>
-    public string DisplayText => Count >= 0 ? $"{Label} ({Count})" : Label;
+    public string DisplayText => HasCount ? $"{Label} ({Count})" : Label;
 
     // recordの既定Equals/GetHashCodeはCountも比較対象に含めてしまう。UpdateFilterCountsで
     // 件数を更新するたびにハッシュ値が変わり、WPFのComboBoxが選択中の項目を見失う不具合になったため、

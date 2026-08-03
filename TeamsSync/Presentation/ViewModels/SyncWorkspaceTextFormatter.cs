@@ -145,12 +145,12 @@ public static class SyncWorkspaceTextFormatter
     // メンバーリストの再指定などで差分が無効化されたときは、古い件数を0件と表示するのではなく
     // 件数表示自体を消す(未確認状態に戻す)。0件表示だと「差分を確認した結果0件だった」と
     // 誤解されるおそれがあるため
-    /// <summary>すべてのフィルターの件数表示を未確認状態(-1)へ戻す</summary>
+    /// <summary>すべてのフィルターの件数表示を未確認状態(null)へ戻す</summary>
     public static void ClearFilterCounts(IReadOnlyList<ChangeFilter> filters)
     {
         foreach (ChangeFilter filter in filters)
         {
-            filter.Count = -1;
+            filter.Count = null;
         }
     }
 

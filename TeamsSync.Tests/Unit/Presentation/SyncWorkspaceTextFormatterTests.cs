@@ -268,7 +268,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     }
 
     [Fact]
-    public void ClearFilterCounts_全フィルターの件数を未確認状態_マイナス1に戻す()
+    public void ClearFilterCounts_全フィルターの件数を未確認状態_nullに戻す()
     {
         ChangeFilter[] filters = new[]
         {
@@ -277,7 +277,8 @@ public sealed class SyncWorkspaceTextFormatterTests
 
         SyncWorkspaceTextFormatter.ClearFilterCounts(filters);
 
-        Assert.All(filters, filter => Assert.Equal(-1, filter.Count));
+        Assert.All(filters, filter => Assert.Null(filter.Count));
+        Assert.All(filters, filter => Assert.False(filter.HasCount));
     }
 
     private static SyncPlan PlanWithAdd()

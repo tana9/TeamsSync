@@ -185,7 +185,7 @@ public sealed class SyncWorkspaceViewModelTests
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["missing@example.com", "other@example.com"], "members2.csv",
                 "C:\\members2.csv", DateTime.Now, "CSV", "email"), true);
-        Assert.All(viewModel.Plan.Filters, filter => Assert.Equal(-1, filter.Count));
+        Assert.All(viewModel.Plan.Filters, filter => Assert.Null(filter.Count));
     }
 
     [Fact]
@@ -253,6 +253,8 @@ public sealed class SyncWorkspaceViewModelTests
 
         Assert.Same(selectedFilter, viewModel.Plan.SelectedFilter);
         Assert.Contains(nameof(ChangeFilter.DisplayText), raisedProperties);
+        Assert.Contains(nameof(ChangeFilter.HasCount), raisedProperties);
+        Assert.True(selectedFilter.HasCount);
         Assert.Equal("変更あり (1)", selectedFilter.DisplayText);
     }
 

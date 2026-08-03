@@ -40,7 +40,7 @@ public sealed class SyncPlanDisplayStateTests
         Assert.Null(state.Current);
         Assert.False(state.HasPlan);
         Assert.Empty(state.Changes);
-        Assert.All(state.Filters, filter => Assert.Equal(-1, filter.Count));
+        Assert.All(state.Filters, filter => Assert.Null(filter.Count));
         Assert.False(state.IsRemovalWarningOpen);
         Assert.Equal("", state.SummaryText);
     }
