@@ -29,7 +29,7 @@ public partial class MemberFileViewModel : ObservableObject
     private readonly IMemberListReader _reader;
     private readonly IMemberTextParser _textParser;
     private bool _enabled = true;
-    private MemberListDocument? _fileDocument;
+    private readonly MemberInputDocumentState _documents = new();
 
     /// <summary>コンストラクター</summary>
     public MemberFileViewModel(IMemberListReader reader, IMemberTextParser textParser,
@@ -44,7 +44,7 @@ public partial class MemberFileViewModel : ObservableObject
         _inputConfirmation = inputConfirmation;
         Import = new TeamMemberImportViewModel(teamsAccess, textParser, notifications, inputConfirmation,
             () => _enabled && !IsLoadingFile && !IsParsing && SelectedInputIndex == 1,
-            () => Document is not null || _fileDocument is not null || !string.IsNullOrWhiteSpace(PastedText));
+            () => Document is not null || _documents.FileDocument is not null || !string.IsNullOrWhiteSpace(PastedText));
         Import.Imported += OnMembersImported;
         Import.StatusChanged += (message, isError) => StatusChanged?.Invoke(message, isError);
         Import.PropertyChanged += (_, args) =>
@@ -107,6 +107,7 @@ public partial class MemberFileViewModel : ObservableObject
             }
 
             field = value;
+            _documents.SelectInput(value);
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasUnappliedPastedText));
             OnSelectedInputIndexChanged(value);
@@ -175,6 +176,7 @@ public partial class MemberFileViewModel : ObservableObject
         }
 
         Document = null;
+        _documents.SetPastedDocument(null);
         PasteInfoText = string.IsNullOrWhiteSpace(value)
             ? "1行につき1ユーザー（氏名またはメールアドレス）"
             : "内容が変更されました。「入力を反映」を押してください";
@@ -228,7 +230,7 @@ public partial class MemberFileViewModel : ObservableObject
         try
         {
             MemberListDocument document = await Task.Run(() => _reader.Read(path, cts.Token), cts.Token);
-            _fileDocument = document;
+            _documents.SetFileDocument(document);
             Document = document;
             FilePath = path;
             FileInfoText =
@@ -254,7 +256,7 @@ public partial class MemberFileViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            _fileDocument = null;
+            _documents.SetFileDocument(null);
             Document = null;
             FilePath = path;
             FileInfoText = $"読込に失敗しました: {Path.GetFileName(path)}";
@@ -289,7 +291,7 @@ public partial class MemberFileViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanCopyFileContentToText))]
     private async Task CopyFileContentToTextAsync()
     {
-        MemberListDocument? fileDocument = _fileDocument;
+        MemberListDocument? fileDocument = _documents.FileDocument;
         if (fileDocument is null)
         {
             return;
@@ -311,7 +313,7 @@ public partial class MemberFileViewModel : ObservableObject
 
     private bool CanCopyFileContentToText()
     {
-        return _enabled && !IsLoadingFile && !IsParsing && !Import.IsImportingMembers && _fileDocument is not null;
+        return _enabled && !IsLoadingFile && !IsParsing && !Import.IsImportingMembers && _documents.FileDocument is not null;
     }
 
     /// <summary>選択中の入力方法に応じて<see cref="Document" />をファイル文書または未反映状態へ切り替える</summary>
@@ -319,7 +321,7 @@ public partial class MemberFileViewModel : ObservableObject
     {
         if (SelectedInputIndex == 0)
         {
-            Document = _fileDocument;
+            Document = _documents.FileDocument;
             NotifyDocumentChanged();
         }
         else
@@ -356,6 +358,7 @@ public partial class MemberFileViewModel : ObservableObject
                 return;
             }
 
+            _documents.SetPastedDocument(document);
             Document = document;
             int entered = text.Split(["\r\n", "\n", "\r"], StringSplitOptions.RemoveEmptyEntries).Length;
             int duplicates = Math.Max(0, entered - document.Addresses.Count);
@@ -368,6 +371,7 @@ public partial class MemberFileViewModel : ObservableObject
         }
         catch (Exception ex)
         {
+            _documents.SetPastedDocument(null);
             Document = null;
             IsPasteError = true;
             PasteInfoText = ex.Message;
@@ -425,6 +429,7 @@ public partial class MemberFileViewModel : ObservableObject
     {
         SelectedInputIndex = 1;
         PastedText = text;
+        _documents.SetPastedDocument(document);
         Document = document;
         IsPasteError = false;
         PasteInfoText = $"{document.Addresses.Count}件 • Teamsから取り込み: {team.DisplayName}";
