@@ -17,7 +17,8 @@ public sealed class DependencyInjectionTests
         IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Entra:ClientId"] = "00000000-0000-0000-0000-000000000000", ["Entra:TenantId"] = "organizations"
+                ["Entra:ClientId"] = "00000000-0000-0000-0000-000000000000",
+                ["Entra:TenantId"] = "organizations"
             })
             .Build();
         ServiceCollection services = new();
@@ -26,7 +27,8 @@ public sealed class DependencyInjectionTests
 
         using ServiceProvider provider = services.BuildServiceProvider(new ServiceProviderOptions
         {
-            ValidateOnBuild = true, ValidateScopes = true
+            ValidateOnBuild = true,
+            ValidateScopes = true
         });
 
         Assert.NotNull(provider.GetRequiredService<IAuthenticationService>());
@@ -47,7 +49,8 @@ public sealed class DependencyInjectionTests
 
         using ServiceProvider provider = services.BuildServiceProvider(new ServiceProviderOptions
         {
-            ValidateOnBuild = true, ValidateScopes = true
+            ValidateOnBuild = true,
+            ValidateScopes = true
         });
 
         IAuthenticationService authentication = provider.GetRequiredService<IAuthenticationService>();

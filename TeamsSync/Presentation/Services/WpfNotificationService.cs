@@ -104,7 +104,9 @@ public sealed class WpfNotificationService(
         content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         TextBlock messageText = new()
         {
-            Text = message, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center
+            Text = message,
+            TextWrapping = TextWrapping.Wrap,
+            VerticalAlignment = VerticalAlignment.Center
         };
         content.Children.Add(messageText);
         TextBlock actionTextBlock = BuildActionLink(actionText, actionIcon, executeAction);
@@ -117,7 +119,8 @@ public sealed class WpfNotificationService(
     {
         TextBlock actionTextBlock = new()
         {
-            Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center
+            Margin = new Thickness(12, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center
         };
         // 危険/成功/注意いずれの塗りつぶし背景上でも視認できるよう、Snackbar既定のリンク色に
         // 任せず「アクセント色背景上のテキスト」用ブラシを明示する。あわせてSemiBoldにして、

@@ -34,7 +34,8 @@ internal sealed class GraphSdkTransportHandler(HttpClient transport, ILogger<Gra
     {
         HttpRequestMessage clone = new(source.Method, source.RequestUri)
         {
-            Version = source.Version, VersionPolicy = source.VersionPolicy
+            Version = source.Version,
+            VersionPolicy = source.VersionPolicy
         };
         foreach (KeyValuePair<string, IEnumerable<string>> header in source.Headers)
         {

@@ -102,7 +102,8 @@ public partial class App : System.Windows.Application
     {
         HostApplicationBuilder builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
         {
-            Args = e.Args, ContentRootPath = AppContext.BaseDirectory
+            Args = e.Args,
+            ContentRootPath = AppContext.BaseDirectory
         });
         await using Stream settings = typeof(App).Assembly.GetManifestResourceStream("appsettings.json")
                                       ?? throw new StartupConfigurationException(
@@ -119,7 +120,8 @@ public partial class App : System.Windows.Application
             .AddPresentation();
         builder.ConfigureContainer(new DefaultServiceProviderFactory(new ServiceProviderOptions
         {
-            ValidateOnBuild = true, ValidateScopes = true
+            ValidateOnBuild = true,
+            ValidateScopes = true
         }));
 
         IHost host = builder.Build();

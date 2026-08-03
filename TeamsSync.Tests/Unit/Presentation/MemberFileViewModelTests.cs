@@ -203,7 +203,8 @@ public sealed class MemberFileViewModelTests
         MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), parser,
             new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs())
         {
-            SelectedInputIndex = 1, PastedText = "user@example.com"
+            SelectedInputIndex = 1,
+            PastedText = "user@example.com"
         };
 
         Task execution = viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
@@ -226,7 +227,8 @@ public sealed class MemberFileViewModelTests
         MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), parser,
             new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs())
         {
-            SelectedInputIndex = 1, PastedText = "user@example.com"
+            SelectedInputIndex = 1,
+            PastedText = "user@example.com"
         };
 
         Task execution = viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
@@ -293,7 +295,8 @@ public sealed class MemberFileViewModelTests
         MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
             new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs())
         {
-            SelectedInputIndex = 1, PastedText = "user@example.com\ninvalid\tvalue"
+            SelectedInputIndex = 1,
+            PastedText = "user@example.com\ninvalid\tvalue"
         };
         string? status = null;
         viewModel.StatusChanged += (message, isError) => status = isError ? message : null;
@@ -336,7 +339,8 @@ public sealed class MemberFileViewModelTests
     {
         SwitchingMemberListReader reader = new(
             new MemberListDocument(["a@example.com"], "a.csv", "C:\\a.csv",
-                new DateTime(2026, 7, 28), "CSV", "email")) { Exception = new InvalidDataException("壊れたファイルです") };
+                new DateTime(2026, 7, 28), "CSV", "email"))
+        { Exception = new InvalidDataException("壊れたファイルです") };
         MemberFileViewModel viewModel = new(reader, new MemberTextParser(), new FakePreferences(),
             new FakeDialogs(), new RecordingNotificationService(), new FakeTeamsGateway(), new FakeDialogs());
         bool focusRequested = false;
@@ -354,7 +358,8 @@ public sealed class MemberFileViewModelTests
         MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
             new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs())
         {
-            SelectedInputIndex = 1, PastedText = "user@example.com\ninvalid\tvalue"
+            SelectedInputIndex = 1,
+            PastedText = "user@example.com\ninvalid\tvalue"
         };
         bool focusRequested = false;
         viewModel.InputFocusRequested += () => focusRequested = true;
@@ -404,7 +409,8 @@ public sealed class MemberFileViewModelTests
         MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
             new FakePreferences(), dialogs, dialogs, gateway, dialogs)
         {
-            SelectedInputIndex = 1, PastedText = "old@example.com"
+            SelectedInputIndex = 1,
+            PastedText = "old@example.com"
         };
         await viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
         MemberListDocument? originalDocument = viewModel.Document;
@@ -428,7 +434,8 @@ public sealed class MemberFileViewModelTests
         MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
             new FakePreferences(), dialogs, dialogs, gateway, dialogs)
         {
-            SelectedInputIndex = 1, PastedText = "old@example.com"
+            SelectedInputIndex = 1,
+            PastedText = "old@example.com"
         };
         await viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
         MemberListDocument? originalDocument = viewModel.Document;
@@ -458,7 +465,8 @@ public sealed class MemberFileViewModelTests
         MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
             new FakePreferences(), dialogs, dialogs, gateway, dialogs)
         {
-            SelectedInputIndex = 1, PastedText = "old@example.com"
+            SelectedInputIndex = 1,
+            PastedText = "old@example.com"
         };
         await viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
         MemberListDocument? originalDocument = viewModel.Document;
@@ -487,7 +495,8 @@ public sealed class MemberFileViewModelTests
         MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
             new FakePreferences(), dialogs, notifications, gateway, dialogs)
         {
-            SelectedInputIndex = 1, PastedText = "old@example.com"
+            SelectedInputIndex = 1,
+            PastedText = "old@example.com"
         };
         await viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
         MemberListDocument? originalDocument = viewModel.Document;
@@ -534,7 +543,8 @@ public sealed class MemberFileViewModelTests
         MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
             new FakePreferences(), dialogs, dialogs, gateway, dialogs)
         {
-            SelectedInputIndex = 1, PastedText = "old@example.com"
+            SelectedInputIndex = 1,
+            PastedText = "old@example.com"
         };
         await viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
         MemberListDocument? originalDocument = viewModel.Document;

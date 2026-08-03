@@ -90,9 +90,14 @@ public sealed record SyncChangeRowViewModel(SyncChange Change)
     /// <summary>種別の日本語表示ラベル</summary>
     public string KindLabel => Kind switch
     {
-        ChangeKind.Add => "追加", ChangeKind.Remove => "削除", ChangeKind.Keep => "維持",
-        ChangeKind.Protected => "所有者保護", ChangeKind.NotMember => "未所属",
-        ChangeKind.Error => "エラー", ChangeKind.Excluded => "個別除外", _ => Kind.ToString()
+        ChangeKind.Add => "追加",
+        ChangeKind.Remove => "削除",
+        ChangeKind.Keep => "維持",
+        ChangeKind.Protected => "所有者保護",
+        ChangeKind.NotMember => "未所属",
+        ChangeKind.Error => "エラー",
+        ChangeKind.Excluded => "個別除外",
+        _ => Kind.ToString()
     };
 
     /// <summary>対象ユーザーの表示名</summary>

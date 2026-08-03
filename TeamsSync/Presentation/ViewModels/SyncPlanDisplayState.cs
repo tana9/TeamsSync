@@ -25,23 +25,17 @@ public sealed partial class SyncPlanDisplayState : ObservableObject
     /// <summary>現在表示している同期プラン。未確認の場合はnull</summary>
     public SyncPlan? Current { get; private set; }
 
-    [ObservableProperty]
-    public partial bool HasPlan { get; private set; }
+    [ObservableProperty] public partial bool HasPlan { get; private set; }
 
-    [ObservableProperty]
-    public partial bool IsRemovalWarningOpen { get; private set; }
+    [ObservableProperty] public partial bool IsRemovalWarningOpen { get; private set; }
 
-    [ObservableProperty]
-    public partial string RemovalWarningMessage { get; private set; } = "";
+    [ObservableProperty] public partial string RemovalWarningMessage { get; private set; } = "";
 
-    [ObservableProperty]
-    public partial string RemovalWarningTitle { get; private set; } = "";
+    [ObservableProperty] public partial string RemovalWarningTitle { get; private set; } = "";
 
-    [ObservableProperty]
-    public partial ChangeFilter SelectedFilter { get; set; }
+    [ObservableProperty] public partial ChangeFilter SelectedFilter { get; set; }
 
-    [ObservableProperty]
-    public partial string SummaryText { get; private set; } = "";
+    [ObservableProperty] public partial string SummaryText { get; private set; } = "";
 
     public ObservableCollection<SyncChangeRowViewModel> Changes => _changes;
 
@@ -107,7 +101,10 @@ public sealed partial class SyncPlanDisplayState : ObservableObject
     {
         _changes.ReplaceAll(changes.OrderBy(x => x.Kind switch
             {
-                ChangeKind.Error => 0, ChangeKind.Remove => 1, ChangeKind.Add => 2, ChangeKind.Protected => 3,
+                ChangeKind.Error => 0,
+                ChangeKind.Remove => 1,
+                ChangeKind.Add => 2,
+                ChangeKind.Protected => 3,
                 _ => 4
             })
             .Select(change => new SyncChangeRowViewModel(change)));
@@ -119,17 +116,9 @@ public sealed partial class SyncPlanDisplayState : ObservableObject
 
     private bool FilterChange(object item)
     {
-        if (item is not SyncChangeRowViewModel row)
-        {
-            return false;
-        }
-
-        if (SelectedFilter.ChangesOnly)
-        {
-            return ChangeFilter.MatchesChangesOnly(row.Kind);
-        }
-
-        return SelectedFilter.Kind is null || row.Kind == SelectedFilter.Kind;
+        return item is SyncChangeRowViewModel row && (SelectedFilter.ChangesOnly
+            ? ChangeFilter.MatchesChangesOnly(row.Kind)
+            : SelectedFilter.Kind is null || row.Kind == SelectedFilter.Kind);
     }
 
     private void NotifyPlanPropertiesChanged()

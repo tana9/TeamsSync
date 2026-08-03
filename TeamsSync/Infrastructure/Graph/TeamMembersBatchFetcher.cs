@@ -114,13 +114,13 @@ public sealed class TeamMembersBatchFetcher(GraphHttpClient http, ILogger logger
         }
 
         foreach (string? text in from header in headers.EnumerateObject()
-                 where string.Equals(header.Name, "Retry-After", StringComparison.OrdinalIgnoreCase)
-                 select header.Value.ValueKind switch
-                 {
-                     JsonValueKind.String => header.Value.GetString(),
-                     JsonValueKind.Number => header.Value.GetRawText(),
-                     _ => null
-                 })
+                                 where string.Equals(header.Name, "Retry-After", StringComparison.OrdinalIgnoreCase)
+                                 select header.Value.ValueKind switch
+                                 {
+                                     JsonValueKind.String => header.Value.GetString(),
+                                     JsonValueKind.Number => header.Value.GetRawText(),
+                                     _ => null
+                                 })
         {
             if (text is not null &&
                 int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int seconds) &&

@@ -177,7 +177,9 @@ public sealed class WpfSyncConfirmationService(
 
         TextBlock inputSummaryText = new()
         {
-            Text = confirmation.InputSummary, FontSize = 12, TextWrapping = TextWrapping.Wrap
+            Text = confirmation.InputSummary,
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap
         };
         inputSummaryText.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
         yield return inputSummaryText;

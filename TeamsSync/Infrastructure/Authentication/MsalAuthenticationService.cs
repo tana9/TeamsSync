@@ -1,8 +1,8 @@
+using System.Reflection;
+
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Identity.Client;
-
-using System.Reflection;
 
 using TeamsSync.Application.Abstractions;
 
@@ -83,7 +83,8 @@ public sealed class MsalAuthenticationService(
             .WithAccount(account).WithPrompt(Prompt.SelectAccount)
             .WithSystemWebViewOptions(new SystemWebViewOptions
             {
-                HtmlMessageSuccess = SignInSuccessHtml, HtmlMessageError = SignInErrorHtml
+                HtmlMessageSuccess = SignInSuccessHtml,
+                HtmlMessageError = SignInErrorHtml
             })
             .ExecuteAsync(cancellationToken);
         logger.LogInformation("Microsoft Entra IDへのサインインが完了しました");

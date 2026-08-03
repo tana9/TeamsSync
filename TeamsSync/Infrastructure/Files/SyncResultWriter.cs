@@ -120,7 +120,7 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
     /// <summary>既存ファイルを上書きせず、衝突時は連番を付けた別名で新規作成する</summary>
     private string CreateUniquePath(string stem)
     {
-        for (int suffix = 1;; suffix++)
+        for (int suffix = 1; ; suffix++)
         {
             string fileName = suffix == 1 ? $"{stem}.csv" : $"{stem}_{suffix}.csv";
             string path = Path.Combine(_logDirectory, fileName);
