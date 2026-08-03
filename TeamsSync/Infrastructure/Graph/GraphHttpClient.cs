@@ -16,7 +16,8 @@ namespace TeamsSync.Infrastructure.Graph;
 public sealed partial class GraphHttpClient(
     IHttpClientFactory httpClientFactory,
     IAuthenticationService auth,
-    ILogger<GraphHttpClient> logger)
+    ILogger<GraphHttpClient> logger,
+    IIdentifierGenerator? identifierGenerator = null)
 {
     /// <summary>Graph APIの読み取り要求に使用する名前付きHTTPクライアントの名前</summary>
     public const string ReadHttpClientName = "MicrosoftGraph.Read";
@@ -24,6 +25,7 @@ public sealed partial class GraphHttpClient(
     /// <summary>Graph APIの更新要求に使用する名前付きHTTPクライアントの名前</summary>
     public const string WriteHttpClientName = "MicrosoftGraph.Write";
     private static readonly Uri GraphBase = new("https://graph.microsoft.com/v1.0/");
+    private readonly IIdentifierGenerator _identifierGenerator = identifierGenerator ?? new IdentifierGenerator();
 
     /// <summary>
     ///     GETリクエストを送信し、レスポンスボディをJSONとして解析する
@@ -129,7 +131,7 @@ public sealed partial class GraphHttpClient(
     private async Task<HttpResponseMessage> SendOnceAsync(HttpRequestMessage request,
         string clientName, bool expectedNotFound = false, CancellationToken cancellationToken = default)
     {
-        string clientRequestId = Guid.NewGuid().ToString();
+        string clientRequestId = _identifierGenerator.NewGuid().ToString();
         request.Headers.TryAddWithoutValidation("client-request-id", clientRequestId);
         request.Headers.TryAddWithoutValidation("return-client-request-id", "true");
         request.Headers.Authorization = new AuthenticationHeaderValue(

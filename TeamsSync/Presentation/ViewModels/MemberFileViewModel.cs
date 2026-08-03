@@ -26,8 +26,9 @@ public partial class MemberFileViewModel : ObservableObject
     private readonly MemberPasteInputState _pasteInput = new();
     private readonly RestartableCancellation _parseCancellation = new();
     private readonly IUserPreferences _preferences;
-    private readonly IMemberListReader _reader;
-    private readonly IMemberTextParser _textParser;
+    private readonly MemberFileInputCoordinator _inputCoordinator;
+    private readonly MemberInputSelectionCoordinator _selectionCoordinator;
+    private readonly ViewModelUiEvents _uiEvents = new();
     private bool _enabled = true;
     private readonly MemberInputDocumentState _documents = new();
 
@@ -36,8 +37,8 @@ public partial class MemberFileViewModel : ObservableObject
         IUserPreferences preferences, IFilePickerService filePicker, INotificationService notifications,
         TeamsAccessService teamsAccess, IMemberInputConfirmationService inputConfirmation)
     {
-        _reader = reader;
-        _textParser = textParser;
+        _inputCoordinator = new MemberFileInputCoordinator(reader, textParser);
+        _selectionCoordinator = new MemberInputSelectionCoordinator(_documents);
         _preferences = preferences;
         _filePicker = filePicker;
         _notifications = notifications;
@@ -46,7 +47,7 @@ public partial class MemberFileViewModel : ObservableObject
             () => _enabled && !IsLoadingFile && !IsParsing && SelectedInputIndex == 1,
             () => Document is not null || _documents.FileDocument is not null || !string.IsNullOrWhiteSpace(PastedText));
         Import.Imported += OnMembersImported;
-        Import.StatusChanged += (message, isError) => StatusChanged?.Invoke(message, isError);
+        Import.StatusChanged += (message, isError) => _uiEvents.Status(message, isError);
         Import.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName == nameof(TeamMemberImportViewModel.IsImportingMembers))
@@ -107,7 +108,6 @@ public partial class MemberFileViewModel : ObservableObject
             }
 
             field = value;
-            _documents.SelectInput(value);
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasUnappliedPastedText));
             OnSelectedInputIndexChanged(value);
@@ -128,12 +128,20 @@ public partial class MemberFileViewModel : ObservableObject
     public event Action? DocumentChanged;
 
     /// <summary>ステータスメッセージを通知するために発行される</summary>
-    public event Action<string, bool>? StatusChanged;
+    public event Action<string, bool>? StatusChanged
+    {
+        add => _uiEvents.StatusChanged += value;
+        remove => _uiEvents.StatusChanged -= value;
+    }
 
     // ファイル読込またはテキスト解析が失敗したときに1回だけ発行する。
     // Viewはこれを受けて、選択中の入力方法(ファイル/貼り付け)に応じた修正対象へフォーカスを移す
     /// <summary>入力エラー発生時、修正対象へフォーカスを移すために発行される</summary>
-    public event Action? InputFocusRequested;
+    public event Action? InputFocusRequested
+    {
+        add => _uiEvents.FocusRequested += value;
+        remove => _uiEvents.FocusRequested -= value;
+    }
 
     /// <summary>外部の状態に応じて、この画面の入力操作を有効/無効にする</summary>
     public void SetEnabled(bool value)
@@ -163,7 +171,18 @@ public partial class MemberFileViewModel : ObservableObject
     /// <summary>入力方法の切り替えに応じて、有効な文書を切り替える</summary>
     private void OnSelectedInputIndexChanged(int value)
     {
-        ApplySelectedInput();
+        MemberListDocument? document = _selectionCoordinator.Select(value, PastedText, out string? pasteInfo);
+        Document = document;
+        if (pasteInfo is not null)
+        {
+            PasteInfoText = pasteInfo;
+        }
+
+        DocumentChanged?.Invoke();
+        if (document is not null)
+        {
+            _uiEvents.Status($"{document.Addresses.Count}件の一意な氏名／メールアドレスを読み込みました", false);
+        }
         NotifyCommandStates();
     }
 
@@ -176,7 +195,7 @@ public partial class MemberFileViewModel : ObservableObject
         }
 
         Document = null;
-        _documents.SetPastedDocument(null);
+        _selectionCoordinator.InvalidatePastedDocument();
         PasteInfoText = string.IsNullOrWhiteSpace(value)
             ? "1行につき1ユーザー（氏名またはメールアドレス）"
             : "内容が変更されました。「入力を反映」を押してください";
@@ -229,7 +248,7 @@ public partial class MemberFileViewModel : ObservableObject
         NotifyCommandStates();
         try
         {
-            MemberListDocument document = await Task.Run(() => _reader.Read(path, cts.Token), cts.Token);
+            MemberListDocument document = await _inputCoordinator.LoadAsync(path, cts.Token);
             _documents.SetFileDocument(document);
             Document = document;
             FilePath = path;
@@ -262,10 +281,10 @@ public partial class MemberFileViewModel : ObservableObject
             FileInfoText = $"読込に失敗しました: {Path.GetFileName(path)}";
             DocumentChanged?.Invoke();
             NotifyCommandStates();
-            StatusChanged?.Invoke("ファイルを読み込めなかったため、以前の同期差分を無効化しました", true);
+            _uiEvents.Status("ファイルを読み込めなかったため、以前の同期差分を無効化しました", true);
             // Snackbarはフォーカスを奪わないため、通知表示後のコールバックで修正対象へ戻す
             await _notifications.ShowErrorAsync(ex.Message, "ファイル読込エラー",
-                () => InputFocusRequested?.Invoke());
+                _uiEvents.RequestFocus);
         }
         finally
         {
@@ -308,30 +327,12 @@ public partial class MemberFileViewModel : ObservableObject
         SelectedInputIndex = 1;
         PastedText = text;
         PasteInfoText = "ファイル内容をコピーしました。編集後に「入力を反映」を押してください（元ファイルは変更されません）";
-        StatusChanged?.Invoke("ファイル内容をテキストへコピーしました。編集後に入力を反映してください", false);
+        _uiEvents.Status("ファイル内容をテキストへコピーしました。編集後に入力を反映してください", false);
     }
 
     private bool CanCopyFileContentToText()
     {
         return _enabled && !IsLoadingFile && !IsParsing && !Import.IsImportingMembers && _documents.FileDocument is not null;
-    }
-
-    /// <summary>選択中の入力方法に応じて<see cref="Document" />をファイル文書または未反映状態へ切り替える</summary>
-    private void ApplySelectedInput()
-    {
-        if (SelectedInputIndex == 0)
-        {
-            Document = _documents.FileDocument;
-            NotifyDocumentChanged();
-        }
-        else
-        {
-            Document = null;
-            PasteInfoText = string.IsNullOrWhiteSpace(PastedText)
-                ? "1行につき1ユーザー（氏名またはメールアドレス）"
-                : "「入力を反映」を押してください";
-            DocumentChanged?.Invoke();
-        }
     }
 
     /// <summary>貼り付けテキストをUIスレッド外で解析し、成功時は<see cref="Document" />へ反映する</summary>
@@ -351,7 +352,7 @@ public partial class MemberFileViewModel : ObservableObject
         NotifyCommandStates();
         try
         {
-            MemberListDocument document = await Task.Run(() => _textParser.Parse(text, cts.Token), cts.Token);
+            MemberListDocument document = await _inputCoordinator.ParseAsync(text, cts.Token);
             if (!string.Equals(text, PastedText, StringComparison.Ordinal))
             {
                 PasteInfoText = "解析中に内容が変更されました。「入力を反映」を押してください";
@@ -376,8 +377,8 @@ public partial class MemberFileViewModel : ObservableObject
             IsPasteError = true;
             PasteInfoText = ex.Message;
             DocumentChanged?.Invoke();
-            StatusChanged?.Invoke($"貼り付け入力を確認してください: {ex.Message}", true);
-            InputFocusRequested?.Invoke();
+            _uiEvents.Status($"貼り付け入力を確認してください: {ex.Message}", true);
+            _uiEvents.RequestFocus();
         }
         finally
         {
@@ -442,7 +443,7 @@ public partial class MemberFileViewModel : ObservableObject
         DocumentChanged?.Invoke();
         if (Document is not null)
         {
-            StatusChanged?.Invoke($"{Document.Addresses.Count}件の一意な氏名／メールアドレスを読み込みました", false);
+            _uiEvents.Status($"{Document.Addresses.Count}件の一意な氏名／メールアドレスを読み込みました", false);
         }
     }
 }

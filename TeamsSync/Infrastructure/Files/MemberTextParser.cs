@@ -10,8 +10,9 @@ namespace TeamsSync.Infrastructure.Files;
 /// <summary>
 ///     テキストとして貼り付けられた氏名・メールアドレスの一覧を解析し、アドレス一覧へ変換する
 /// </summary>
-public sealed class MemberTextParser : IMemberTextParser
+public sealed class MemberTextParser(TimeProvider? timeProvider = null) : IMemberTextParser
 {
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     /// <summary>貼り付け入力に許容する最大件数</summary>
     public const int MaximumEntries = 5000;
     /// <summary>貼り付け入力に許容する最大文字数</summary>
@@ -79,7 +80,7 @@ public sealed class MemberTextParser : IMemberTextParser
 
         string normalizedText = string.Join('\n', values);
         string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(normalizedText)));
-        return new MemberListDocument(values, "貼り付け入力.txt", "", DateTime.Now,
+        return new MemberListDocument(values, "貼り付け入力.txt", "", _timeProvider.GetLocalNow().DateTime,
             "テキスト貼り付け", "1行1ユーザー", hash);
     }
 

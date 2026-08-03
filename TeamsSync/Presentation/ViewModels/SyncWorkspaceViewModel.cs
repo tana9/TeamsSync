@@ -25,28 +25,32 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     private readonly SyncExecutionCoordinator _executionCoordinator;
     private readonly INotificationService _notifications;
     private readonly ISavedFileLauncher _savedFileLauncher;
-    private string? _actorObjectId;
-    private MemberListDocument? _document;
+    private readonly SyncExecutionRunner _executionRunner;
+    private readonly SyncWorkspaceCommandStateEvaluator _commandState = new();
+    private readonly SyncResultPresenter _resultPresenter;
+    private readonly ViewModelUiEvents _uiEvents = new();
+    private readonly SyncWorkspaceContext _context = new();
     private bool _externallyBusy;
     private SyncPlan? _lastExecutedPlan;
     private SyncExecutionResult? _lastResult;
-    private bool _signedIn;
     private CancellationTokenSource? _syncCancellation;
     private TaskCompletionSource? _syncCompletion;
-    private TeamInfo? _team;
-    private string? _tenantId;
 
     /// <summary>コンストラクター。差分一覧の絞り込みビューと既定の選択状態を初期化する</summary>
     public SyncWorkspaceViewModel(SyncExecutionCoordinator executionCoordinator,
         ISyncConfirmationService confirmation, INotificationService notifications,
-        ISavedFileLauncher savedFileLauncher)
+        ISavedFileLauncher savedFileLauncher, IIdentifierGenerator? identifierGenerator = null)
     {
         _executionCoordinator = executionCoordinator;
         _confirmation = confirmation;
         _notifications = notifications;
         _savedFileLauncher = savedFileLauncher;
+        _executionRunner = new SyncExecutionRunner(executionCoordinator,
+            identifierGenerator ?? new IdentifierGenerator());
+        _resultPresenter = new SyncResultPresenter(_notifications, () => Result.HasLog,
+            () => OpenResultLogCommand.Execute(null));
         _busyRunner = new BusyOperationRunner(_notifications,
-            (message, isError) => StatusChanged?.Invoke(message, isError), Preview.SetBusy);
+            (message, isError) => _uiEvents.Status(message, isError), Preview.SetBusy);
         Plan.PropertyChanged += OnPlanPropertyChanged;
         Result.PropertyChanged += OnResultPropertyChanged;
         Preview.PropertyChanged += OnOperationStatePropertyChanged;
@@ -85,17 +89,17 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     public bool CanRetryResult => Result.NeedsRetry;
 
     /// <summary>入力元・検出列・件数の要約テキスト</summary>
-    public string InputSummary => SyncWorkspaceTextFormatter.BuildInputSummary(_document);
+    public string InputSummary => SyncWorkspaceTextFormatter.BuildInputSummary(_context.Document);
 
     /// <summary>入力アドレスの先頭数件のプレビューテキスト</summary>
-    public string InputPreview => SyncWorkspaceTextFormatter.BuildInputPreview(_document);
+    public string InputPreview => SyncWorkspaceTextFormatter.BuildInputPreview(_context.Document);
 
     /// <summary>検出された列がメールアドレスではなく氏名の列かどうか</summary>
-    public bool IsNameColumn => _document?.IsNameColumn ?? false;
+    public bool IsNameColumn => _context.Document?.IsNameColumn ?? false;
 
     /// <summary>差分未確認時に表示する案内メッセージ</summary>
     public string EmptyStateMessage =>
-        SyncWorkspaceTextFormatter.BuildEmptyStateMessage(_signedIn, _team, _document);
+        SyncWorkspaceTextFormatter.BuildEmptyStateMessage(_context.SignedIn, _context.Team, _context.Document);
 
     /// <summary>ラジオボタン用に「追加のみ」モードが選択されているかどうかを表す。設定すると当該モードへ切り替える</summary>
     public bool IsAddOnlySelected
@@ -137,28 +141,29 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     }
 
     /// <summary>ステータスメッセージを通知するために発行される</summary>
-    public event Action<string, bool>? StatusChanged;
+    public event Action<string, bool>? StatusChanged
+    {
+        add => _uiEvents.StatusChanged += value;
+        remove => _uiEvents.StatusChanged -= value;
+    }
 
     // 差分確認・再検証・同期後の再取得で一覧が更新されるたびに1回だけ発行する。
     // Viewはこれを受けて、差分の集計(エラーなし)または最初のエラー行(エラーあり)へフォーカスを移す
     /// <summary>差分一覧が更新され、フォーカス移動が必要なときに発行される</summary>
-    public event Action? DiffFocusRequested;
+    public event Action? DiffFocusRequested
+    {
+        add => _uiEvents.FocusRequested += value;
+        remove => _uiEvents.FocusRequested -= value;
+    }
 
     /// <summary>選択中のチーム・メンバーリスト・サインイン状態を設定し、変化があれば差分を無効化する</summary>
     public void SetContext(TeamInfo? team, MemberListDocument? document, bool signedIn,
         string? tenantId = null, string? actorObjectId = null)
     {
-        if (_team == team && _document == document && _signedIn == signedIn &&
-            _tenantId == tenantId && _actorObjectId == actorObjectId)
+        if (!_context.Update(team, document, signedIn, tenantId, actorObjectId))
         {
             return;
         }
-
-        _team = team;
-        _document = document;
-        _signedIn = signedIn;
-        _tenantId = tenantId;
-        _actorObjectId = actorObjectId;
         InvalidatePlan();
         NotifyCommandStates();
         OnPropertyChanged(nameof(EmptyStateMessage));
@@ -184,7 +189,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         InvalidatePlan();
         if (hadPlan)
         {
-            StatusChanged?.Invoke("同期モードを変更したため差分をクリアしました。「差分を確認」を再実行してください", false);
+            _uiEvents.Status("同期モードを変更したため差分をクリアしました。「差分を確認」を再実行してください", false);
         }
     }
 
@@ -224,16 +229,16 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     /// <summary>プレビューを更新し、画面へ反映できた場合にtrueを返す</summary>
     private async Task<bool> TryPreviewAsync()
     {
-        if (_team is null || _document is null)
+        if (_context.Team is null || _context.Document is null)
         {
             return false;
         }
 
         SyncPlan? plan = await _busyRunner.RunAsync(async () =>
         {
-            StatusChanged?.Invoke("ユーザーと現在のメンバーを照合しています…", false);
-            IProgress<int> progress = Preview.Start(_document.Addresses.Count);
-            return await _executionCoordinator.BuildPlanAsync(_team, _document.Addresses,
+            _uiEvents.Status("ユーザーと現在のメンバーを照合しています…", false);
+            IProgress<int> progress = Preview.Start(_context.Document.Addresses.Count);
+            return await _executionCoordinator.BuildPlanAsync(_context.Team, _context.Document.Addresses,
                 SelectedMode.Mode, progress);
         });
 
@@ -248,8 +253,8 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
     private bool CanPreview()
     {
-        return !_externallyBusy && !Preview.IsBusy && !Execution.IsRunning &&
-               _signedIn && _team is not null && _document is not null;
+        return _commandState.CanPreview(_externallyBusy, Preview, Execution, _context.SignedIn,
+            _context.Team, _context.Document);
     }
 
     /// <summary>確認ダイアログでの同意と実行直前の再検証を経てから、同期を実行する</summary>
@@ -261,9 +266,9 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         {
             await _busyRunner.RunAsync(async () =>
             {
-                if (Plan.Current is null || _document is null ||
+                if (Plan.Current is null || _context.Document is null ||
                     !await _confirmation.ConfirmSyncAsync(new SyncConfirmation(
-                        Plan.Current, _document.FileName, $"{InputSummary}{Environment.NewLine}{InputPreview}")))
+                        Plan.Current, _context.Document.FileName, $"{InputSummary}{Environment.NewLine}{InputPreview}")))
                 {
                     return;
                 }
@@ -294,7 +299,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     {
         return await _busyRunner.RunAsync(async () =>
             {
-                StatusChanged?.Invoke("実行直前のメンバー構成を確認しています…", false);
+                _uiEvents.Status("実行直前のメンバー構成を確認しています…", false);
                 SyncPlanRevalidation revalidation = await _executionCoordinator.RevalidateAsync(Plan.Current!);
                 // ApplyPlan既定の案内文はこの後の分岐でより具体的なメッセージに置き換えるため、
                 // 同じ内容をスクリーンリーダーへ二重に読み上げさせないようannounceStatus: falseで抑制する
@@ -306,7 +311,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
                 _notifications.ShowWarning("同期差分が変更されました",
                     "チームのメンバー構成がプレビュー後に変更されました。最新の差分を確認して、もう一度チームに反映してください。");
-                StatusChanged?.Invoke("最新の同期差分を表示しました。内容を再確認してください", true);
+                _uiEvents.Status("最新の同期差分を表示しました。内容を再確認してください", true);
                 return false;
             }, ex => new BusyOperationRunner.SpecificExceptionResult(
                 "再検証に失敗しました。通知の「詳細をコピー」から内容を確認できます"),
@@ -326,11 +331,9 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         {
             Progress<SyncProgress> progress = new(ReportSyncProgress);
             _lastExecutedPlan = Plan.Current;
-            SyncAuditContext auditContext = new(Guid.NewGuid(),
-                _document!.FileName, _document.ContentSha256, _tenantId, _actorObjectId);
-            SyncExecutionOutcome outcome = await _executionCoordinator.ExecuteAsync(
-                Plan.Current, auditContext, progress,
-                () => StatusChanged?.Invoke("Teams側の最新状態を確認しています…", false),
+            SyncExecutionOutcome outcome = await _executionRunner.RunAsync(
+                Plan.Current, _context.Document!, _context.TenantId, _context.ActorObjectId, progress,
+                () => _uiEvents.Status("Teams側の最新状態を確認しています…", false),
                 _syncCancellation.Token);
             _lastResult = outcome.Execution;
             Result.Apply(_lastResult, outcome.ResultLogPath);
@@ -362,7 +365,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     /// <summary>同期実行の進捗を画面の進捗バー・進捗テキスト・ステータスへ反映する</summary>
     private void ReportSyncProgress(SyncProgress progress)
     {
-        StatusChanged?.Invoke(Execution.Report(progress), false);
+        _uiEvents.Status(Execution.Report(progress), false);
     }
 
     /// <summary>同期のキャンセルを検知し、未反映件数の見積もりと通知を行う</summary>
@@ -376,7 +379,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         ExecuteSyncCommand.NotifyCanExecuteChanged();
         ShowResultNotification(true, "同期を中止しました",
             $"{_lastResult!.SuccessCount}件は処理済みです。差分を再確認してください。");
-        StatusChanged?.Invoke("同期を中止しました。Teams側の最新状態を再確認してください", true);
+        _uiEvents.Status("同期を中止しました。Teams側の最新状態を再確認してください", true);
     }
 
     /// <summary>
@@ -404,7 +407,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
                     $"{_lastResult.SuccessCount}件の変更が完了し、Teams側の状態を確認しました。");
             }
 
-            StatusChanged?.Invoke(remainingCount > 0
+            _uiEvents.Status(remainingCount > 0
                 ? $"最終状態を確認しました。未反映 {remainingCount}件を再実行できます"
                 : "同期完了: Teams側の状態を確認済みです", remainingCount > 0);
             return;
@@ -414,7 +417,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         Result.MarkRemainingCountUnavailable();
         ShowResultNotification(true, "最終状態を確認できませんでした",
             $"操作結果は保存済みです。差分を再確認してください。{Environment.NewLine}{outcome.ReconciliationError?.Message}");
-        StatusChanged?.Invoke("最終状態を確認できませんでした。差分を再確認してください", true);
+        _uiEvents.Status("最終状態を確認できませんでした。差分を再確認してください", true);
     }
 
     /// <summary>部分失敗やキャンセル後に、Graphの最新状態から未反映分を再計画する</summary>
@@ -423,7 +426,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     {
         if (await TryPreviewAsync())
         {
-            StatusChanged?.Invoke("最新状態から未反映分を再プレビューしました", false);
+            _uiEvents.Status("最新状態から未反映分を再プレビューしました", false);
         }
     }
 
@@ -435,30 +438,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     /// <summary>同期結果とログ保存を1つのSnackbarで通知し、保存成功時はCSVを開く操作を付ける</summary>
     private void ShowResultNotification(bool warning, string title, string message)
     {
-        if (!Result.HasLog)
-        {
-            if (warning)
-            {
-                _notifications.ShowWarning(title, message);
-            }
-            else
-            {
-                _notifications.ShowSuccess(title, message);
-            }
-
-            return;
-        }
-
-        string messageWithLog = $"{message} 実行ログを保存しました。";
-        Action openLog = () => OpenResultLogCommand.Execute(null);
-        if (warning)
-        {
-            _notifications.ShowWarningWithAction(title, messageWithLog, "同期結果CSVを開く", openLog);
-        }
-        else
-        {
-            _notifications.ShowSuccessWithAction(title, messageWithLog, "同期結果CSVを開く", openLog);
-        }
+        _resultPresenter.Show(warning, title, message);
     }
 
     /// <summary>保存済みの同期結果CSVを既定のアプリケーションで開く</summary>
@@ -493,14 +473,14 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
     private bool CanExecuteSync()
     {
-        return !_externallyBusy && !Preview.IsBusy && !Execution.IsRunning && (Plan.Current?.CanExecute ?? false);
+        return _commandState.CanExecuteSync(_externallyBusy, Preview, Execution, Plan.Current);
     }
 
     /// <summary>現在の状態から、同期を実行できない理由(または実行可能である旨)を判定する</summary>
     private string GetSyncUnavailableReason()
     {
-        return SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(
-            Execution.IsRunning, Preview.IsBusy, _externallyBusy, _signedIn, _team, _document, Plan.Current);
+        return _commandState.BuildUnavailableReason(_externallyBusy, Preview, Execution, _context.SignedIn,
+            _context.Team, _context.Document, Plan.Current);
     }
 
     /// <summary>差分一覧の絞り込みを「エラー」フィルターへ切り替える</summary>
@@ -565,7 +545,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         Plan.Apply(plan);
         if (announceStatus)
         {
-            StatusChanged?.Invoke(SyncWorkspaceTextFormatter.BuildPreviewStatusText(plan), plan.HasErrors);
+            _uiEvents.Status(SyncWorkspaceTextFormatter.BuildPreviewStatusText(plan), plan.HasErrors);
             // 変更あり・エラーありは差分一覧にその内容が表示されるため見た目で気づけるが、
             // 変更なし(既に同期済み)は一覧が実質空のままで手がかりが他にないため、Snackbarでも知らせる
             if (plan.HasNoActionableChanges)
@@ -577,7 +557,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             // announceStatus=falseの呼び出し(再検証で差分が変わらない場合など)ではフォーカスも移動させない。
             // そうしないと、実行直前のフォーカス復元(ShowRestoringFocusAsync)をこのフォーカス移動が
             // 上書きしてしまう
-            DiffFocusRequested?.Invoke();
+            _uiEvents.RequestFocus();
         }
 
         ExecuteSyncCommand.NotifyCanExecuteChanged();

@@ -36,6 +36,11 @@ public partial class App : System.Windows.Application
     /// </summary>
     protected override async void OnStartup(StartupEventArgs e)
     {
+        await OnStartupAsync(e);
+    }
+
+    private async Task OnStartupAsync(StartupEventArgs e)
+    {
         base.OnStartup(e);
         DispatcherUnhandledException += OnDispatcherUnhandledException;
 
@@ -155,6 +160,11 @@ public partial class App : System.Windows.Application
     ///     終了時にホストを停止・破棄し、リソースを解放する
     /// </summary>
     protected override async void OnExit(ExitEventArgs e)
+    {
+        await OnExitAsync(e);
+    }
+
+    private async Task OnExitAsync(ExitEventArgs e)
     {
         if (_host is not null)
         {

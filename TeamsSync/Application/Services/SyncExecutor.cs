@@ -8,10 +8,12 @@ using TeamsSync.Domain.Teams;
 namespace TeamsSync.Application.Services;
 
 /// <summary>検証済みの同期プランに含まれる追加・削除操作を実行する</summary>
-public sealed class SyncExecutor(ITeamsGateway teamsGateway, ILogger<SyncExecutor>? logger = null) : ISyncExecutor
+public sealed class SyncExecutor(ITeamsGateway teamsGateway, ILogger<SyncExecutor>? logger = null,
+    IIdentifierGenerator? identifierGenerator = null) : ISyncExecutor
 {
     private static readonly TimeSpan OperationThrottleDelay = TimeSpan.FromMilliseconds(300);
     private readonly ILogger<SyncExecutor> _logger = logger ?? NullLogger<SyncExecutor>.Instance;
+    private readonly IIdentifierGenerator _identifierGenerator = identifierGenerator ?? new IdentifierGenerator();
 
     /// <summary>同期プランの追加・削除操作を順に実行する</summary>
     public async Task<SyncExecutionResult> ExecuteAsync(SyncPlan plan,
@@ -25,7 +27,7 @@ public sealed class SyncExecutor(ITeamsGateway teamsGateway, ILogger<SyncExecuto
 
     private IDisposable? BeginAuditScope(SyncPlan plan, SyncAuditContext? auditContext)
     {
-        SyncAuditContext context = auditContext ?? new SyncAuditContext(Guid.NewGuid(), "", "");
+        SyncAuditContext context = auditContext ?? new SyncAuditContext(_identifierGenerator.NewGuid(), "", "");
         return _logger.BeginScope(new Dictionary<string, object?>
         {
             ["ExecutionId"] = context.ExecutionId,

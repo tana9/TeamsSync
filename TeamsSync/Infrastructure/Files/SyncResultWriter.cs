@@ -14,19 +14,22 @@ namespace TeamsSync.Infrastructure.Files;
 ///     ログの出力先フォルダー。省略時はユーザー別のLocalApplicationData配下を使う。
 ///     テストから一時フォルダーを指定できるようにコンストラクター引数にしている
 /// </param>
-public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultWriter
+public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? timeProvider = null,
+    IIdentifierGenerator? identifierGenerator = null) : ISyncResultWriter
 {
     // OWASPが推奨するCSVインジェクション対策として、数式の開始として解釈され得る文字
     private static readonly char[] FormulaTriggerChars = ['=', '+', '-', '@'];
 
     private readonly string _logDirectory = logDirectory ?? Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TeamsSync", "Logs");
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+    private readonly IIdentifierGenerator _identifierGenerator = identifierGenerator ?? new IdentifierGenerator();
 
     /// <inheritdoc />
     public void VerifyWriteAccess()
     {
         Directory.CreateDirectory(_logDirectory);
-        string probePath = Path.Combine(_logDirectory, $".write-test-{Guid.NewGuid():N}.tmp");
+        string probePath = Path.Combine(_logDirectory, $".write-test-{_identifierGenerator.NewGuid():N}.tmp");
         using FileStream _ = new(probePath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1,
             FileOptions.DeleteOnClose);
     }
@@ -38,9 +41,9 @@ public sealed class SyncResultWriter(string? logDirectory = null) : ISyncResultW
     public string WriteAutoLog(SyncPlan plan, SyncExecutionResult result, Guid executionId)
     {
         Directory.CreateDirectory(_logDirectory);
-        string stem = $"{DateTime.Now:yyyyMMdd_HHmmss_fff}_{executionId:N}_{SanitizeFileName(plan.Team.DisplayName)}";
+        string stem = $"{_timeProvider.GetLocalNow():yyyyMMdd_HHmmss_fff}_{executionId:N}_{SanitizeFileName(plan.Team.DisplayName)}";
         string path = CreateUniquePath(stem);
-        AtomicFileWriter.Write(path, stream => WriteCsv(stream, plan, result), false);
+        AtomicFileWriter.Write(path, stream => WriteCsv(stream, plan, result), false, _identifierGenerator);
         return path;
     }
 

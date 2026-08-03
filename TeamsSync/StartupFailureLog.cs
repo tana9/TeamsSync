@@ -4,7 +4,8 @@ namespace TeamsSync;
 
 internal static class StartupFailureLog
 {
-    internal static string? TryWrite(Exception exception, string? baseDirectory = null)
+    internal static string? TryWrite(Exception exception, string? baseDirectory = null,
+        TimeProvider? timeProvider = null)
     {
         try
         {
@@ -14,7 +15,7 @@ internal static class StartupFailureLog
             Directory.CreateDirectory(directory);
             string path = Path.Combine(directory, "startup-failure.log");
             File.AppendAllText(path,
-                $"[{DateTimeOffset.Now:O}]{Environment.NewLine}{exception}{Environment.NewLine}{Environment.NewLine}",
+                $"[{(timeProvider ?? TimeProvider.System).GetUtcNow():O}]{Environment.NewLine}{exception}{Environment.NewLine}{Environment.NewLine}",
                 Encoding.UTF8);
             return path;
         }

@@ -81,6 +81,11 @@ public partial class MainWindow
     /// <summary>同期実行中はウィンドウを閉じる前にキャンセル完了を待ってから終了する</summary>
     private async void OnClosing(object? sender, CancelEventArgs e)
     {
+        await OnClosingAsync(e);
+    }
+
+    private async Task OnClosingAsync(CancelEventArgs e)
+    {
         if (_closeAfterCancellation || !_viewModel.SyncWorkspace.Execution.IsRunning)
         {
             return;

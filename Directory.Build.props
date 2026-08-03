@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <!-- Run the SDK analyzers, but opt in to a small, reviewed baseline. New rules can be
+         promoted here after the existing codebase has been addressed. -->
+    <AnalysisMode>None</AnalysisMode>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+</Project>

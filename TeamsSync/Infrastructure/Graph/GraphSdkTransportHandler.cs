@@ -2,17 +2,21 @@ using System.Net;
 
 using Microsoft.Extensions.Logging;
 
+using TeamsSync.Application.Abstractions;
+
 namespace TeamsSync.Infrastructure.Graph;
 
 /// <summary>SDK要求を既存の名前付きHttpClientへ転送し、診断情報と例外形式を維持する</summary>
-internal sealed partial class GraphSdkTransportHandler(HttpClient transport, ILogger<GraphHttpClient> logger)
+internal sealed partial class GraphSdkTransportHandler(HttpClient transport, ILogger<GraphHttpClient> logger,
+    IIdentifierGenerator? identifierGenerator = null)
     : HttpMessageHandler
 {
+    private readonly IIdentifierGenerator _identifierGenerator = identifierGenerator ?? new IdentifierGenerator();
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
         GraphEndpointValidator.Validate(request.RequestUri);
-        string clientRequestId = Guid.NewGuid().ToString();
+        string clientRequestId = _identifierGenerator.NewGuid().ToString();
         bool expectedNotFound = request.Headers.Remove("x-teams-sync-expected-not-found");
         request.Headers.TryAddWithoutValidation("client-request-id", clientRequestId);
         request.Headers.TryAddWithoutValidation("return-client-request-id", "true");

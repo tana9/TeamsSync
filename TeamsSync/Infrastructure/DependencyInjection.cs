@@ -27,6 +27,8 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddOptions<EntraOptions>().Bind(configuration.GetSection(EntraOptions.SectionName));
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<IIdentifierGenerator, IdentifierGenerator>();
         services.AddSingleton<IAuthenticationService, MsalAuthenticationService>();
         services.AddGraphHttpClients();
         services.AddSingleton<GraphHttpClient>();

@@ -15,19 +15,24 @@ public sealed class JsonUserPreferences : IUserPreferences
 {
     private readonly ILogger<JsonUserPreferences> _logger;
     private readonly string _path;
+    private readonly TimeProvider _timeProvider;
+    private readonly IIdentifierGenerator _identifierGenerator;
 
     /// <summary>既定の保存先(%LocalAppData%\TeamsSync\preferences.json)を使用するコンストラクター</summary>
     public JsonUserPreferences(ILogger<JsonUserPreferences> logger)
         : this(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "TeamsSync", "preferences.json"), logger)
+            "TeamsSync", "preferences.json"), logger, null, null)
     {
     }
 
     /// <summary>保存先パスを指定できるコンストラクター(主にテスト用)</summary>
-    public JsonUserPreferences(string path, ILogger<JsonUserPreferences> logger)
+    public JsonUserPreferences(string path, ILogger<JsonUserPreferences> logger, TimeProvider? timeProvider = null,
+        IIdentifierGenerator? identifierGenerator = null)
     {
         _path = path;
         _logger = logger;
+        _timeProvider = timeProvider ?? TimeProvider.System;
+        _identifierGenerator = identifierGenerator ?? new IdentifierGenerator();
         Load();
     }
 
@@ -41,7 +46,7 @@ public sealed class JsonUserPreferences : IUserPreferences
     public void Save()
     {
         byte[] json = JsonSerializer.SerializeToUtf8Bytes(new Data(LastFolder));
-        AtomicFileWriter.Write(_path, stream => stream.Write(json), true);
+        AtomicFileWriter.Write(_path, stream => stream.Write(json), true, _identifierGenerator);
     }
 
     /// <summary>
@@ -86,7 +91,7 @@ public sealed class JsonUserPreferences : IUserPreferences
             string fileName = Path.GetFileNameWithoutExtension(_path);
             string extension = Path.GetExtension(_path);
             string backupPath = Path.Combine(directory,
-                $"{fileName}.corrupt-{DateTime.Now:yyyyMMdd-HHmmssfff}{extension}");
+                $"{fileName}.corrupt-{_timeProvider.GetLocalNow():yyyyMMdd-HHmmssfff}{extension}");
             File.Copy(_path, backupPath);
             _logger.LogWarning("破損したユーザー設定を退避しました。BackupPath={BackupPath}", backupPath);
             return backupPath;

@@ -18,17 +18,18 @@ public sealed class GraphSdkClient
     /// <param name="authentication">Graphのアクセストークンを取得する認証サービス</param>
     /// <param name="logger">Graph通信の診断情報を記録するロガー</param>
     public GraphSdkClient(IHttpClientFactory factory, IAuthenticationService authentication,
-        ILogger<GraphHttpClient> logger)
+        ILogger<GraphHttpClient> logger, IIdentifierGenerator? identifierGenerator = null)
     {
         BaseBearerTokenAuthenticationProvider auth = new(new MsalAccessTokenProvider(authentication));
-        _read = Create(factory.CreateClient(GraphHttpClient.ReadHttpClientName), auth, logger);
-        _write = Create(factory.CreateClient(GraphHttpClient.WriteHttpClientName), auth, logger);
+        _read = Create(factory.CreateClient(GraphHttpClient.ReadHttpClientName), auth, logger, identifierGenerator);
+        _write = Create(factory.CreateClient(GraphHttpClient.WriteHttpClientName), auth, logger, identifierGenerator);
     }
 
     private static GraphServiceClient Create(HttpClient transport,
-        BaseBearerTokenAuthenticationProvider authentication, ILogger<GraphHttpClient> logger)
+        BaseBearerTokenAuthenticationProvider authentication, ILogger<GraphHttpClient> logger,
+        IIdentifierGenerator? identifierGenerator)
     {
-        HttpClient client = new(new GraphSdkTransportHandler(transport, logger))
+        HttpClient client = new(new GraphSdkTransportHandler(transport, logger, identifierGenerator))
         {
             BaseAddress = new Uri("https://graph.microsoft.com/v1.0/")
         };

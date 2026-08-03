@@ -48,6 +48,16 @@ TeamsSync の今後の改善項目。メンバー削除を伴うアプリケー�
 
 完了条件: 各ViewModelの責務と状態更新経路が明確で、機能追加時のコマンド通知漏れや不整合状態を防止できる。
 
+### コード品質と保守性を高める
+
+- [x] `SyncWorkspaceViewModel`と`MemberFileViewModel`の責務を、コマンド実行可否、入力文書処理、同期結果表示などの単位へさらに分割し、ViewModelの肥大化を抑える（`SyncWorkspaceContext`、`SyncExecutionRunner`、`SyncWorkspaceCommandStateEvaluator`、`SyncResultPresenter`、`MemberFileInputCoordinator`、`MemberInputSelectionCoordinator`へ分離し、入力状態は既存の専用状態モデルへ集約）
+- [ ] 同期調整やファイル読込の広すぎる`catch (Exception)`を想定例外と予期しない例外に分類し、後者をログへ記録して原因を追跡できるようにする
+- [x] 現在時刻と`Guid`生成を`TimeProvider`または専用サービス経由にし、結果ファイル名、監査ログ、設定バックアップのテストを決定論的にする（`TimeProvider`と`IIdentifierGenerator`をDI登録し、ファイル名、Graph診断ID、監査ID、一時ファイル名へ適用）
+- [x] WPFイベント境界の`async void`を薄いアダプターに限定し、実処理を`Task`戻り値のメソッドへ集約して例外処理とテスト容易性を高める（起動・終了・Closingの本体を`Task`メソッドへ分離）
+- [x] `.editorconfig`とRoslyn analyzerで非同期処理、例外処理、命名、複雑度などの静的検査をCIへ追加する（SDK analyzerを有効化し、レビュー済みの基準ルールを明示）
+
+完了条件: 主要ViewModelの変更影響範囲と障害原因を追跡しやすく、時刻や乱数に依存しないテストと静的検査で品質を継続的に維持できる。
+
 ### 初回利用時の操作順序と同期モードを分かりやすくする
 
 - [x] 画面上の手順番号と実際の操作順を一致させ、無番号の「同期モード」を独立した手順として扱う（「同期モード」を専用カードへ分離し「3
