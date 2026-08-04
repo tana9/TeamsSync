@@ -642,11 +642,23 @@ public sealed class GraphTeamsGatewayTests
             ? await Assert.ThrowsAsync<GraphException>(() => gateway.RemoveMemberAsync(
                 "team-1", "deleted-membership", TestContext.Current.CancellationToken))
             : await Assert.ThrowsAsync<GraphException>(() => gateway.AddMemberAsync(
-                "team-1", "existing-user", TestContext.Current.CancellationToken));
+                "team-1", "11111111-1111-1111-1111-111111111111", TestContext.Current.CancellationToken));
 
         Assert.Equal(statusCode, exception.StatusCode);
         Assert.DoesNotContain("member write failed", exception.Message);
         Assert.Contains(((int)statusCode).ToString(), exception.Message);
+    }
+
+    [Fact]
+    public async Task AddMember_GUID形式でないuserIdは通信せず拒否する()
+    {
+        DelegateHandler handler = new((_, _) => throw new InvalidOperationException("通信してはならない"));
+        GraphTeamsGateway gateway = CreateGateway(handler, out _);
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            gateway.AddMemberAsync("team-1", "not-a-guid", TestContext.Current.CancellationToken));
+
+        Assert.Equal(0, handler.CallCount);
     }
 
     [Fact]
