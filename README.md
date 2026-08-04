@@ -20,6 +20,8 @@ Microsoft Graph API を使い、CSV または Excel の一覧と Microsoft Teams
 5. `TeamsSync/appsettings.json` の `Entra:ClientId` をアプリケーション (クライアント) ID に置き換えます。単一テナントに限定する場合は
    `Entra:TenantId` もテナントIDに置き換えます。 TenantIdは省略でき、その場合は`organizations`
    が使用されます。ClientIdやTenantIdが未設定でもアプリは起動でき、ClientIdが必要になるのはサインイン時です。
+   `appsettings.json`は利用者固有の設定のため`.gitignore`で追跡除外されています。存在しない場合は
+   `TeamsSync/appsettings.Default.json`をコピーして`TeamsSync/appsettings.json`として作成してください。
 
 ```json
 {

@@ -24,9 +24,19 @@
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0"/>
     <PackageReference Include="WPF-UI" Version="4.3.0"/>
   </ItemGroup>
+  <!--
+    appsettings.jsonは利用者固有のEntra ClientIdを含むため.gitignoreで追跡除外している。
+    そのためクリーンチェックアウト(CIや初回クローン直後)には存在せず、通常のEmbeddedResourceでは
+    ビルドが失敗する。ローカルにappsettings.jsonがあればそれを、なければプレースホルダー入りの
+    appsettings.Default.jsonを、同じLogicalName(appsettings.json)で埋め込むことで両立させる
+  -->
   <ItemGroup>
-    <None Remove="appsettings.json"/>
-    <EmbeddedResource Include="appsettings.json" LogicalName="appsettings.json"/>
+    <None Remove="appsettings.json" Condition="Exists('appsettings.json')"/>
+    <EmbeddedResource Include="appsettings.json" LogicalName="appsettings.json"
+                      Condition="Exists('appsettings.json')"/>
+    <None Remove="appsettings.Default.json" Condition="!Exists('appsettings.json')"/>
+    <EmbeddedResource Include="appsettings.Default.json" LogicalName="appsettings.json"
+                      Condition="!Exists('appsettings.json')"/>
     <None Remove="Resources\Manual.html"/>
     <EmbeddedResource Include="Resources\Manual.html" LogicalName="Manual.html"/>
     <None Remove="Resources\Authentication\*.html"/>
