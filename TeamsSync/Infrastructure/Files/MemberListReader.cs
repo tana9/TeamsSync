@@ -54,7 +54,7 @@ public sealed class MemberListReader : IMemberListReader
 
             string initialHash = ComputeSha256(path);
             string extension = Path.GetExtension(path).ToLowerInvariant();
-            (IEnumerable<string> values, string source, string column, bool isNameColumn) = extension switch
+            ParsedMemberSource parsed = extension switch
             {
                 ".csv" => ReadCsv(path, cancellationToken),
                 ".xlsx" => ReadExcel(path, cancellationToken),
@@ -63,7 +63,7 @@ public sealed class MemberListReader : IMemberListReader
             cancellationToken.ThrowIfCancellationRequested();
             List<string> addresses =
             [
-                .. values.Select(x => x.Trim()).Where(x => !string.IsNullOrWhiteSpace(x))
+                .. parsed.Values.Select(x => x.Trim()).Where(x => !string.IsNullOrWhiteSpace(x))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
             ];
             if (addresses.Count == 0)
@@ -78,7 +78,7 @@ public sealed class MemberListReader : IMemberListReader
             }
 
             return new MemberListDocument(addresses, info.Name, info.FullName, info.LastWriteTime,
-                source, column, finalHash, isNameColumn);
+                parsed.SourceName, parsed.Column, finalHash, parsed.IsNameColumn);
         }
         catch (IOException ex) when (ex.HResult == SharingViolationHResult)
         {
@@ -88,8 +88,7 @@ public sealed class MemberListReader : IMemberListReader
     }
 
     /// <summary>CSVファイルを解析し、アドレス候補列を抽出する</summary>
-    private static (IEnumerable<string>, string, string, bool) ReadCsv(string path,
-        CancellationToken cancellationToken)
+    private static ParsedMemberSource ReadCsv(string path, CancellationToken cancellationToken)
     {
         Encoding encoding = CsvEncodingDetector.Detect(path);
         using FileStream stream = SharedFileAccess.Open(path);
@@ -121,13 +120,12 @@ public sealed class MemberListReader : IMemberListReader
             throw new InvalidDataException($"{physicalRow}行目のCSV形式が正しくありません。引用符と列数を確認してください。", ex);
         }
 
-        (IEnumerable<string> Values, string Column, bool IsNameColumn) extracted = ExtractColumn(rows);
-        return (extracted.Values, "CSV", extracted.Column, extracted.IsNameColumn);
+        ExtractedColumn extracted = ExtractColumn(rows);
+        return new ParsedMemberSource(extracted.Values, "CSV", extracted.Column, extracted.IsNameColumn);
     }
 
     /// <summary>Excelファイルの先頭ワークシートを解析し、アドレス候補列を抽出する</summary>
-    private static (IEnumerable<string>, string, string, bool) ReadExcel(string path,
-        CancellationToken cancellationToken)
+    private static ParsedMemberSource ReadExcel(string path, CancellationToken cancellationToken)
     {
         using (FileStream archiveStream = SharedFileAccess.Open(path))
         {
@@ -162,26 +160,26 @@ public sealed class MemberListReader : IMemberListReader
             rows.Add(fields);
         }
 
-        (IEnumerable<string> Values, string Column, bool IsNameColumn) extracted = ExtractColumn(rows);
-        return (extracted.Values, sheet.Name, extracted.Column, extracted.IsNameColumn);
+        ExtractedColumn extracted = ExtractColumn(rows);
+        return new ParsedMemberSource(extracted.Values, sheet.Name, extracted.Column, extracted.IsNameColumn);
     }
 
     /// <summary>
     ///     ヘッダー行からアドレス列(またはフォールバックの氏名列)を推定し、その列の値を抽出する
     /// </summary>
-    private static (IEnumerable<string> Values, string Column, bool IsNameColumn) ExtractColumn(
-        IReadOnlyList<string[]> rows)
+    private static ExtractedColumn ExtractColumn(IReadOnlyList<string[]> rows)
     {
         if (rows.Count == 0)
         {
-            return ([], "1列目", false);
+            return new ExtractedColumn([], "1列目", false);
         }
 
         (int index, bool isNameColumn) = FindPreferredColumn(rows[0]);
         bool hasHeader = index >= 0;
         int column = hasHeader ? index : 0;
         string label = hasHeader ? rows[0][column].Trim() : "1列目（ヘッダーなし）";
-        return (rows.Skip(hasHeader ? 1 : 0).Where(r => r.Length > column).Select(r => r[column]), label,
+        return new ExtractedColumn(
+            rows.Skip(hasHeader ? 1 : 0).Where(r => r.Length > column).Select(r => r[column]), label,
             hasHeader && isNameColumn);
     }
 
@@ -216,4 +214,14 @@ public sealed class MemberListReader : IMemberListReader
     {
         return value.Trim().Replace("_", "").Replace(" ", "").ToLowerInvariant();
     }
+
+    // 旧実装は(IEnumerable<string>, string, string, bool)という名前なしタプルを返しており、
+    // 文字列2つ(入力元名・検出列ラベル)が隣り合っているため、ReadCsv/ReadExcel内で返す順序を
+    // 間違えても型では検出できなかった。名前付きのrecordへ置き換えて取り違えを防ぐ
+    /// <summary>ヘッダー行からの列抽出結果(値・列ラベル・氏名列かどうか)</summary>
+    private sealed record ExtractedColumn(IEnumerable<string> Values, string Column, bool IsNameColumn);
+
+    /// <summary>CSV/Excelから読み取った値と、入力元・検出列のラベルをまとめた結果</summary>
+    private sealed record ParsedMemberSource(IEnumerable<string> Values, string SourceName, string Column,
+        bool IsNameColumn);
 }
