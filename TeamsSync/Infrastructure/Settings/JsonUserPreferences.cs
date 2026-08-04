@@ -74,7 +74,10 @@ public sealed class JsonUserPreferences : IUserPreferences
         }
         catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
         {
-            _logger.LogWarning(ex, "ユーザー設定を読み込めないため初期値を使用します。Path={SettingsPath}", _path);
+            // フルパスにはWindowsユーザー名が含まれ、監査ログ(全ログの書き込み先)へそのまま
+            // 記録すると個人情報の記録禁止方針に反するため、ファイル名だけを記録する
+            _logger.LogWarning(ex, "ユーザー設定を読み込めないため初期値を使用します。FileName={SettingsFileName}",
+                Path.GetFileName(_path));
             string? backupPath = TryBackup();
             LoadWarning = backupPath is null
                 ? "設定ファイルを読み込めなかったため、初期値で起動しました。"
@@ -93,12 +96,14 @@ public sealed class JsonUserPreferences : IUserPreferences
             string backupPath = Path.Combine(directory,
                 $"{fileName}.corrupt-{_timeProvider.GetLocalNow():yyyyMMdd-HHmmssfff}{extension}");
             File.Copy(_path, backupPath);
-            _logger.LogWarning("破損したユーザー設定を退避しました。BackupPath={BackupPath}", backupPath);
+            _logger.LogWarning("破損したユーザー設定を退避しました。BackupFileName={BackupFileName}",
+                Path.GetFileName(backupPath));
             return backupPath;
         }
         catch (Exception backupException) when (backupException is IOException or UnauthorizedAccessException)
         {
-            _logger.LogWarning(backupException, "破損したユーザー設定を退避できませんでした。Path={SettingsPath}", _path);
+            _logger.LogWarning(backupException, "破損したユーザー設定を退避できませんでした。FileName={SettingsFileName}",
+                Path.GetFileName(_path));
             return null;
         }
     }

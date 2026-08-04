@@ -97,17 +97,28 @@ public sealed class MsalAuthenticationService(
     public async Task SignOutAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (_app is not null)
+        // GetTokenAsyncと同じゲートで直列化する。ここを素通りさせると、並行して進行中の
+        // サイレント/対話型トークン取得が本メソッドの後に完了して_resultを再設定し、
+        // サインアウトしたはずなのにサインイン状態が復活したように見える競合が起きる
+        await _tokenGate.WaitAsync(cancellationToken);
+        try
         {
-            foreach (IAccount account in await _app.GetAccountsAsync())
+            if (_app is not null)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                await _app.RemoveAsync(account);
+                foreach (IAccount account in await _app.GetAccountsAsync())
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    await _app.RemoveAsync(account);
+                }
             }
-        }
 
-        _result = null;
-        logger.LogInformation("Microsoft Entra IDからサインアウトしました");
+            _result = null;
+            logger.LogInformation("Microsoft Entra IDからサインアウトしました");
+        }
+        finally
+        {
+            _tokenGate.Release();
+        }
     }
 
     /// <summary>

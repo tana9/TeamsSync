@@ -179,7 +179,9 @@ public sealed record SyncPlan(
     public bool CanExecute => !HasErrors && !HasNoActionableChanges && IsModeConsistent;
 
     /// <summary>
-    ///     未解決の変更がある場合、または選択した同期モードと矛盾する追加・削除が含まれる場合に例外をスローする
+    ///     未解決の変更がある場合、選択した同期モードと矛盾する追加・削除が含まれる場合、
+    ///     または実行対象の変更が1件もない場合に例外をスローする。<see cref="CanExecute" />と
+    ///     同じ条件を判定する
     /// </summary>
     public void EnsureExecutable()
     {
@@ -193,6 +195,11 @@ public sealed record SyncPlan(
             throw new InvalidOperationException(Mode == SyncMode.AddOnly
                 ? "追加のみモードではメンバーを削除できません。"
                 : "指定メンバー削除モードではメンバーを追加できません。");
+        }
+
+        if (HasNoActionableChanges)
+        {
+            throw new InvalidOperationException("反映する変更がありません。同期は実行できません。");
         }
     }
 
@@ -237,13 +244,23 @@ public sealed record SyncPlan(
             return false;
         }
 
+        // WithoutChangesで個別除外(Excluded)したユーザーは、除外前の種別(追加/削除)が失われて
+        // いるため比較から取り除く。除外の有無自体はメンバー構成の変化ではなく、除外後に
+        // otherを再構築してもExcludedという分類は再現されない(SyncPlanFactoryはExcludedを
+        // 生成しない)ため、素直に比較するとexcluded分の要素数が食い違い常に不一致になってしまう
+        HashSet<string> excludedUserIds = Changes
+            .Where(change => change.Kind == ChangeKind.Excluded && change.UserId is not null)
+            .Select(change => change.UserId!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         // Operationsプロパティ(追加・削除のみ)より広く、保護・未所属・エラーも比較対象に含めるため、
         // 同名の紛らわしさを避けてComparisonKeysという別名にしている
-        static IEnumerable<(ChangeKind Kind, string? UserId, string? MembershipId)> ComparisonKeys(SyncPlan plan)
+        IEnumerable<(ChangeKind Kind, string? UserId, string? MembershipId)> ComparisonKeys(SyncPlan plan)
         {
             return plan.Changes
                 .Where(change => change.Kind is ChangeKind.Add or ChangeKind.Remove or
                     ChangeKind.Protected or ChangeKind.NotMember or ChangeKind.Error)
+                .Where(change => change.UserId is null || !excludedUserIds.Contains(change.UserId))
                 .Select(change => (change.Kind, change.UserId, change.MembershipId))
                 .OrderBy(change => change.Kind)
                 .ThenBy(change => change.UserId, StringComparer.OrdinalIgnoreCase)

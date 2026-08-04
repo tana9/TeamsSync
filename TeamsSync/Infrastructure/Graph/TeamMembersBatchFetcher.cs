@@ -57,7 +57,19 @@ public sealed class TeamMembersBatchFetcher(GraphHttpClient http, ILogger logger
                 int status = response.GetProperty("status").GetInt32();
                 if (status == 200)
                 {
-                    membersByIndex[index] = await ParseBatchMemberResponseAsync(response, cancellationToken);
+                    try
+                    {
+                        membersByIndex[index] = await ParseBatchMemberResponseAsync(response, cancellationToken);
+                    }
+                    catch (InvalidDataException ex)
+                    {
+                        // Graphが返すメンバー情報が想定外の形状(userId欠落等)の場合、このチームだけ
+                        // membersByIndexに残さず個別フォールバックへ委ね、バッチ全体・他チームの
+                        // 判定を継続する(403/400等と同じ扱い)
+                        logger.LogWarning(ex,
+                            "バッチ応答のメンバー情報を解析できませんでした。個別に再取得します。TeamId={TeamId}",
+                            candidates[index].Id);
+                    }
                 }
                 else if (!isLastAttempt && status is 429 or 503)
                 {

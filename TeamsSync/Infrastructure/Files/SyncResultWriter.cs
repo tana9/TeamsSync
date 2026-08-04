@@ -131,11 +131,20 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
         }
     }
 
-    /// <summary>ファイル名として使えない文字を"_"へ置き換える</summary>
+    // タイムスタンプ・実行ID(GUID)・拡張子・CreateUniquePathの連番接尾辞と合わせても
+    // 255文字のファイル名コンポーネント上限に余裕を持って収まる長さ
+    private const int MaximumSanitizedFileNameLength = 100;
+
+    /// <summary>ファイル名として使えない文字を"_"へ置き換え、極端に長いチーム名は切り詰める</summary>
     private static string SanitizeFileName(string value)
     {
         char[] invalidChars = Path.GetInvalidFileNameChars();
         string sanitized = string.Concat(value.Select(c => invalidChars.Contains(c) ? '_' : c)).Trim();
+        if (sanitized.Length > MaximumSanitizedFileNameLength)
+        {
+            sanitized = sanitized[..MaximumSanitizedFileNameLength].TrimEnd();
+        }
+
         return sanitized.Length == 0 ? "team" : sanitized;
     }
 

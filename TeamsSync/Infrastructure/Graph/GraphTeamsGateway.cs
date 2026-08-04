@@ -206,5 +206,14 @@ public sealed class GraphTeamsGateway : ITeamsGateway
                 team.Id, ex.StatusCode);
             return null;
         }
+        catch (InvalidDataException ex)
+        {
+            // メンバー情報が想定外の形状(userId欠落等)で解析できない場合も、GraphException時と同様に
+            // このチームだけ所有者判定を諦め、他チームの判定を継続する
+            _logger.LogWarning(ex,
+                "個別のメンバー取得結果を解析できなかったため、このチームの所有者判定をスキップします。TeamId={TeamId}",
+                team.Id);
+            return null;
+        }
     }
 }

@@ -88,6 +88,15 @@ public sealed class TeamModelsTests
     }
 
     [Fact]
+    public void SyncPlan_EnsureExecutable_実行対象の変更が0件の場合は例外をスローする()
+    {
+        SyncPlan plan = new(Team,
+            [new SyncChange(ChangeKind.Keep, "既存太郎", "keep@example.com", ChangeReason.AlreadyMember)], []);
+
+        Assert.Throws<InvalidOperationException>(plan.EnsureExecutable);
+    }
+
+    [Fact]
     public void SyncPlan_EnsureExecutable_実行可能な場合は例外をスローしない()
     {
         SyncPlan plan = new(Team,
@@ -307,6 +316,43 @@ public sealed class TeamModelsTests
             [new SyncChange(ChangeKind.Add, "A", "a@example.com", ChangeReason.AddToTeam, "u1")], []);
         SyncPlan latest = new(Team,
             [new SyncChange(ChangeKind.Add, "B", "b@example.com", ChangeReason.AddToTeam, "u2")], []);
+
+        Assert.False(preview.IsEquivalentTo(latest));
+    }
+
+    [Fact]
+    public void SyncPlan_IsEquivalentTo_個別除外したユーザーは比較対象から外れ再検証をブロックしない()
+    {
+        // WithoutChangesで除外(Excluded)すると元の種別(Add/Remove)が失われ、
+        // 再構築後のプラン(latest)はExcludedという分類を再現できないため、
+        // 除外したユーザーを比較対象に含めたままだと常に不一致(再検証失敗)になっていた
+        SyncPlan preview = new SyncPlan(Team,
+        [
+            new SyncChange(ChangeKind.Add, "A", "a@example.com", ChangeReason.AddToTeam, "u1"),
+            new SyncChange(ChangeKind.Add, "B", "b@example.com", ChangeReason.AddToTeam, "u2")
+        ], []).WithoutChanges(["u2"]);
+        SyncPlan latest = new(Team,
+        [
+            new SyncChange(ChangeKind.Add, "A", "a@example.com", ChangeReason.AddToTeam, "u1"),
+            new SyncChange(ChangeKind.Add, "B", "b@example.com", ChangeReason.AddToTeam, "u2")
+        ], []);
+
+        Assert.True(preview.IsEquivalentTo(latest));
+    }
+
+    [Fact]
+    public void SyncPlan_IsEquivalentTo_除外していないユーザーの内容変化は検知する()
+    {
+        SyncPlan preview = new SyncPlan(Team,
+        [
+            new SyncChange(ChangeKind.Add, "A", "a@example.com", ChangeReason.AddToTeam, "u1"),
+            new SyncChange(ChangeKind.Add, "B", "b@example.com", ChangeReason.AddToTeam, "u2")
+        ], []).WithoutChanges(["u2"]);
+        SyncPlan latest = new(Team,
+        [
+            new SyncChange(ChangeKind.Protected, "A", "a@example.com", ChangeReason.OwnerProtected, "u1"),
+            new SyncChange(ChangeKind.Add, "B", "b@example.com", ChangeReason.AddToTeam, "u2")
+        ], []);
 
         Assert.False(preview.IsEquivalentTo(latest));
     }

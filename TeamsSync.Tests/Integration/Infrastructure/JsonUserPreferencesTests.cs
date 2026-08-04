@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using TeamsSync.Infrastructure.Settings;
@@ -66,5 +67,45 @@ public sealed class JsonUserPreferencesTests : IDisposable
         Assert.Null(preferences.LastFolder);
         Assert.Contains("初期値", preferences.LoadWarning);
         Assert.True(File.Exists(path));
+    }
+
+    [Fact]
+    public void Load_破損時のログにファイルの親ディレクトリ_個人情報を含むフルパス_を出力しない()
+    {
+        // 監査ログはアプリ全体のログプロバイダーへ流れるため、Windowsユーザー名を含むフルパスではなく
+        // ファイル名だけを記録することを確認する回帰テスト
+        Directory.CreateDirectory(_directory);
+        string path = Path.Combine(_directory, "preferences.json");
+        File.WriteAllText(path, "{ invalid json");
+        CapturingLogger<JsonUserPreferences> logger = new();
+
+        _ = new JsonUserPreferences(path, logger);
+
+        Assert.NotEmpty(logger.Records);
+        Assert.All(logger.Records, record => Assert.DoesNotContain(_directory, record.Message));
+        Assert.Contains(logger.Records, record => record.Message.Contains("preferences.json"));
+    }
+
+    private sealed record LogRecord(string Message);
+
+    private sealed class CapturingLogger<T> : ILogger<T>
+    {
+        public List<LogRecord> Records { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull
+        {
+            return null;
+        }
+
+        public bool IsEnabled(LogLevel logLevel)
+        {
+            return true;
+        }
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
+            Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            Records.Add(new LogRecord(formatter(state, exception)));
+        }
     }
 }

@@ -6,6 +6,25 @@ TeamsSync の今後の改善項目。メンバー削除を伴うアプリケー�
 
 ## 優先度: 高
 
+### コード全体レビューで見つかった問題を修正する(2026-08-04)
+
+- [x] メンバー応答の解析失敗(`InvalidDataException`)がバッチ取得・個別フォールバックのどちらでも捕捉されず、所有チーム一覧取得全体が失敗する（`TeamMembersBatchFetcher.cs`のバッチ解析、`GraphTeamsGateway.TryFetchMembersIndividuallyAsync`の両方に`InvalidDataException`のcatchを追加し、`GraphException`時と同様にそのチームだけ判定をスキップして他チームの処理を継続するようにした）
+- [x] 設定ファイルパス(Windowsユーザー名を含む)が監査ログにそのまま記録される（`JsonUserPreferences`の警告ログを、フルパスではなく`Path.GetFileName`のファイル名のみを記録するよう変更。利用者向け`LoadWarning`メッセージは従来どおりフルパスを表示する）
+- [x] `MsalAuthenticationService.SignOutAsync`が排他制御なしで`_result`を操作する（`GetTokenAsync`と同じ`_tokenGate`で直列化した）
+- [x] 同期実行直前のキャンセルが「反映できませんでした」という重大エラーとして誤表示される（`RunSyncAndReconcileAsync`内で、実行直前の内部再検証(`RevalidateAndExecuteAsync`)が投げる`OperationCanceledException`をその場で捕捉し、通常のキャンセル完了と同様に案内するよう変更）
+
+完了条件: 上記いずれも再現条件下で機能停止・情報漏えい・誤表示が発生しない。
+
+## 優先度: 中
+
+### コード全体レビューで見つかった軽微な問題を修正する(2026-08-04)
+
+- [x] `SyncPlan.EnsureExecutable()`が`CanExecute`と異なり`HasNoActionableChanges`を検査しない（`EnsureExecutable()`に`HasNoActionableChanges`のチェックを追加し`CanExecute`と条件を揃えた）
+- [x] `SyncPlan.WithoutChanges`(個別除外)が配線された際、`IsEquivalentTo`が`Excluded`を比較対象外にしているため再検証が常に「状態変化あり」と誤判定する（`IsEquivalentTo`が個別除外したユーザーIDを両プランの比較対象から取り除くよう変更し、除外の有無自体は再検証の不一致要因にならないようにした）
+- [x] `SyncResultWriter`の結果ログファイル名に長さ上限がなく、極端に長いチーム名でパス長超過により監査ログ保存だけが失敗しうる（`SanitizeFileName`にチーム名部分の長さ上限(100文字)を追加し切り詰めるようにした）
+
+完了条件: 上記いずれも再現条件下で不整合・保存失敗が発生しない。
+
 ### 指定した複数メンバーだけをまとめて削除できるようにする
 
 - [x] 同期モードに`指定メンバーを削除`を追加し、`追加のみ`や`完全同期（リスト外を削除）`とは入力リストの意味が異なることを選択肢の近くへ明示する

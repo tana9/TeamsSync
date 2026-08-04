@@ -107,6 +107,21 @@ public sealed class SyncResultWriterTests : IDisposable
     }
 
     [Fact]
+    public void WriteAutoLog_極端に長いチーム名はファイル名を切り詰める()
+    {
+        SyncPlan plan = CreatePlan(new string('あ', 300));
+        SyncExecutionResult result = new(
+            [new SyncOperationResult(ChangeKind.Add, "user1@example.com", true, null)], false);
+
+        string path = new SyncResultWriter(_directory).WriteAutoLog(plan, result, Guid.NewGuid());
+
+        string fileName = Path.GetFileName(path);
+        Assert.True(fileName.Length < 200,
+            $"ファイル名が長すぎます({fileName.Length}文字)。パス長超過で保存に失敗する可能性があります。");
+        Assert.True(File.Exists(path));
+    }
+
+    [Fact]
     public void WriteAutoLog_通常値はそのまま出力される()
     {
         SyncPlan plan = CreatePlan("営業チーム");

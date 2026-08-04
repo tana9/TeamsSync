@@ -335,10 +335,26 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         try
         {
             Progress<SyncProgress> progress = new(ReportSyncProgress);
-            SyncExecutionAttempt attempt = await _executionRunner.RunAsync(
-                Plan.Current, _context.Document!, _context.TenantId, _context.ActorObjectId, progress,
-                () => _uiEvents.Status("Teams側の最新状態を確認しています…", false),
-                _syncCancellation.Token);
+            SyncExecutionAttempt attempt;
+            try
+            {
+                attempt = await _executionRunner.RunAsync(
+                    Plan.Current, _context.Document!, _context.TenantId, _context.ActorObjectId, progress,
+                    () => _uiEvents.Status("Teams側の最新状態を確認しています…", false),
+                    _syncCancellation.Token);
+            }
+            catch (OperationCanceledException) when (_syncCancellation.IsCancellationRequested)
+            {
+                // 実行直前の内部再検証(RevalidateAndExecuteAsync内のRevalidatePlanAsync)中に
+                // キャンセルされた場合。Teams側へはまだ何も送信していないため、実行結果の適用は不要で
+                // 通常のキャンセル完了時と同様に案内するだけでよい。ここで捕捉しないと、呼び出し元の
+                // _executeBusyRunner.RunAsyncはこの時点のcancellationTokenを持たないため
+                // 「反映できませんでした」という誤ったエラー表示になってしまう
+                _uiEvents.Status("同期を中止しました", true);
+                ExecuteSyncCommand.NotifyCanExecuteChanged();
+                return;
+            }
+
             if (attempt.IsStale)
             {
                 HandleStaleBeforeExecution(attempt.LatestPlan);

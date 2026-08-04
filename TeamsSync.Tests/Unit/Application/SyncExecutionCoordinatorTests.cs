@@ -14,7 +14,9 @@ public sealed class SyncExecutionCoordinatorTests
         FakeTeamsGateway gateway = new();
         FakeResultWriter writer = new() { ResultPath = @"C:\Logs\result.csv" };
         SyncExecutionCoordinator coordinator = new(new SyncPlanService(gateway), new SyncExecutor(gateway), writer);
-        SyncPlan plan = new(Team, [], [], Mode: SyncMode.AddOnly);
+        SyncPlan plan = new(Team,
+            [new SyncChange(ChangeKind.Add, "New", "new@example.com", ChangeReason.Unspecified, "new-id")],
+            ["new@example.com"], Mode: SyncMode.AddOnly);
         SyncAuditContext audit = new(Guid.NewGuid(), "members.csv", "hash");
         int reconciliationStarts = 0;
 
@@ -72,7 +74,9 @@ public sealed class SyncExecutionCoordinatorTests
         };
         FakeResultWriter writer = new() { Exception = new IOException("save failed") };
         SyncExecutionCoordinator coordinator = new(new SyncPlanService(gateway), new SyncExecutor(gateway), writer);
-        SyncPlan plan = new(Team, [], [], Mode: SyncMode.AddOnly);
+        SyncPlan plan = new(Team,
+            [new SyncChange(ChangeKind.Add, "New", "new@example.com", ChangeReason.Unspecified, "new-id")],
+            ["new@example.com"], Mode: SyncMode.AddOnly);
 
         SyncExecutionOutcome outcome = await coordinator.ExecuteAsync(plan,
             new SyncAuditContext(Guid.NewGuid(), "members.csv", "hash"),
