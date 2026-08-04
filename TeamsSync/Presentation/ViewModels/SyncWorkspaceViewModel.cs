@@ -259,8 +259,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
     private bool CanPreview()
     {
-        return SyncWorkspaceCommandStateEvaluator.CanPreview(_externallyBusy, Preview, Execution, _context.SignedIn,
-            _context.Team, _context.Document);
+        return BuildReadiness().CanPreview;
     }
 
     /// <summary>確認ダイアログでの同意と実行直前の再検証を経てから、同期を実行する</summary>
@@ -490,14 +489,19 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
     private bool CanExecuteSync()
     {
-        return SyncWorkspaceCommandStateEvaluator.CanExecuteSync(_externallyBusy, Preview, Execution, Plan.Current);
+        return BuildReadiness().CanExecuteSync;
     }
 
     /// <summary>現在の状態から、同期を実行できない理由(または実行可能である旨)を判定する</summary>
     private string GetSyncUnavailableReason()
     {
-        return SyncWorkspaceCommandStateEvaluator.BuildUnavailableReason(_externallyBusy, Preview, Execution,
-            _context.SignedIn, _context.Team, _context.Document, Plan.Current);
+        return BuildReadiness().UnavailableReason;
+    }
+
+    /// <summary>現在のbusy状態・サインイン状態・チーム・文書・プランから、実行可否判定用のモデルを組み立てる</summary>
+    private SyncWorkspaceReadiness BuildReadiness()
+    {
+        return new SyncWorkspaceReadiness(_externallyBusy, Preview, Execution, _context, Plan.Current);
     }
 
     /// <summary>差分一覧の絞り込みを「エラー」フィルターへ切り替える</summary>

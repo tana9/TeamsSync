@@ -133,104 +133,6 @@ public sealed class SyncWorkspaceTextFormatterTests
         Assert.Equal("確認しています…", text);
     }
 
-    [Fact]
-    public void BuildSyncUnavailableReason_同期実行中の場合はその旨を返す()
-    {
-        string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(true, false, false, true, Team, Document(),
-            PlanWithAdd());
-
-        Assert.Equal("チームへ反映中です", text);
-    }
-
-    [Fact]
-    public void BuildSyncUnavailableReason_自身がbusyの場合は待機を促す()
-    {
-        string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, true, false, true, Team, Document(),
-            PlanWithAdd());
-
-        Assert.Equal("別の処理が完了するまでお待ちください", text);
-    }
-
-    [Fact]
-    public void BuildSyncUnavailableReason_外部要因でbusyの場合は待機を促す()
-    {
-        string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, true, true, Team, Document(),
-            PlanWithAdd());
-
-        Assert.Equal("別の処理が完了するまでお待ちください", text);
-    }
-
-    [Fact]
-    public void BuildSyncUnavailableReason_未サインインの場合はサインインを促す()
-    {
-        string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, false, Team,
-            Document(), PlanWithAdd());
-
-        Assert.Equal("Microsoft 365へサインインしてください", text);
-    }
-
-    [Fact]
-    public void BuildSyncUnavailableReason_チーム未選択の場合はチーム選択を促す()
-    {
-        string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, null,
-            Document(), PlanWithAdd());
-
-        Assert.Equal("同期先のチームを選択してください", text);
-    }
-
-    [Fact]
-    public void BuildSyncUnavailableReason_文書未選択の場合はメンバーリスト指定を促す()
-    {
-        string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, Team, null,
-            PlanWithAdd());
-
-        Assert.Equal("メンバーリストを指定してください", text);
-    }
-
-    [Fact]
-    public void BuildSyncUnavailableReason_プラン未確認の場合は差分確認を促す()
-    {
-        string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, Team,
-            Document(), null);
-
-        Assert.Equal("先に「差分を確認」を実行してください", text);
-    }
-
-    [Fact]
-    public void BuildSyncUnavailableReason_プランにエラーがある場合は未解決ユーザーの修正を促す()
-    {
-        SyncPlan plan = new(Team,
-            [new SyncChange(ChangeKind.Error, "不明", "unknown@example.com", ChangeReason.UserNotFound)],
-            ["unknown@example.com"]);
-
-        string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, Team,
-            Document(), plan);
-
-        Assert.Equal("未解決ユーザーを修正してください", text);
-    }
-
-    [Fact]
-    public void BuildSyncUnavailableReason_変更が0件の場合は実行する変更がない旨を返す()
-    {
-        SyncPlan plan = new(Team,
-            [new SyncChange(ChangeKind.Keep, "既存", "keep@example.com", ChangeReason.AlreadyMember)],
-            ["keep@example.com"]);
-
-        string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, Team,
-            Document(), plan);
-
-        Assert.Equal("反映する変更はありません", text);
-    }
-
-    [Fact]
-    public void BuildSyncUnavailableReason_実行可能な場合は実行可能メッセージを返す()
-    {
-        string text = SyncWorkspaceTextFormatter.BuildSyncUnavailableReason(false, false, false, true, Team,
-            Document(), PlanWithAdd());
-
-        Assert.Equal("チームに反映できます", text);
-    }
-
     [Theory]
     [InlineData(ChangeKind.Add, true)]
     [InlineData(ChangeKind.Remove, true)]
@@ -280,12 +182,6 @@ public sealed class SyncWorkspaceTextFormatterTests
 
         Assert.All(filters, filter => Assert.Null(filter.Count));
         Assert.All(filters, filter => Assert.False(filter.HasCount));
-    }
-
-    private static SyncPlan PlanWithAdd()
-    {
-        return new SyncPlan(Team, [new SyncChange(ChangeKind.Add, "新規", "new@example.com", ChangeReason.AddToTeam)],
-            ["new@example.com"]);
     }
 
     [Fact]

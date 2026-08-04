@@ -77,56 +77,6 @@ public static class SyncWorkspaceTextFormatter
             : "確認しています…";
     }
 
-    /// <summary>
-    ///     チームへ反映できない理由を、反映中・他処理中・未サインイン・未選択・未確認・エラーあり・
-    ///     変更なしの優先順位で判定して返す。反映可能な場合は「チームに反映できます」を返す
-    /// </summary>
-    public static string BuildSyncUnavailableReason(bool isSyncing, bool isBusy, bool externallyBusy,
-        bool signedIn, TeamInfo? team, MemberListDocument? document, SyncPlan? plan)
-    {
-        if (isSyncing)
-        {
-            return "チームへ反映中です";
-        }
-
-        if (isBusy || externallyBusy)
-        {
-            return "別の処理が完了するまでお待ちください";
-        }
-
-        if (!signedIn)
-        {
-            return "Microsoft 365へサインインしてください";
-        }
-
-        if (team is null)
-        {
-            return "同期先のチームを選択してください";
-        }
-
-        if (document is null)
-        {
-            return "メンバーリストを指定してください";
-        }
-
-        if (plan is null)
-        {
-            return "先に「差分を確認」を実行してください";
-        }
-
-        if (plan.HasErrors)
-        {
-            return "未解決ユーザーを修正してください";
-        }
-
-        if (plan.HasNoActionableChanges)
-        {
-            return "反映する変更はありません";
-        }
-
-        return "チームに反映できます";
-    }
-
     // 差分一覧(changes)の内容から、フィルターごとの該当件数をChangeFilter.Countへ反映する。
     // 呼び出し元(ViewModel)はこの後にCollectionViewSourceのRefreshとHasErrorsの変更通知を行う
     /// <summary>差分一覧の内容から、フィルターごとの該当件数を計算して反映する</summary>
