@@ -14,6 +14,8 @@ tasks:
       - TeamsSync/docs/MANUAL.md
       - docs/manual-style.css
       - docs/manual-callouts.lua
+      - docs/manual-head.html
+      - TeamsSync/Resources/AppIcon.ico
     generates:
       - "{{.MANUAL_OUTPUT}}"
     cmds:
@@ -23,6 +25,7 @@ tasks:
         --embed-resources
         --css=docs/manual-style.css
         --lua-filter=docs/manual-callouts.lua
+        --include-in-header=docs/manual-head.html
         --metadata pagetitle="TeamsSync マニュアル"
         --metadata lang=ja
         -o {{.MANUAL_OUTPUT}}
