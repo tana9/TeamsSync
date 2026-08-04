@@ -135,7 +135,7 @@ public static class SyncWorkspaceTextFormatter
         int maxCount = int.MaxValue)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(maxCount);
-        return (result?.Operations ?? [])
+        return (result?.Results ?? [])
             .Where(operation => !operation.Succeeded)
             .Take(maxCount)
             .Select(operation => new SyncResultRowViewModel(operation))

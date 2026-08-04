@@ -73,17 +73,19 @@ public sealed record SyncOperationResult(
 // 監査CSV保存やTeams側最新状態の再取得を含めた全体は
 // SyncExecutionCoordinatorのSyncExecutionOutcome(このOperationsResultを内包)、
 // さらに実行直前の再検証まで含めた全体はSyncExecutionAttempt(Outcomeを内包)を参照
+// SyncPlan.Operations(実行予定のSyncChange一覧)と紛らわしかったため、こちらは
+// 「実行した結果」であることが読み取れるResultsという名前にしている
 /// <summary>Graphへの追加・削除操作そのものの実行結果(監査CSV保存や最新状態の再取得は含まない)</summary>
-/// <param name="Operations">実行を開始した各操作の結果</param>
+/// <param name="Results">実行を開始した各操作の結果</param>
 /// <param name="Cancelled">同期処理がキャンセルされた場合はtrue</param>
-public sealed record SyncOperationsResult(IReadOnlyList<SyncOperationResult> Operations, bool Cancelled)
+public sealed record SyncOperationsResult(IReadOnlyList<SyncOperationResult> Results, bool Cancelled)
 {
     /// <summary>成功した操作の件数</summary>
-    public int SuccessCount => Operations.Count(x => x.Succeeded);
+    public int SuccessCount => Results.Count(x => x.Succeeded);
 
     /// <summary>失敗した操作の件数(状態不明を含む)</summary>
-    public int FailureCount => Operations.Count(x => !x.Succeeded);
+    public int FailureCount => Results.Count(x => !x.Succeeded);
 
     /// <summary>キャンセルにより成否が確認できなかった操作の件数</summary>
-    public int UncertainCount => Operations.Count(x => x.Uncertain);
+    public int UncertainCount => Results.Count(x => x.Uncertain);
 }

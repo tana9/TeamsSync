@@ -1,4 +1,5 @@
 using TeamsSync.Application.Models;
+using TeamsSync.Presentation.ViewModels;
 
 namespace TeamsSync.Presentation.ViewModels.Support;
 
@@ -39,5 +40,35 @@ public sealed class MemberInputDocumentState
         }
 
         SelectedInputIndex = index;
+    }
+
+    /// <summary>
+    ///     入力方法を切り替え、切替後の有効な文書を返す。貼り付けタブへの切替時、まだ「入力を反映」
+    ///     していない場合は文書の代わりに案内文を<paramref name="pasteInfo" />で返す
+    /// </summary>
+    public MemberListDocument? Select(int index, string pastedText, out string? pasteInfo)
+    {
+        SelectInput(index);
+        // 貼り付けタブに切り替えたとき、テキストが編集されていなければ以前「入力を反映」済みの
+        // PastedDocumentをそのまま維持する(テキストが変わった場合はOnPastedTextChangedが既に
+        // PastedDocumentをnullへ戻しているので、ここで再び「反映してください」の案内に戻る)。
+        // ファイルタブと同様にActiveDocumentへ寄せることで、タブを往復するたびに反映済みの
+        // 入力が失われる不具合を防ぐ
+        if (index == (int)MemberInputMethod.Paste && PastedDocument is null)
+        {
+            pasteInfo = string.IsNullOrWhiteSpace(pastedText)
+                ? MemberPasteInputState.DefaultInfoText
+                : "「入力を反映」を押してください";
+            return null;
+        }
+
+        pasteInfo = null;
+        return ActiveDocument;
+    }
+
+    /// <summary>貼り付け文書を無効化(未反映状態に)する</summary>
+    public void InvalidatePastedDocument()
+    {
+        SetPastedDocument(null);
     }
 }

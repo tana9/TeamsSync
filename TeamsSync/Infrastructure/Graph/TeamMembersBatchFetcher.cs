@@ -45,45 +45,8 @@ public sealed class TeamMembersBatchFetcher(GraphHttpClient http, ILogger logger
                 Url: $"/teams/{candidates[index].Id}/members?$top={GraphHttpClient.MaxMembersPageSize}")).ToList();
             Dictionary<string, JsonElement> responses = await http.SendBatchAsync(requests, cancellationToken);
 
-            List<int> retryable = [];
-            TimeSpan? retryAfter = null;
-            foreach (int index in pending)
-            {
-                if (!responses.TryGetValue(index.ToString(CultureInfo.InvariantCulture), out JsonElement response))
-                {
-                    continue; // membersByIndexに残らず、最後に個別フォールバックされる
-                }
-
-                int status = response.GetProperty("status").GetInt32();
-                if (status == 200)
-                {
-                    try
-                    {
-                        membersByIndex[index] = await ParseBatchMemberResponseAsync(response, cancellationToken);
-                    }
-                    catch (InvalidDataException ex)
-                    {
-                        // Graphが返すメンバー情報が想定外の形状(userId欠落等)の場合、このチームだけ
-                        // membersByIndexに残さず個別フォールバックへ委ね、バッチ全体・他チームの
-                        // 判定を継続する(403/400等と同じ扱い)
-                        logger.LogWarning(ex,
-                            "バッチ応答のメンバー情報を解析できませんでした。個別に再取得します。TeamId={TeamId}",
-                            candidates[index].Id);
-                    }
-                }
-                else if (!isLastAttempt && status is 429 or 503)
-                {
-                    retryable.Add(index);
-                    TimeSpan? itemRetryAfter = ParseRetryAfter(response);
-                    if (itemRetryAfter is { } value && (retryAfter is null || value > retryAfter))
-                    {
-                        retryAfter = value;
-                    }
-                }
-                // それ以外(403/400等、または再試行上限に達した429/503)はmembersByIndexに残さず
-                // 個別フォールバックへ委ねる
-            }
-
+            (List<int> retryable, TimeSpan? retryAfter) = await ClassifyResponsesAsync(
+                candidates, pending, responses, membersByIndex, isLastAttempt, cancellationToken);
             pending = retryable;
             if (pending.Count > 0)
             {
@@ -97,6 +60,56 @@ public sealed class TeamMembersBatchFetcher(GraphHttpClient http, ILogger logger
         }
 
         return membersByIndex;
+    }
+
+    /// <summary>
+    ///     1回のバッチ応答を分類する。200応答はmembersByIndexへ積み上げ、429/503応答は
+    ///     再試行対象として集める。それ以外(403/400等)はどちらにも含めず個別フォールバックへ委ねる
+    /// </summary>
+    private async Task<(List<int> Retryable, TimeSpan? RetryAfter)> ClassifyResponsesAsync(
+        IReadOnlyList<TeamInfo> candidates, IReadOnlyList<int> pending, Dictionary<string, JsonElement> responses,
+        Dictionary<int, List<TeamMember>> membersByIndex, bool isLastAttempt, CancellationToken cancellationToken)
+    {
+        List<int> retryable = [];
+        TimeSpan? retryAfter = null;
+        foreach (int index in pending)
+        {
+            if (!responses.TryGetValue(index.ToString(CultureInfo.InvariantCulture), out JsonElement response))
+            {
+                continue; // membersByIndexに残らず、最後に個別フォールバックされる
+            }
+
+            int status = response.GetProperty("status").GetInt32();
+            if (status == 200)
+            {
+                try
+                {
+                    membersByIndex[index] = await ParseBatchMemberResponseAsync(response, cancellationToken);
+                }
+                catch (InvalidDataException ex)
+                {
+                    // Graphが返すメンバー情報が想定外の形状(userId欠落等)の場合、このチームだけ
+                    // membersByIndexに残さず個別フォールバックへ委ね、バッチ全体・他チームの
+                    // 判定を継続する(403/400等と同じ扱い)
+                    logger.LogWarning(ex,
+                        "バッチ応答のメンバー情報を解析できませんでした。個別に再取得します。TeamId={TeamId}",
+                        candidates[index].Id);
+                }
+            }
+            else if (!isLastAttempt && status is 429 or 503)
+            {
+                retryable.Add(index);
+                TimeSpan? itemRetryAfter = ParseRetryAfter(response);
+                if (itemRetryAfter is { } value && (retryAfter is null || value > retryAfter))
+                {
+                    retryAfter = value;
+                }
+            }
+            // それ以外(403/400等、または再試行上限に達した429/503)はmembersByIndexに残さず
+            // 個別フォールバックへ委ねる
+        }
+
+        return (retryable, retryAfter);
     }
 
     /// <summary>バッチ応答1件分のメンバー一覧を解析し、ページングが必要な場合は続きも取得する</summary>
@@ -125,14 +138,15 @@ public sealed class TeamMembersBatchFetcher(GraphHttpClient http, ILogger logger
             return null;
         }
 
-        foreach (string? text in from header in headers.EnumerateObject()
-                                 where string.Equals(header.Name, "Retry-After", StringComparison.OrdinalIgnoreCase)
-                                 select header.Value.ValueKind switch
-                                 {
-                                     JsonValueKind.String => header.Value.GetString(),
-                                     JsonValueKind.Number => header.Value.GetRawText(),
-                                     _ => null
-                                 })
+        IEnumerable<string?> candidates = headers.EnumerateObject()
+            .Where(header => string.Equals(header.Name, "Retry-After", StringComparison.OrdinalIgnoreCase))
+            .Select(header => header.Value.ValueKind switch
+            {
+                JsonValueKind.String => header.Value.GetString(),
+                JsonValueKind.Number => header.Value.GetRawText(),
+                _ => null
+            });
+        foreach (string? text in candidates)
         {
             if (text is not null &&
                 int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int seconds) &&

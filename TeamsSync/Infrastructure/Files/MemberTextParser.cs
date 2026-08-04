@@ -12,13 +12,14 @@ namespace TeamsSync.Infrastructure.Files;
 /// </summary>
 public sealed class MemberTextParser(TimeProvider? timeProvider = null) : IMemberTextParser
 {
-    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     /// <summary>貼り付け入力に許容する最大件数</summary>
     public const int MaximumEntries = 5000;
     /// <summary>貼り付け入力に許容する最大文字数</summary>
     public const int MaximumTextLength = 500_000;
     /// <summary>貼り付け入力の1行に許容する最大文字数</summary>
     public const int MaximumLineLength = 512;
+
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
 
     // ReadOnlySpan<char>.EnumerateLines()はフォームフィード(U+000C)・NEL(U+0085)・LS/PS(U+2028/2029)も
     // 行区切りとして扱うため、これらを使うと制御文字を拒否する下のチェックをすり抜けて

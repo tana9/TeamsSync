@@ -71,11 +71,7 @@ public sealed class MemberListReader : IMemberListReader
                 throw new InvalidDataException("メンバーのメールアドレスがありません。");
             }
 
-            string finalHash = ComputeSha256(path);
-            if (!string.Equals(initialHash, finalHash, StringComparison.Ordinal))
-            {
-                throw new InvalidDataException("読込中にファイルが変更されました。もう一度選択してください。");
-            }
+            string finalHash = EnsureNotModifiedDuringRead(path, initialHash);
 
             return new MemberListDocument(addresses, info.Name, info.FullName, info.LastWriteTime,
                 parsed.SourceName, parsed.Column, finalHash, parsed.IsNameColumn);
@@ -85,6 +81,20 @@ public sealed class MemberListReader : IMemberListReader
             throw new InvalidDataException(
                 "ファイルが他のプログラム（Excelなど）で開かれているため読み込めません。閉じてから再度お試しください。", ex);
         }
+    }
+
+    /// <summary>
+    ///     読込前後のファイル内容ハッシュを比較し、読込中にファイルが変更されていないか検証する
+    /// </summary>
+    private static string EnsureNotModifiedDuringRead(string path, string initialHash)
+    {
+        string finalHash = ComputeSha256(path);
+        if (!string.Equals(initialHash, finalHash, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException("読込中にファイルが変更されました。もう一度選択してください。");
+        }
+
+        return finalHash;
     }
 
     /// <summary>CSVファイルを解析し、アドレス候補列を抽出する</summary>
@@ -174,32 +184,32 @@ public sealed class MemberListReader : IMemberListReader
             return new ExtractedColumn([], "1列目", false);
         }
 
-        (int index, bool isNameColumn) = FindPreferredColumn(rows[0]);
-        bool hasHeader = index >= 0;
-        int column = hasHeader ? index : 0;
+        PreferredColumn preferred = FindPreferredColumn(rows[0]);
+        bool hasHeader = preferred.Index >= 0;
+        int column = hasHeader ? preferred.Index : 0;
         string label = hasHeader ? rows[0][column].Trim() : "1列目（ヘッダーなし）";
         return new ExtractedColumn(
             rows.Skip(hasHeader ? 1 : 0).Where(r => r.Length > column).Select(r => r[column]), label,
-            hasHeader && isNameColumn);
+            hasHeader && preferred.IsNameColumn);
     }
 
     /// <summary>
     ///     ヘッダー名からメールアドレス列を優先的に探し、なければ氏名列を含む候補列を探す。
     ///     戻り値には、見つかった列がメールアドレス列ではなく氏名列かどうかもあわせて含める
     /// </summary>
-    private static (int Index, bool IsNameColumn) FindPreferredColumn(IReadOnlyList<string> headers)
+    private static PreferredColumn FindPreferredColumn(IReadOnlyList<string> headers)
     {
         List<string> normalized = headers.Select(NormalizeHeader).ToList();
         int addressIndex = normalized.FindIndex(header =>
             AddressHeaderNames.Contains(header, StringComparer.OrdinalIgnoreCase));
         if (addressIndex >= 0)
         {
-            return (addressIndex, false);
+            return new PreferredColumn(addressIndex, false);
         }
 
         int fallbackIndex =
             normalized.FindIndex(header => HeaderNames.Contains(header, StringComparer.OrdinalIgnoreCase));
-        return (fallbackIndex, fallbackIndex >= 0);
+        return new PreferredColumn(fallbackIndex, fallbackIndex >= 0);
     }
 
     /// <summary>ファイル内容のSHA-256ハッシュを16進文字列で計算する</summary>
@@ -224,4 +234,7 @@ public sealed class MemberListReader : IMemberListReader
     /// <summary>CSV/Excelから読み取った値と、入力元・検出列のラベルをまとめた結果</summary>
     private sealed record ParsedMemberSource(IEnumerable<string> Values, string SourceName, string Column,
         bool IsNameColumn);
+
+    /// <summary>ヘッダー行から見つかったアドレス列(または氏名列)のインデックスと種別</summary>
+    private sealed record PreferredColumn(int Index, bool IsNameColumn);
 }

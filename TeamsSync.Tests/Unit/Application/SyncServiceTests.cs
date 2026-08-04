@@ -430,7 +430,7 @@ public sealed class SyncServiceTests
                 cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(0, result.FailureCount);
         Assert.Equal(2, result.SuccessCount);
-        Assert.Equal(["New", "Old"], result.Operations.Select(operation => operation.DisplayName));
+        Assert.Equal(["New", "Old"], result.Results.Select(operation => operation.DisplayName));
         Assert.Equal([("team-1", "new-id")], graph.Added);
         Assert.Equal([("team-1", "old-membership")], graph.Removed);
     }
@@ -561,7 +561,7 @@ public sealed class SyncServiceTests
         Assert.Single(graph.Added);
         // Graphへの要求送信中にキャンセルされた場合、サーバー側で実際に成功したかどうか不明なため、
         // 「未実行」として欠落させず、状態不明(Uncertain)の操作として記録する
-        SyncOperationResult operation = Assert.Single(result.Operations);
+        SyncOperationResult operation = Assert.Single(result.Results);
         Assert.True(operation.Uncertain);
         Assert.False(operation.Succeeded);
     }
@@ -581,7 +581,7 @@ public sealed class SyncServiceTests
             cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(result.Cancelled);
-        SyncOperationResult failure = Assert.Single(result.Operations);
+        SyncOperationResult failure = Assert.Single(result.Results);
         Assert.False(failure.Succeeded);
         Assert.Equal("request timeout", failure.Error);
     }

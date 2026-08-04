@@ -24,7 +24,6 @@ public partial class MemberFileViewModel : ObservableObject
     private readonly RestartableCancellation _parseCancellation = new();
     private readonly IUserPreferences _preferences;
     private readonly MemberFileInputCoordinator _inputCoordinator;
-    private readonly MemberInputSelectionCoordinator _selectionCoordinator;
     private readonly ViewModelUiEvents _uiEvents = new();
     private bool _enabled = true;
     private readonly MemberInputDocumentState _documents = new();
@@ -35,7 +34,6 @@ public partial class MemberFileViewModel : ObservableObject
         TeamsAccessService teamsAccess, IMemberInputConfirmationService inputConfirmation)
     {
         _inputCoordinator = new MemberFileInputCoordinator(reader, textParser);
-        _selectionCoordinator = new MemberInputSelectionCoordinator(_documents);
         _preferences = preferences;
         _filePicker = filePicker;
         _notifications = notifications;
@@ -161,7 +159,7 @@ public partial class MemberFileViewModel : ObservableObject
     /// <summary>入力方法の切り替えに応じて、有効な文書を切り替える</summary>
     private void OnSelectedInputIndexChanged(int value)
     {
-        MemberListDocument? document = _selectionCoordinator.Select(value, PastedText, out string? pasteInfo);
+        MemberListDocument? document = _documents.Select(value, PastedText, out string? pasteInfo);
         Document = document;
         if (pasteInfo is not null)
         {
@@ -184,7 +182,7 @@ public partial class MemberFileViewModel : ObservableObject
         }
 
         Document = null;
-        _selectionCoordinator.InvalidatePastedDocument();
+        _documents.InvalidatePastedDocument();
         PasteInput.InfoText = string.IsNullOrWhiteSpace(value)
             ? MemberPasteInputState.DefaultInfoText
             : "内容が変更されました。「入力を反映」を押してください";
@@ -367,7 +365,7 @@ public partial class MemberFileViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            _selectionCoordinator.InvalidatePastedDocument();
+            _documents.InvalidatePastedDocument();
             Document = null;
             PasteInput.HasError = true;
             PasteInput.InfoText = ex.Message;

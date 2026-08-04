@@ -52,29 +52,15 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
         using StreamWriter writer = new(stream, new UTF8Encoding(true), leaveOpen: true);
         writer.WriteLine("チーム,同期モード,操作,表示名,メールアドレス,結果,エラー");
         IReadOnlyList<SyncChange> plannedOperations = plan.Operations;
-        if (plannedOperations.Count == 0 && result.Operations.Count > 0)
+        for (int index = 0; index < plannedOperations.Count; index++)
         {
-            // 実際の同期(SyncExecutionCoordinator.ExecuteAsync)ではresult.OperationsはSyncExecutorが
-            // plan.Operationsを1件ずつ実行して積み上げるため、この分岐は本番経路では到達しない。
-            // プラン全体を組み立てずに実行結果の出力だけを検証したいテストのための簡易経路として残している
-            foreach (SyncOperationResult item in result.Operations)
-            {
-                WriteRow(writer, plan, item.Kind, item.DisplayName, item.Email,
-                    StatusLabel(item), item.Error ?? "");
-            }
-        }
-        else
-        {
-            for (int index = 0; index < plannedOperations.Count; index++)
-            {
-                SyncChange planned = plannedOperations[index];
-                SyncOperationResult? executed = index < result.Operations.Count ? result.Operations[index] : null;
-                WriteRow(writer, plan, planned.Kind, planned.DisplayName, planned.Email,
-                    executed is null ? "未実行" : StatusLabel(executed),
-                    executed is null
-                        ? result.Cancelled ? "同期がキャンセルされたため未実行" : "実行結果が記録されていません"
-                        : executed.Error ?? "");
-            }
+            SyncChange planned = plannedOperations[index];
+            SyncOperationResult? executed = index < result.Results.Count ? result.Results[index] : null;
+            WriteRow(writer, plan, planned.Kind, planned.DisplayName, planned.Email,
+                executed is null ? "未実行" : StatusLabel(executed),
+                executed is null
+                    ? result.Cancelled ? "同期がキャンセルされたため未実行" : "実行結果が記録されていません"
+                    : executed.Error ?? "");
         }
 
         writer.Flush();

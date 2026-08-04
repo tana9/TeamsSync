@@ -6,6 +6,13 @@ TeamsSync の今後の改善項目。メンバー削除を伴うアプリケー�
 
 ## 優先度: 高
 
+### コード品質再レビューで見つかった可読性・保守性の問題を修正する(2026-08-04)
+
+- [x] `SyncPlan.Operations`(実行予定)と`SyncOperationsResult.Operations`(実行結果)が同名かつ型名も`SyncOperationResult`/`SyncOperationsResult`と紛らわしい（`SyncOperationsResult.Operations`を`Results`へリネームし、`SyncResultWriter`等の全参照箇所を更新した）
+- [x] `SyncResultPresenter.Show(bool warning, ...)`が、`INotificationService`が意図的に避けている「bool flagで分岐」を再導入している（`ShowSuccess`/`ShowWarning`の2メソッドへ分割し、`SyncWorkspaceViewModel`の呼び出し箇所とラッパーメソッド`ShowResultNotification`も併せて整理した）
+
+完了条件: 上記いずれも命名から意味が一意に読み取れる。
+
 ### コード全体レビューで見つかった問題を修正する(2026-08-04)
 
 - [x] メンバー応答の解析失敗(`InvalidDataException`)がバッチ取得・個別フォールバックのどちらでも捕捉されず、所有チーム一覧取得全体が失敗する（`TeamMembersBatchFetcher.cs`のバッチ解析、`GraphTeamsGateway.TryFetchMembersIndividuallyAsync`の両方に`InvalidDataException`のcatchを追加し、`GraphException`時と同様にそのチームだけ判定をスキップして他チームの処理を継続するようにした）
@@ -16,6 +23,20 @@ TeamsSync の今後の改善項目。メンバー削除を伴うアプリケー�
 完了条件: 上記いずれも再現条件下で機能停止・情報漏えい・誤表示が発生しない。
 
 ## 優先度: 中
+
+### コード品質再レビューで見つかった残りの問題を修正する(2026-08-04)
+
+- [x] `MemberListReader.FindPreferredColumn`だけ名前なしタプル`(int Index, bool IsNameColumn)`を返している（`PreferredColumn` recordへ置き換え、`ExtractedColumn`/`ParsedMemberSource`と揃えた）
+- [x] `TeamModels.cs`が288行に肥大化し、`SyncPlan`+`SyncPlanEquivalence`だけで170行超を占めている（`SyncPlan.cs`へ分離。`TeamModels.cs`には単純なDTO・enumのみ残した）
+- [x] `GraphHttpClient.cs`と`GraphSdkTransportHandler.cs`で`client-request-id`/`return-client-request-id`ヘッダー付与ロジックが完全重複している（`GraphRequestDiagnostics.ApplyClientRequestId`ヘルパーへ抽出）
+- [x] `SyncWorkspaceViewModel.cs`の`ApplyPlan(plan, false)`呼び出し3箇所に、ほぼ同文のコメントがコピーされている（`ApplyPlanSilently`メソッドへまとめ、コメントを1箇所に集約）
+- [x] `TeamMembersBatchFetcher.FetchAsync`が約65行で責務過多（応答分類部分を`ClassifyResponsesAsync`へ抽出し、`Retry-After`検索のLINQクエリ構文もメソッド構文へ揃えた）
+- [x] `MemberListReader.Read`がサイズ検証・ハッシュ計算・パース・改ざん検知まで1メソッドに詰まっている（改ざん検知を`EnsureNotModifiedDuringRead`へ抽出）
+- [x] `MemberInputSelectionCoordinator`が単一消費者(`MemberFileViewModel`)向けの薄いラッパーで層が1つ余分（`MemberInputDocumentState`へ統合し、ファイル自体を削除）
+- [x] `SyncResultWriter.WriteCsv`の、本番経路では到達しないテスト専用分岐を解消する（分岐を削除し、`SyncResultWriterTests`の該当テストを、`result`の各要素と対応する`SyncChange`を持つ`plan`を組み立てるよう修正した）
+- [x] `MemberTextParser.cs`のpublic const群がprivateフィールドの後に置かれている（定数をフィールド群の先頭へ移動）
+
+完了条件: 重複が解消され、責務の大きいメソッド・ファイルが分割され、宣言順がプロジェクト内で一貫している。
 
 ### コード全体レビューで見つかった軽微な問題を修正する(2026-08-04)
 

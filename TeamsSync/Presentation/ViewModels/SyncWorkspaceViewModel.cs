@@ -306,9 +306,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             {
                 _uiEvents.Status("実行直前のメンバー構成を確認しています…", false);
                 SyncPlanRevalidation revalidation = await _executionCoordinator.RevalidateAsync(Plan.Current!);
-                // ApplyPlan既定の案内文はこの後の分岐でより具体的なメッセージに置き換えるため、
-                // 同じ内容をスクリーンリーダーへ二重に読み上げさせないようannounceStatus: falseで抑制する
-                ApplyPlan(revalidation.LatestPlan, false);
+                ApplyPlanSilently(revalidation.LatestPlan);
                 if (revalidation.IsCurrent)
                 {
                     return true;
@@ -394,9 +392,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     /// </summary>
     private void HandleStaleBeforeExecution(SyncPlan latestPlan)
     {
-        // ApplyPlan既定の案内文はこの直後により具体的な通知に置き換えるため、
-        // 同じ内容をスクリーンリーダーへ二重に読み上げさせないようannounceStatus: falseで抑制する
-        ApplyPlan(latestPlan, false);
+        ApplyPlanSilently(latestPlan);
         _notifications.ShowWarning("同期差分が変更されました",
             "チームのメンバー構成が実行直前に変更されたため、同期を中断しました。最新の差分を確認して、もう一度チームに反映してください。");
         _uiEvents.Status("最新の同期差分を表示しました。内容を再確認してください", true);
@@ -412,24 +408,22 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         if (outcome.ReconciliationError is null && outcome.RemainingPlan is not null)
         {
             SyncPlan remaining = outcome.RemainingPlan;
-            // ApplyPlan既定の案内文はこの直後により具体的な完了メッセージへ置き換えるため、
-            // 同じ内容をスクリーンリーダーへ二重に読み上げさせないようannounceStatus: falseで抑制する
-            ApplyPlan(remaining, false);
+            ApplyPlanSilently(remaining);
             int remainingCount = remaining.AddCount + remaining.RemoveCount;
             Result.SetRemainingCount(remainingCount);
             if (cancelled)
             {
-                ShowResultNotification(true, "同期を中止しました",
+                _resultPresenter.ShowWarning("同期を中止しました",
                     $"{_lastResult!.SuccessCount}件は処理済みです。Teams側の最新状態を確認しました。未反映 {remainingCount}件を再実行できます。");
             }
             else if (_lastResult!.FailureCount > 0)
             {
-                ShowResultNotification(true, "一部の操作に失敗しました",
+                _resultPresenter.ShowWarning("一部の操作に失敗しました",
                     $"成功 {_lastResult.SuccessCount}件 / 失敗 {_lastResult.FailureCount}件。未反映 {remainingCount}件を再実行できます。");
             }
             else
             {
-                ShowResultNotification(false, "同期完了",
+                _resultPresenter.ShowSuccess("同期完了",
                     $"{_lastResult.SuccessCount}件の変更が完了し、Teams側の状態を確認しました。");
             }
 
@@ -443,7 +437,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
         InvalidatePlan(false);
         Result.MarkRemainingCountUnavailable();
-        ShowResultNotification(true, cancelled ? "同期を中止しました" : "最終状態を確認できませんでした",
+        _resultPresenter.ShowWarning(cancelled ? "同期を中止しました" : "最終状態を確認できませんでした",
             cancelled
                 ? $"{_lastResult!.SuccessCount}件は処理済みの可能性があります。Teams側の最新状態を確認できませんでした。差分を再確認してください。{Environment.NewLine}{outcome.ReconciliationError?.Message}"
                 : $"操作結果は保存済みです。差分を再確認してください。{Environment.NewLine}{outcome.ReconciliationError?.Message}");
@@ -465,12 +459,6 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     private bool CanRetryRemaining()
     {
         return CanRetryResult && CanPreview();
-    }
-
-    /// <summary>同期結果とログ保存を1つのSnackbarで通知し、保存成功時はCSVを開く操作を付ける</summary>
-    private void ShowResultNotification(bool warning, string title, string message)
-    {
-        _resultPresenter.Show(warning, title, message);
     }
 
     /// <summary>保存済みの同期結果CSVを既定のアプリケーションで開く</summary>
@@ -576,6 +564,18 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     ///     既定のステータスメッセージを通知し、差分一覧へのフォーカス移動を要求する場合はtrue。
     ///     呼び出し元が個別のステータスを通知する場合はfalse
     /// </param>
+    // ApplyPlan既定の案内文を、この直後により具体的なメッセージ・通知に置き換える3箇所
+    // (RevalidateBeforeExecuteAsync/HandleStaleBeforeExecution/HandleReconciliation)で使う。
+    // 同じ内容をスクリーンリーダーへ二重に読み上げさせないよう、既定の案内は抑制する
+    /// <summary>
+    ///     同期プランを画面へ反映するが、既定のステータス通知・フォーカス移動は行わない。
+    ///     呼び出し元がこの直後により具体的な通知を行う場合に使う
+    /// </summary>
+    private void ApplyPlanSilently(SyncPlan plan)
+    {
+        ApplyPlan(plan, false);
+    }
+
     private void ApplyPlan(SyncPlan plan, bool announceStatus = true)
     {
         Plan.Apply(plan);

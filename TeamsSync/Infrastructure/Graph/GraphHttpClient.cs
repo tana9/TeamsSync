@@ -115,9 +115,7 @@ public sealed class GraphHttpClient(
     private async Task<HttpResponseMessage> SendOnceAsync(HttpRequestMessage request,
         string clientName, bool expectedNotFound = false, CancellationToken cancellationToken = default)
     {
-        string clientRequestId = _identifierGenerator.NewGuid().ToString();
-        request.Headers.TryAddWithoutValidation("client-request-id", clientRequestId);
-        request.Headers.TryAddWithoutValidation("return-client-request-id", "true");
+        string clientRequestId = GraphRequestDiagnostics.ApplyClientRequestId(request, _identifierGenerator);
         request.Headers.Authorization = new AuthenticationHeaderValue(
             "Bearer", await auth.GetTokenAsync(cancellationToken: cancellationToken));
         HttpResponseMessage response = await httpClientFactory.CreateClient(clientName)
