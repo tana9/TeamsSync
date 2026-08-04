@@ -231,7 +231,7 @@ internal sealed class FakeResultWriter : ISyncResultWriter
     public Exception? Exception { get; set; }
     public string ResultPath { get; set; } = @"C:\Logs\result.csv";
 
-    public string WriteAutoLog(SyncPlan plan, SyncExecutionResult result, Guid executionId)
+    public string WriteAutoLog(SyncPlan plan, SyncOperationsResult result, Guid executionId)
     {
         if (Exception is not null)
         {

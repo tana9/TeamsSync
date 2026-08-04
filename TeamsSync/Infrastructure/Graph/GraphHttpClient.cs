@@ -28,7 +28,6 @@ public sealed class GraphHttpClient(
     /// <summary>チームメンバー一覧取得で指定する最大ページサイズ($top)。Graphが許容する上限値</summary>
     public const int MaxMembersPageSize = 999;
 
-    private static readonly Uri GraphBase = new("https://graph.microsoft.com/v1.0/");
     private readonly IIdentifierGenerator _identifierGenerator = identifierGenerator ?? new IdentifierGenerator();
 
     /// <summary>
@@ -65,25 +64,6 @@ public sealed class GraphHttpClient(
     }
 
     /// <summary>
-    ///     更新系リクエストを送信する。<paramref name="replaceNames" />がtrueの場合、
-    ///     C#では使えない<c>@odata.type</c>/<c>user@odata.bind</c>相当のプロパティ名へ置換する
-    /// </summary>
-    public async Task SendAsync(HttpMethod method, string relative, object? body = null, bool replaceNames = false,
-        CancellationToken cancellationToken = default)
-    {
-        string? json = body is null ? null : JsonSerializer.Serialize(body);
-        if (replaceNames && json is not null)
-        {
-            json = json.Replace("\"odata_type\"", "\"@odata.type\"")
-                .Replace("\"user_odata_bind\"", "\"user@odata.bind\"");
-        }
-
-        using HttpRequestMessage request = CreateRequest(method, relative, json);
-        using HttpResponseMessage response = await SendOnceAsync(
-            request, WriteHttpClientName, cancellationToken: cancellationToken);
-    }
-
-    /// <summary>
     ///     複数のGETリクエストを<c>$batch</c>エンドポイントへまとめて送信し、リクエストIDごとの
     ///     レスポンスを返す
     /// </summary>
@@ -111,7 +91,7 @@ public sealed class GraphHttpClient(
     {
         Uri uri = Uri.TryCreate(relative, UriKind.Absolute, out Uri? absolute)
             ? absolute
-            : new Uri(GraphBase, relative);
+            : new Uri(GraphEndpoints.BaseUri, relative);
         GraphEndpointValidator.Validate(uri);
 
         HttpRequestMessage request = new(method, uri);

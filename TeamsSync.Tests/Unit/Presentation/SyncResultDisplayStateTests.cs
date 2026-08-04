@@ -10,7 +10,7 @@ public sealed class SyncResultDisplayStateTests
     public void Apply_実行結果から件数と失敗一覧と派生表示を構築する()
     {
         SyncResultDisplayState state = new();
-        SyncExecutionResult execution = new(
+        SyncOperationsResult execution = new(
         [
             new SyncOperationResult(ChangeKind.Add, "success@example.com", true, null),
             new SyncOperationResult(ChangeKind.Remove, "failure@example.com", false, "権限がありません")
@@ -35,7 +35,7 @@ public sealed class SyncResultDisplayStateTests
     public void Clear_結果状態を未実行へ戻して必要な変更を通知する()
     {
         SyncResultDisplayState state = new();
-        state.Apply(new SyncExecutionResult(
+        state.Apply(new SyncOperationsResult(
             [new SyncOperationResult(ChangeKind.Add, "failure@example.com", false, "失敗")], true),
             @"C:\Logs\result.csv");
         state.SetRemainingCount(1);

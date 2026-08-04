@@ -22,7 +22,7 @@ public sealed class SyncResultWriterTests : IDisposable
         return new SyncPlan(new TeamInfo("team-id", teamDisplayName, null), [], []);
     }
 
-    private string WriteAndRead(SyncPlan plan, SyncExecutionResult result)
+    private string WriteAndRead(SyncPlan plan, SyncOperationsResult result)
     {
         new SyncResultWriter(_directory).WriteAutoLog(plan, result, Guid.NewGuid());
         string path = Assert.Single(Directory.GetFiles(_directory));
@@ -34,7 +34,7 @@ public sealed class SyncResultWriterTests : IDisposable
     {
         Assert.False(Directory.Exists(_directory));
         SyncPlan plan = CreatePlan("営業チーム");
-        SyncExecutionResult result = new(
+        SyncOperationsResult result = new(
             [new SyncOperationResult(ChangeKind.Add, "user1@example.com", true, null)], false);
 
         new SyncResultWriter(_directory).WriteAutoLog(plan, result, Guid.NewGuid());
@@ -46,7 +46,7 @@ public sealed class SyncResultWriterTests : IDisposable
     public void WriteAutoLog_実行日時と対象チーム名をファイル名にする()
     {
         SyncPlan plan = CreatePlan("営業チーム");
-        SyncExecutionResult result = new(
+        SyncOperationsResult result = new(
             [new SyncOperationResult(ChangeKind.Add, "user1@example.com", true, null)], false);
         DateTime before = DateTime.Now;
 
@@ -63,7 +63,7 @@ public sealed class SyncResultWriterTests : IDisposable
     public void WriteAutoLog_ファイル名に実行IDを含み保存したフルパスを返す()
     {
         SyncPlan plan = CreatePlan("営業チーム");
-        SyncExecutionResult result = new([], false);
+        SyncOperationsResult result = new([], false);
         Guid executionId = Guid.NewGuid();
 
         string path = new SyncResultWriter(_directory).WriteAutoLog(plan, result, executionId);
@@ -81,10 +81,10 @@ public sealed class SyncResultWriterTests : IDisposable
         SyncResultWriter writer = new(_directory);
 
         string first = writer.WriteAutoLog(plan,
-            new SyncExecutionResult([new SyncOperationResult(ChangeKind.Add, "first@example.com", true, null)], false),
+            new SyncOperationsResult([new SyncOperationResult(ChangeKind.Add, "first@example.com", true, null)], false),
             executionId);
         string second = writer.WriteAutoLog(plan,
-            new SyncExecutionResult([new SyncOperationResult(ChangeKind.Add, "second@example.com", true, null)], false),
+            new SyncOperationsResult([new SyncOperationResult(ChangeKind.Add, "second@example.com", true, null)], false),
             executionId);
 
         Assert.NotEqual(first, second);
@@ -97,7 +97,7 @@ public sealed class SyncResultWriterTests : IDisposable
     public void WriteAutoLog_チーム名にファイル名として使えない文字が含まれる場合はアンダースコアへ置き換える()
     {
         SyncPlan plan = CreatePlan("開発/QA:チーム");
-        SyncExecutionResult result = new(
+        SyncOperationsResult result = new(
             [new SyncOperationResult(ChangeKind.Add, "user1@example.com", true, null)], false);
 
         new SyncResultWriter(_directory).WriteAutoLog(plan, result, Guid.NewGuid());
@@ -110,7 +110,7 @@ public sealed class SyncResultWriterTests : IDisposable
     public void WriteAutoLog_極端に長いチーム名はファイル名を切り詰める()
     {
         SyncPlan plan = CreatePlan(new string('あ', 300));
-        SyncExecutionResult result = new(
+        SyncOperationsResult result = new(
             [new SyncOperationResult(ChangeKind.Add, "user1@example.com", true, null)], false);
 
         string path = new SyncResultWriter(_directory).WriteAutoLog(plan, result, Guid.NewGuid());
@@ -125,7 +125,7 @@ public sealed class SyncResultWriterTests : IDisposable
     public void WriteAutoLog_通常値はそのまま出力される()
     {
         SyncPlan plan = CreatePlan("営業チーム");
-        SyncExecutionResult result = new(
+        SyncOperationsResult result = new(
             [new SyncOperationResult(ChangeKind.Add, "user1@example.com", true, null)], false);
 
         string csv = WriteAndRead(plan, result);
@@ -138,7 +138,7 @@ public sealed class SyncResultWriterTests : IDisposable
     [Fact]
     public void WriteAutoLog_ヘッダーを日本語で出力する()
     {
-        string csv = WriteAndRead(CreatePlan("営業チーム"), new SyncExecutionResult([], false));
+        string csv = WriteAndRead(CreatePlan("営業チーム"), new SyncOperationsResult([], false));
 
         Assert.StartsWith("チーム,同期モード,操作,表示名,メールアドレス,結果,エラー", csv);
     }
@@ -146,7 +146,7 @@ public sealed class SyncResultWriterTests : IDisposable
     [Fact]
     public void WriteAutoLog_対象ユーザーの表示名を出力する()
     {
-        string csv = WriteAndRead(CreatePlan("営業チーム"), new SyncExecutionResult(
+        string csv = WriteAndRead(CreatePlan("営業チーム"), new SyncOperationsResult(
             [new SyncOperationResult(ChangeKind.Add, "taro@example.com", true, null, "山田 太郎")], false));
 
         Assert.Contains("\"山田 太郎\",\"taro@example.com\"", csv);
@@ -162,7 +162,7 @@ public sealed class SyncResultWriterTests : IDisposable
                 "membership-1"),
             new SyncChange(ChangeKind.Add, "未実行2", "pending2@example.com", ChangeReason.Unspecified, "pending-2")
         ], ["done@example.com", "pending2@example.com"]);
-        SyncExecutionResult result = new(
+        SyncOperationsResult result = new(
             [new SyncOperationResult(ChangeKind.Add, "done@example.com", true, null, "実行済み")], true);
 
         string csv = WriteAndRead(plan, result);
@@ -181,7 +181,7 @@ public sealed class SyncResultWriterTests : IDisposable
             new SyncChange(ChangeKind.Add, "失敗", "failed@example.com", ChangeReason.Unspecified, "failed-id"),
             new SyncChange(ChangeKind.Add, "成功", "success@example.com", ChangeReason.Unspecified, "success-id")
         ], ["failed@example.com", "success@example.com"]);
-        SyncExecutionResult result = new(
+        SyncOperationsResult result = new(
         [
             new SyncOperationResult(ChangeKind.Add, "failed@example.com", false, "権限エラー", "失敗"),
             new SyncOperationResult(ChangeKind.Add, "success@example.com", true, null, "成功")
@@ -201,7 +201,7 @@ public sealed class SyncResultWriterTests : IDisposable
     {
         SyncPlan plan = new(new TeamInfo("team-id", "営業チーム", null), [], [], Mode: mode);
 
-        string csv = WriteAndRead(plan, new SyncExecutionResult(
+        string csv = WriteAndRead(plan, new SyncOperationsResult(
             [new SyncOperationResult(ChangeKind.Add, "user@example.com", true, null)], false));
 
         Assert.Contains($"\"{expected}\"", csv);
@@ -212,7 +212,7 @@ public sealed class SyncResultWriterTests : IDisposable
     [InlineData(ChangeKind.Remove, "削除")]
     public void WriteAutoLog_操作を日本語で出力する(ChangeKind kind, string expected)
     {
-        string csv = WriteAndRead(CreatePlan("営業チーム"), new SyncExecutionResult(
+        string csv = WriteAndRead(CreatePlan("営業チーム"), new SyncOperationsResult(
             [new SyncOperationResult(kind, "user@example.com", true, null)], false));
 
         Assert.Contains($"\"{expected}\"", csv);
@@ -226,7 +226,7 @@ public sealed class SyncResultWriterTests : IDisposable
     public void WriteAutoLog_チーム名が数式開始文字で始まる場合はシングルクォートを付与する(string dangerous)
     {
         SyncPlan plan = CreatePlan(dangerous);
-        SyncExecutionResult result = new(
+        SyncOperationsResult result = new(
             [new SyncOperationResult(ChangeKind.Add, "user@example.com", true, null)], false);
 
         string csv = WriteAndRead(plan, result);
@@ -242,7 +242,7 @@ public sealed class SyncResultWriterTests : IDisposable
     public void WriteAutoLog_メールアドレスが数式開始文字で始まる場合はシングルクォートを付与する(string dangerous)
     {
         SyncPlan plan = CreatePlan("チーム");
-        SyncExecutionResult result = new(
+        SyncOperationsResult result = new(
             [new SyncOperationResult(ChangeKind.Add, dangerous, true, null)], false);
 
         string csv = WriteAndRead(plan, result);
@@ -255,7 +255,7 @@ public sealed class SyncResultWriterTests : IDisposable
     public void WriteAutoLog_エラー文が数式開始文字で始まる場合はシングルクォートを付与する()
     {
         SyncPlan plan = CreatePlan("チーム");
-        SyncExecutionResult result = new(
+        SyncOperationsResult result = new(
             [new SyncOperationResult(ChangeKind.Add, "user@example.com", false, "=1+1 権限がありません")], false);
 
         string csv = WriteAndRead(plan, result);
@@ -269,7 +269,7 @@ public sealed class SyncResultWriterTests : IDisposable
     public void WriteAutoLog_先頭の空白やタブの後に数式開始文字がある場合もシングルクォートを付与する(string dangerous)
     {
         SyncPlan plan = CreatePlan("チーム");
-        SyncExecutionResult result = new(
+        SyncOperationsResult result = new(
             [new SyncOperationResult(ChangeKind.Add, dangerous, true, null)], false);
 
         string csv = WriteAndRead(plan, result);
@@ -281,7 +281,7 @@ public sealed class SyncResultWriterTests : IDisposable
     public void WriteAutoLog_引用符を含む値は二重引用符へエスケープされる()
     {
         SyncPlan plan = CreatePlan("チーム\"本社\"");
-        SyncExecutionResult result = new(
+        SyncOperationsResult result = new(
             [new SyncOperationResult(ChangeKind.Add, "user@example.com", true, null)], false);
 
         string csv = WriteAndRead(plan, result);
@@ -293,7 +293,7 @@ public sealed class SyncResultWriterTests : IDisposable
     public void WriteAutoLog_改行を含む値も出力できる()
     {
         SyncPlan plan = CreatePlan("チーム");
-        SyncExecutionResult result = new(
+        SyncOperationsResult result = new(
             [new SyncOperationResult(ChangeKind.Add, "user@example.com", false, "エラー1行目\nエラー2行目")], false);
 
         string csv = WriteAndRead(plan, result);
@@ -305,7 +305,7 @@ public sealed class SyncResultWriterTests : IDisposable
     public void WriteAutoLog_数式開始文字を含まない通常のメールアドレスは変更されない()
     {
         SyncPlan plan = CreatePlan("チーム");
-        SyncExecutionResult result = new(
+        SyncOperationsResult result = new(
             [new SyncOperationResult(ChangeKind.Add, "taro.yamada@example.com", true, null)], false);
 
         string csv = WriteAndRead(plan, result);

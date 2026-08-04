@@ -1,4 +1,5 @@
 using TeamsSync.Presentation.ViewModels;
+using TeamsSync.Presentation.ViewModels.Support;
 
 namespace TeamsSync.Presentation.Views;
 
@@ -31,7 +32,7 @@ public partial class MemberListInputView
                 return;
             }
 
-            if (viewModel.SelectedInputIndex == 1)
+            if (viewModel.SelectedInputIndex == (int)MemberInputMethod.Paste)
             {
                 PasteTextBox.Focus();
             }

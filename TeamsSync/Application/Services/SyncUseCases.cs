@@ -24,7 +24,7 @@ public interface ISyncPlanService
 public interface ISyncExecutor
 {
     /// <inheritdoc cref="SyncExecutor.ExecuteAsync" />
-    Task<SyncExecutionResult> ExecuteAsync(SyncPlan plan,
+    Task<SyncOperationsResult> ExecuteAsync(SyncPlan plan,
         IProgress<SyncProgress>? progress = null, SyncAuditContext? auditContext = null,
         CancellationToken cancellationToken = default);
 }

@@ -186,7 +186,7 @@ public partial class MemberFileViewModel : ObservableObject
         Document = null;
         _selectionCoordinator.InvalidatePastedDocument();
         PasteInput.InfoText = string.IsNullOrWhiteSpace(value)
-            ? "1行につき1ユーザー（氏名またはメールアドレス）"
+            ? MemberPasteInputState.DefaultInfoText
             : "内容が変更されました。「入力を反映」を押してください";
         PasteInput.HasError = false;
         DocumentChanged?.Invoke();
@@ -367,7 +367,7 @@ public partial class MemberFileViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            _documents.SetPastedDocument(null);
+            _selectionCoordinator.InvalidatePastedDocument();
             Document = null;
             PasteInput.HasError = true;
             PasteInput.InfoText = ex.Message;

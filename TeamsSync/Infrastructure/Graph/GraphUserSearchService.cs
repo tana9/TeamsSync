@@ -20,7 +20,7 @@ public sealed class GraphUserSearchService(GraphSdkClient sdk)
     public async Task<IReadOnlyList<DirectoryUser>> SearchAsync(string identifier,
         CancellationToken cancellationToken)
     {
-        string escaped = identifier.Replace("'", "''");
+        string escaped = EscapeODataLiteral(identifier);
         string filter = $"mail eq '{escaped}' or userPrincipalName eq '{escaped}'";
         List<DirectoryUser> addressMatches =
             GraphResponseParser.ToDirectoryUsers(await sdk.FindUsersAsync(filter, null, 2, cancellationToken));
@@ -45,9 +45,15 @@ public sealed class GraphUserSearchService(GraphSdkClient sdk)
             return [];
         }
 
-        string firstCharacter = StringInfo.GetNextTextElement(normalized).Replace("'", "''");
+        string firstCharacter = EscapeODataLiteral(StringInfo.GetNextTextElement(normalized));
         string nameFilter = $"startswith(displayName,'{firstCharacter}')";
         return GraphResponseParser.ToDirectoryUsers(await sdk.FindUsersAsync(nameFilter, null, 100, cancellationToken))
             .Where(user => UserIdentifier.NameEquals(user.DisplayName, identifier)).ToList();
+    }
+
+    /// <summary>OData文字列リテラル内のシングルクォートをエスケープする</summary>
+    private static string EscapeODataLiteral(string value)
+    {
+        return value.Replace("'", "''");
     }
 }

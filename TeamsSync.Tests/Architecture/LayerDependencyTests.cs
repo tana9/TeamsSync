@@ -23,7 +23,7 @@ public sealed class LayerDependencyTests
         Type[] applicationModels =
         [
             typeof(MemberListDocument), typeof(SyncAuditContext), typeof(SyncProgress),
-            typeof(SyncOperationResult), typeof(SyncExecutionResult), typeof(SyncPlanRevalidation)
+            typeof(SyncOperationResult), typeof(SyncOperationsResult), typeof(SyncPlanRevalidation)
         ];
 
         Assert.All(applicationModels,

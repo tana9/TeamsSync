@@ -14,10 +14,8 @@ public static class DependencyInjection
     /// </summary>
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
-        services.AddSingleton<SyncPlanService>();
-        services.AddSingleton<SyncExecutor>();
-        services.AddSingleton<ISyncPlanService>(provider => provider.GetRequiredService<SyncPlanService>());
-        services.AddSingleton<ISyncExecutor>(provider => provider.GetRequiredService<SyncExecutor>());
+        services.AddSingleton<ISyncPlanService, SyncPlanService>();
+        services.AddSingleton<ISyncExecutor, SyncExecutor>();
         services.AddSingleton<TeamsAccessService>();
         services.AddSingleton<SyncExecutionCoordinator>();
         return services;

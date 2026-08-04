@@ -276,7 +276,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildFailedRows_成功した操作を除外し失敗した操作だけを行モデルへ変換する()
     {
-        SyncExecutionResult result = new(
+        SyncOperationsResult result = new(
         [
             new SyncOperationResult(ChangeKind.Add, "ok@example.com", true, null),
             new SyncOperationResult(ChangeKind.Add, "add-failed@example.com", false, "追加に失敗しました"),
@@ -297,7 +297,7 @@ public sealed class SyncWorkspaceTextFormatterTests
     [Fact]
     public void BuildFailedRows_表示上限を超える失敗行を生成しない()
     {
-        SyncExecutionResult result = new(Enumerable.Range(1, 150)
+        SyncOperationsResult result = new(Enumerable.Range(1, 150)
             .Select(index => new SyncOperationResult(
                 ChangeKind.Add, $"user{index}@example.com", false, "追加に失敗しました"))
             .ToList(), false);

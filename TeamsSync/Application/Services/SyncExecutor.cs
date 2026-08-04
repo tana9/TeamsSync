@@ -16,7 +16,7 @@ public sealed class SyncExecutor(ITeamsGateway teamsGateway, ILogger<SyncExecuto
     private readonly IIdentifierGenerator _identifierGenerator = identifierGenerator ?? new IdentifierGenerator();
 
     /// <summary>同期プランの追加・削除操作を順に実行する</summary>
-    public async Task<SyncExecutionResult> ExecuteAsync(SyncPlan plan,
+    public async Task<SyncOperationsResult> ExecuteAsync(SyncPlan plan,
         IProgress<SyncProgress>? progress = null, SyncAuditContext? auditContext = null,
         CancellationToken cancellationToken = default)
     {
@@ -40,7 +40,7 @@ public sealed class SyncExecutor(ITeamsGateway teamsGateway, ILogger<SyncExecuto
         });
     }
 
-    private async Task<SyncExecutionResult> ExecuteOperationsAsync(SyncPlan plan,
+    private async Task<SyncOperationsResult> ExecuteOperationsAsync(SyncPlan plan,
         IProgress<SyncProgress>? progress, CancellationToken cancellationToken)
     {
         List<SyncOperationResult> results = [];
@@ -49,10 +49,10 @@ public sealed class SyncExecutor(ITeamsGateway teamsGateway, ILogger<SyncExecuto
             "SyncStarted Add={AddCount} Remove={RemoveCount} Keep={KeepCount} Protected={ProtectedCount}",
             plan.AddCount, plan.RemoveCount, plan.KeepCount, plan.ProtectedCount);
 
-        SyncExecutionResult BuildCancelledResult()
+        SyncOperationsResult BuildCancelledResult()
         {
             LogSyncCancelled(results, operations.Count);
-            return new SyncExecutionResult(results, true);
+            return new SyncOperationsResult(results, true);
         }
 
         for (int i = 0; i < operations.Count; i++)
@@ -72,7 +72,7 @@ public sealed class SyncExecutor(ITeamsGateway teamsGateway, ILogger<SyncExecuto
             }
         }
 
-        SyncExecutionResult result = new(results, false);
+        SyncOperationsResult result = new(results, false);
         _logger.LogInformation("SyncCompleted Success={SuccessCount} Failure={FailureCount}",
             result.SuccessCount, result.FailureCount);
         return result;

@@ -3,6 +3,7 @@ using System.Text;
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Application.Models;
 using TeamsSync.Domain.Teams;
+using TeamsSync.Infrastructure.Logging;
 
 namespace TeamsSync.Infrastructure.Files;
 
@@ -20,8 +21,7 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
     // OWASPが推奨するCSVインジェクション対策として、数式の開始として解釈され得る文字
     private static readonly char[] FormulaTriggerChars = ['=', '+', '-', '@'];
 
-    private readonly string _logDirectory = logDirectory ?? Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TeamsSync", "Logs");
+    private readonly string _logDirectory = logDirectory ?? AuditLogging.LogDirectory;
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     private readonly IIdentifierGenerator _identifierGenerator = identifierGenerator ?? new IdentifierGenerator();
 
@@ -38,7 +38,7 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
     ///     同期実行結果を、チーム名・モード・操作種別・アドレス・成否・エラーの列を持つCSVとして
     ///     実行日時・実行ID・対象チーム名を含む一意なファイル名でログフォルダーへ書き出す
     /// </summary>
-    public string WriteAutoLog(SyncPlan plan, SyncExecutionResult result, Guid executionId)
+    public string WriteAutoLog(SyncPlan plan, SyncOperationsResult result, Guid executionId)
     {
         Directory.CreateDirectory(_logDirectory);
         string stem = $"{_timeProvider.GetLocalNow():yyyyMMdd_HHmmss_fff}_{executionId:N}_{SanitizeFileName(plan.Team.DisplayName)}";
@@ -47,7 +47,7 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
         return path;
     }
 
-    private static void WriteCsv(Stream stream, SyncPlan plan, SyncExecutionResult result)
+    private static void WriteCsv(Stream stream, SyncPlan plan, SyncOperationsResult result)
     {
         using StreamWriter writer = new(stream, new UTF8Encoding(true), leaveOpen: true);
         writer.WriteLine("チーム,同期モード,操作,表示名,メールアドレス,結果,エラー");

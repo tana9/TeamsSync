@@ -25,6 +25,25 @@ TeamsSync の今後の改善項目。メンバー削除を伴うアプリケー�
 
 完了条件: 上記いずれも再現条件下で不整合・保存失敗が発生しない。
 
+### コード品質レビューで見つかった重複・デッドコード・命名を整理する(2026-08-04)
+
+- [x] ログ保存先パス`%LocalAppData%\TeamsSync\Logs`の組み立てが`StartupFailureLog.cs`、`AuditLogging.cs`、`SyncResultWriter.cs`の3箇所に重複している（`AuditLogging.LogDirectory`を共有し、他2箇所はそれを参照するよう変更）
+- [x] Graphのホスト名`graph.microsoft.com`が6箇所に散在し、検証方式も`GraphEndpointValidator`(厳格)と`MsalAccessTokenProvider`(Kiota既定、ホスト名のみ)の2系統に分かれている（`GraphEndpoints`を新設し、ホスト名・ベースURIを1箇所へ集約。検証方式自体は用途が異なるため2系統のまま定数だけ共有した）
+- [x] OData用シングルクォートエスケープ`Replace("'", "''")`が`GraphUserSearchService.cs`内に2箇所ある（`EscapeODataLiteral`ヘルパーへ抽出）
+- [x] SHA-256計算パターンが`MemberFileSecurityValidator.ComputeSha256`と`MemberTextParser.cs`に別々に実装されている（`byte[]`オーバーロードを追加し共有）
+- [x] 貼り付け入力のヒント文言`"1行につき1ユーザー（氏名またはメールアドレス）"`が`MemberFileInputStates.cs`、`MemberFileViewModel.cs`、`MemberInputSelectionCoordinator.cs`の3箇所にハードコードされている（`MemberPasteInputState.DefaultInfoText`定数へ集約）
+- [x] `GraphHttpClient.SendAsync`(`replaceNames`引数付き)がどこからも呼ばれていない未使用コードを削除する
+- [x] `Application/DependencyInjection.cs`が`SyncPlanService`/`SyncExecutor`を具象型としても二重登録しているが、具象型を直接要求する箇所がないため不要（インターフェースのみの単純登録へ変更）
+- [x] `MemberListInputView.xaml.cs`だけ`MemberInputMethod`列挙型を使わず生の`1`を比較している（`(int)MemberInputMethod.Paste`に統一）
+- [x] `GraphTeamsGateway`と`GraphSdkClient`だけ旧来のフィールド+コンストラクター記述で、同フォルダの他クラスはプライマリコンストラクター（両方ともプライマリコンストラクターへ変更。`GraphSdkClient`は認証プロバイダーの構築をフィールド初期化子の制約(他の非staticフィールドを参照不可)のため`Create`メソッド内へ寄せた）
+- [x] `SyncExecutionResult`/`SyncExecutionOutcome`/`SyncExecutionAttempt`という近い名前の3段階ラップ構造が、名前だけでは包含関係を読み取りにくい（`SyncExecutionResult`を`SyncOperationsResult`へリネームし「Graphへの操作結果そのもの」であることを明示。3クラスとも包含関係を説明するコメントを追加。71箇所・16ファイルにまたがる変更だったため`Outcome`/`Attempt`は影響範囲を抑えるためリネームせずコメントのみで補強した）
+- [x] `MemberTextParser.Parse`が全体長・行分割・タブ/制御文字検出・行長・パース・重複排除を1メソッドで担っている（行単位の検証(タブ・制御文字・行長)を`ValidateLine`へ抽出）
+- [x] `SyncPlan`レコードが`CanExecute`/`EnsureExecutable`/`WithoutChanges`/`IsEquivalentTo`と業務ロジックを多く抱えている（同値比較ロジックを`SyncPlanEquivalence`静的クラスへ切り出し）
+- [x] `SyncExecutionCoordinator.ExecuteAsync`内の「try実行→成功/失敗を変数化」というtry/catchパターンがログ保存とreconciliationの2箇所でほぼ同型（`TryRunAsync<T>`共通ヘルパーへ抽出）
+- [x] `MemberFileViewModel`が貼り付け文書のクリアを`_selectionCoordinator`経由と直接`_documents.SetPastedDocument(null)`呼び出しの2通りの経路で行っている（解析失敗時の直接呼び出しを`_selectionCoordinator.InvalidatePastedDocument()`へ統一）
+
+完了条件: 重複箇所が単一の実装に集約され、未使用コードが削除され、命名・構文スタイルがプロジェクト内で一貫している。
+
 ### 指定した複数メンバーだけをまとめて削除できるようにする
 
 - [x] 同期モードに`指定メンバーを削除`を追加し、`追加のみ`や`完全同期（リスト外を削除）`とは入力リストの意味が異なることを選択肢の近くへ明示する

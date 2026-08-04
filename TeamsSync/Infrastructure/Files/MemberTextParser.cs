@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Security.Cryptography;
 using System.Text;
 
 using TeamsSync.Application.Abstractions;
@@ -46,27 +45,7 @@ public sealed class MemberTextParser(TimeProvider? timeProvider = null) : IMembe
             lineNumber++;
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (line.Contains('\t'))
-            {
-                throw new InvalidDataException($"{lineNumber}行目にタブが含まれています。1列だけを貼り付けてください。");
-            }
-
-            foreach (char c in line)
-            {
-                // U+2028(LINE SEPARATOR)・U+2029(PARAGRAPH SEPARATOR)はUnicode分類上
-                // 制御文字(Control)ではなく区切り文字(Separator)のため、char.IsControlだけでは
-                // すり抜ける。上のLineSeparatorsによる分割対象にも含めていないため、
-                // 値の途中に紛れ込んだまま残り検出できない
-                if (char.IsControl(c) || char.GetUnicodeCategory(c) is UnicodeCategory.LineSeparator or UnicodeCategory.ParagraphSeparator)
-                {
-                    throw new InvalidDataException($"{lineNumber}行目に使用できない制御文字が含まれています。");
-                }
-            }
-
-            if (line.Length > MaximumLineLength)
-            {
-                throw new InvalidDataException($"{lineNumber}行目は{MaximumLineLength:N0}文字以内で入力してください。");
-            }
+            ValidateLine(line, lineNumber);
 
             string value = ParseLine(line, lineNumber);
             if (!string.IsNullOrWhiteSpace(value) && seen.Add(value))
@@ -84,9 +63,36 @@ public sealed class MemberTextParser(TimeProvider? timeProvider = null) : IMembe
         }
 
         string normalizedText = string.Join('\n', values);
-        string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(normalizedText)));
+        string hash = MemberFileSecurityValidator.ComputeSha256(Encoding.UTF8.GetBytes(normalizedText));
         return new MemberListDocument(values, "貼り付け入力.txt", "", _timeProvider.GetLocalNow().DateTime,
             "テキスト貼り付け", "1行1ユーザー", hash);
+    }
+
+    /// <summary>1行分のタブ・制御文字・行長を検証する。違反があれば例外を投げる</summary>
+    private static void ValidateLine(ReadOnlySpan<char> line, int lineNumber)
+    {
+        if (line.Contains('\t'))
+        {
+            throw new InvalidDataException($"{lineNumber}行目にタブが含まれています。1列だけを貼り付けてください。");
+        }
+
+        foreach (char c in line)
+        {
+            // U+2028(LINE SEPARATOR)・U+2029(PARAGRAPH SEPARATOR)はUnicode分類上
+            // 制御文字(Control)ではなく区切り文字(Separator)のため、char.IsControlだけでは
+            // すり抜ける。上のLineSeparatorsによる分割対象にも含めていないため、
+            // 値の途中に紛れ込んだまま残り検出できない
+            if (char.IsControl(c) ||
+                char.GetUnicodeCategory(c) is UnicodeCategory.LineSeparator or UnicodeCategory.ParagraphSeparator)
+            {
+                throw new InvalidDataException($"{lineNumber}行目に使用できない制御文字が含まれています。");
+            }
+        }
+
+        if (line.Length > MaximumLineLength)
+        {
+            throw new InvalidDataException($"{lineNumber}行目は{MaximumLineLength:N0}文字以内で入力してください。");
+        }
     }
 
     /// <summary>`表示名 &lt;メールアドレス&gt;`形式の場合は山括弧内だけを識別子として返す</summary>

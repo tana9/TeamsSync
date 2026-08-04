@@ -93,7 +93,7 @@ public sealed partial class SyncResultDisplayState : ObservableObject
     }
 
     /// <summary>同期実行結果とログパスを表示状態へ反映する</summary>
-    public void Apply(SyncExecutionResult execution, string logPath)
+    public void Apply(SyncOperationsResult execution, string logPath)
     {
         SuccessCount = execution.SuccessCount;
         FailureCount = execution.FailureCount;

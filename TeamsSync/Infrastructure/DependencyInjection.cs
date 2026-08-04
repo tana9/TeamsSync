@@ -71,7 +71,7 @@ public static class DependencyInjection
 
         static void Configure(HttpClient client)
         {
-            client.BaseAddress = new Uri("https://graph.microsoft.com/v1.0/");
+            client.BaseAddress = GraphEndpoints.BaseUri;
             client.Timeout = Timeout.InfiniteTimeSpan;
         }
     }

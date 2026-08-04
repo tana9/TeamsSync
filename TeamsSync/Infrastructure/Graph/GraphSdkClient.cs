@@ -9,33 +9,30 @@ using TeamsSync.Application.Abstractions;
 
 namespace TeamsSync.Infrastructure.Graph;
 
-/// <summary>Microsoft Graph公式SDKを使った通常のGraph API操作を提供する</summary>
-public sealed class GraphSdkClient
+/// <summary>読み取り用と更新用の名前付きHTTPクライアントからGraph SDKクライアントを構成する</summary>
+/// <param name="factory">名前付きHTTPクライアントを作成するファクトリ</param>
+/// <param name="authentication">Graphのアクセストークンを取得する認証サービス</param>
+/// <param name="logger">Graph通信の診断情報を記録するロガー</param>
+public sealed class GraphSdkClient(IHttpClientFactory factory, IAuthenticationService authentication,
+    ILogger<GraphHttpClient> logger, IIdentifierGenerator? identifierGenerator = null)
 {
-    private readonly GraphServiceClient _read;
-    private readonly GraphServiceClient _write;
+    private readonly GraphServiceClient _read =
+        Create(factory.CreateClient(GraphHttpClient.ReadHttpClientName), authentication, logger, identifierGenerator);
 
-    /// <summary>読み取り用と更新用の名前付きHTTPクライアントからGraph SDKクライアントを構成する</summary>
-    /// <param name="factory">名前付きHTTPクライアントを作成するファクトリ</param>
-    /// <param name="authentication">Graphのアクセストークンを取得する認証サービス</param>
-    /// <param name="logger">Graph通信の診断情報を記録するロガー</param>
-    public GraphSdkClient(IHttpClientFactory factory, IAuthenticationService authentication,
-        ILogger<GraphHttpClient> logger, IIdentifierGenerator? identifierGenerator = null)
+    private readonly GraphServiceClient _write =
+        Create(factory.CreateClient(GraphHttpClient.WriteHttpClientName), authentication, logger, identifierGenerator);
+
+    // フィールド初期化子は他の非staticフィールドを参照できないため、認証プロバイダーは
+    // 呼び出しごとに構成する(状態を持たない薄いラッパーのため、共有しなくても実害はない)
+    private static GraphServiceClient Create(HttpClient transport, IAuthenticationService authentication,
+        ILogger<GraphHttpClient> logger, IIdentifierGenerator? identifierGenerator)
     {
         BaseBearerTokenAuthenticationProvider auth = new(new MsalAccessTokenProvider(authentication));
-        _read = Create(factory.CreateClient(GraphHttpClient.ReadHttpClientName), auth, logger, identifierGenerator);
-        _write = Create(factory.CreateClient(GraphHttpClient.WriteHttpClientName), auth, logger, identifierGenerator);
-    }
-
-    private static GraphServiceClient Create(HttpClient transport,
-        BaseBearerTokenAuthenticationProvider authentication, ILogger<GraphHttpClient> logger,
-        IIdentifierGenerator? identifierGenerator)
-    {
         HttpClient client = new(new GraphSdkTransportHandler(transport, logger, identifierGenerator))
         {
-            BaseAddress = new Uri("https://graph.microsoft.com/v1.0/")
+            BaseAddress = GraphEndpoints.BaseUri
         };
-        return new GraphServiceClient(client, authentication);
+        return new GraphServiceClient(client, auth);
     }
 
     /// <summary>サインイン中のユーザー情報を取得する</summary>
@@ -159,7 +156,7 @@ public sealed class GraphSdkClient
             Roles = [],
             AdditionalData = new Dictionary<string, object>
             {
-                ["user@odata.bind"] = $"https://graph.microsoft.com/v1.0/users('{userId}')"
+                ["user@odata.bind"] = $"{GraphEndpoints.BaseUri}users('{userId}')"
             }
         };
         return _write.Teams[teamId].Members.PostAsync(member, cancellationToken: cancellationToken);

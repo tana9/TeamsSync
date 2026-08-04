@@ -123,5 +123,11 @@ internal static class MemberFileSecurityValidator
         return Convert.ToHexString(SHA256.HashData(stream));
     }
 
+    /// <summary>バイト列のSHA-256ハッシュを16進文字列で計算する</summary>
+    public static string ComputeSha256(byte[] bytes)
+    {
+        return Convert.ToHexString(SHA256.HashData(bytes));
+    }
+
     internal readonly record struct ArchiveEntryMetadata(long ExpandedLength, long CompressedLength);
 }

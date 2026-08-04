@@ -108,7 +108,7 @@ public sealed class SyncWorkspaceViewModelTests
         RecordingSavedFileLauncher launcher = new() { Exception = new InvalidOperationException("関連付けがありません") };
         SyncWorkspaceViewModel viewModel = SyncWorkspaceViewModelFactory.Create(new SyncPlanService(new FakeTeamsGateway()), new SyncExecutor(new FakeTeamsGateway()),
             new FakeResultWriter(), new FakeDialogs(), notifications, launcher);
-        viewModel.Result.Apply(new SyncExecutionResult([], false), @"C:\Logs\result.csv");
+        viewModel.Result.Apply(new SyncOperationsResult([], false), @"C:\Logs\result.csv");
 
         viewModel.OpenResultLogCommand.Execute(null);
 

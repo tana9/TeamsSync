@@ -18,8 +18,11 @@ public sealed partial class MemberFileLoadState : ObservableObject
 /// <summary>貼り付け入力の解析状態と表示状態を保持する</summary>
 public sealed partial class MemberPasteInputState : ObservableObject
 {
+    /// <summary>貼り付け入力欄が未入力のときに表示する既定の案内文</summary>
+    public const string DefaultInfoText = "1行につき1ユーザー（氏名またはメールアドレス）";
+
     [ObservableProperty]
-    public partial string InfoText { get; set; } = "1行につき1ユーザー（氏名またはメールアドレス）";
+    public partial string InfoText { get; set; } = DefaultInfoText;
 
     [ObservableProperty]
     public partial bool IsParsing { get; set; }

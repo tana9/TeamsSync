@@ -425,7 +425,7 @@ public sealed class SyncServiceTests
             new SyncChange(ChangeKind.Remove, "Old", "old@example.com", ChangeReason.Unspecified, "old-id",
                 "old-membership")
         ], ["new@example.com"]);
-        SyncExecutionResult result =
+        SyncOperationsResult result =
             await new SyncExecutor(graph).ExecuteAsync(plan,
                 cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(0, result.FailureCount);
@@ -446,7 +446,7 @@ public sealed class SyncServiceTests
                 "old-membership")
         ], ["new@example.com"]);
 
-        SyncExecutionResult result = await new SyncExecutor(graph).ExecuteAsync(
+        SyncOperationsResult result = await new SyncExecutor(graph).ExecuteAsync(
             plan, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, result.SuccessCount);
@@ -481,7 +481,7 @@ public sealed class SyncServiceTests
         SyncPlan plan = await plans.BuildPlanAsync(Team, ["new@example.com"],
             cancellationToken: TestContext.Current.CancellationToken);
 
-        SyncExecutionResult result = await new SyncExecutor(graph).ExecuteAsync(plan,
+        SyncOperationsResult result = await new SyncExecutor(graph).ExecuteAsync(plan,
             cancellationToken: TestContext.Current.CancellationToken);
         SyncPlan remaining = await plans.ReconcileAsync(plan,
             TestContext.Current.CancellationToken);
@@ -516,7 +516,7 @@ public sealed class SyncServiceTests
         SyncPlan plan = await plans.BuildPlanAsync(Team, ["new@example.com"],
             cancellationToken: TestContext.Current.CancellationToken);
 
-        SyncExecutionResult result = await new SyncExecutor(graph).ExecuteAsync(plan,
+        SyncOperationsResult result = await new SyncExecutor(graph).ExecuteAsync(plan,
             cancellationToken: TestContext.Current.CancellationToken);
         SyncPlan remaining = await plans.ReconcileAsync(plan,
             TestContext.Current.CancellationToken);
@@ -536,7 +536,7 @@ public sealed class SyncServiceTests
             ["new@example.com"]);
         using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
-        SyncExecutionResult result =
+        SyncOperationsResult result =
             await new SyncExecutor(graph).ExecuteAsync(plan, cancellationToken: cancellation.Token);
         Assert.True(result.Cancelled);
         Assert.Empty(graph.Added);
@@ -551,11 +551,11 @@ public sealed class SyncServiceTests
             ["new@example.com"]);
         using CancellationTokenSource cancellation = new();
 
-        Task<SyncExecutionResult> execution =
+        Task<SyncOperationsResult> execution =
             new SyncExecutor(graph).ExecuteAsync(plan, cancellationToken: cancellation.Token);
         await Task.Yield();
         cancellation.Cancel();
-        SyncExecutionResult result = await execution;
+        SyncOperationsResult result = await execution;
 
         Assert.True(result.Cancelled);
         Assert.Single(graph.Added);
@@ -577,7 +577,7 @@ public sealed class SyncServiceTests
             [new SyncChange(ChangeKind.Add, "New", "new@example.com", ChangeReason.Unspecified, "new-id")],
             ["new@example.com"]);
 
-        SyncExecutionResult result = await new SyncExecutor(graph).ExecuteAsync(plan,
+        SyncOperationsResult result = await new SyncExecutor(graph).ExecuteAsync(plan,
             cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(result.Cancelled);
@@ -605,7 +605,7 @@ public sealed class SyncServiceTests
         SyncAuditContext audit = new(executionId, "members.csv", new string('A', 64),
             "tenant-id", "actor-object-id");
 
-        SyncExecutionResult result = await new SyncExecutor(graph, logger).ExecuteAsync(
+        SyncOperationsResult result = await new SyncExecutor(graph, logger).ExecuteAsync(
             plan, cancellationToken: TestContext.Current.CancellationToken, auditContext: audit);
 
         Assert.Equal(1, result.FailureCount);

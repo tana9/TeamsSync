@@ -232,13 +232,28 @@ public sealed record SyncPlan(
     /// </summary>
     public bool IsEquivalentTo(SyncPlan other)
     {
-        if (Mode != other.Mode)
+        return SyncPlanEquivalence.AreEquivalent(this, other);
+    }
+}
+
+// SyncPlanレコード自体にCanExecute/EnsureExecutable/WithoutChangesと業務ロジックが集中していたため、
+// 単体では40行近くあった同値比較ロジックだけを切り出し、レコードの見通しを良くしている
+/// <summary>同期プラン同士の同値性(再検証で「そのまま実行してよいか」の判定基準)を判定する</summary>
+internal static class SyncPlanEquivalence
+{
+    /// <summary>
+    ///     2つの同期プランが、同期モード・メンバーシップのスナップショット・
+    ///     追加/削除/保護/未所属/エラーの各操作内容の点で同一かどうかを判定する
+    /// </summary>
+    public static bool AreEquivalent(SyncPlan first, SyncPlan second)
+    {
+        if (first.Mode != second.Mode)
         {
             return false;
         }
 
-        IReadOnlyList<TeamMembershipSnapshot> snapshot = MembershipSnapshot ?? [];
-        IReadOnlyList<TeamMembershipSnapshot> otherSnapshot = other.MembershipSnapshot ?? [];
+        IReadOnlyList<TeamMembershipSnapshot> snapshot = first.MembershipSnapshot ?? [];
+        IReadOnlyList<TeamMembershipSnapshot> otherSnapshot = second.MembershipSnapshot ?? [];
         if (!snapshot.SequenceEqual(otherSnapshot))
         {
             return false;
@@ -246,27 +261,28 @@ public sealed record SyncPlan(
 
         // WithoutChangesで個別除外(Excluded)したユーザーは、除外前の種別(追加/削除)が失われて
         // いるため比較から取り除く。除外の有無自体はメンバー構成の変化ではなく、除外後に
-        // otherを再構築してもExcludedという分類は再現されない(SyncPlanFactoryはExcludedを
+        // secondを再構築してもExcludedという分類は再現されない(SyncPlanFactoryはExcludedを
         // 生成しない)ため、素直に比較するとexcluded分の要素数が食い違い常に不一致になってしまう
-        HashSet<string> excludedUserIds = Changes
+        HashSet<string> excludedUserIds = first.Changes
             .Where(change => change.Kind == ChangeKind.Excluded && change.UserId is not null)
             .Select(change => change.UserId!)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        // Operationsプロパティ(追加・削除のみ)より広く、保護・未所属・エラーも比較対象に含めるため、
-        // 同名の紛らわしさを避けてComparisonKeysという別名にしている
-        IEnumerable<(ChangeKind Kind, string? UserId, string? MembershipId)> ComparisonKeys(SyncPlan plan)
-        {
-            return plan.Changes
-                .Where(change => change.Kind is ChangeKind.Add or ChangeKind.Remove or
-                    ChangeKind.Protected or ChangeKind.NotMember or ChangeKind.Error)
-                .Where(change => change.UserId is null || !excludedUserIds.Contains(change.UserId))
-                .Select(change => (change.Kind, change.UserId, change.MembershipId))
-                .OrderBy(change => change.Kind)
-                .ThenBy(change => change.UserId, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(change => change.MembershipId, StringComparer.OrdinalIgnoreCase);
-        }
+        return ComparisonKeys(first, excludedUserIds).SequenceEqual(ComparisonKeys(second, excludedUserIds));
+    }
 
-        return ComparisonKeys(this).SequenceEqual(ComparisonKeys(other));
+    // Operationsプロパティ(追加・削除のみ)より広く、保護・未所属・エラーも比較対象に含めるため、
+    // 同名の紛らわしさを避けてComparisonKeysという別名にしている
+    private static IEnumerable<(ChangeKind Kind, string? UserId, string? MembershipId)> ComparisonKeys(
+        SyncPlan plan, IReadOnlySet<string> excludedUserIds)
+    {
+        return plan.Changes
+            .Where(change => change.Kind is ChangeKind.Add or ChangeKind.Remove or
+                ChangeKind.Protected or ChangeKind.NotMember or ChangeKind.Error)
+            .Where(change => change.UserId is null || !excludedUserIds.Contains(change.UserId))
+            .Select(change => (change.Kind, change.UserId, change.MembershipId))
+            .OrderBy(change => change.Kind)
+            .ThenBy(change => change.UserId, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(change => change.MembershipId, StringComparer.OrdinalIgnoreCase);
     }
 }

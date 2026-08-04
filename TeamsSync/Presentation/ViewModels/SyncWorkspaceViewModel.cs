@@ -32,7 +32,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     private readonly ViewModelUiEvents _uiEvents = new();
     private readonly SyncWorkspaceContext _context = new();
     private bool _externallyBusy;
-    private SyncExecutionResult? _lastResult;
+    private SyncOperationsResult? _lastResult;
     private CancellationTokenSource? _syncCancellation;
     private TaskCompletionSource? _syncCompletion;
 

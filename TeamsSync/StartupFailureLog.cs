@@ -1,5 +1,7 @@
 using System.Text;
 
+using TeamsSync.Infrastructure.Logging;
+
 namespace TeamsSync;
 
 internal static class StartupFailureLog
@@ -9,9 +11,7 @@ internal static class StartupFailureLog
     {
         try
         {
-            string directory = baseDirectory ?? Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "TeamsSync", "Logs");
+            string directory = baseDirectory ?? AuditLogging.LogDirectory;
             Directory.CreateDirectory(directory);
             string path = Path.Combine(directory, "startup-failure.log");
             File.AppendAllText(path,

@@ -40,38 +40,38 @@ public sealed class SyncExecutionCoordinator(ISyncPlanService plans, ISyncExecut
         IProgress<SyncProgress>? progress = null, Action? reconciliationStarting = null,
         CancellationToken cancellationToken = default)
     {
-        SyncExecutionResult execution = await executor.ExecuteAsync(
+        SyncOperationsResult execution = await executor.ExecuteAsync(
             plan, progress, auditContext, cancellationToken);
 
-        string resultLogPath = "";
-        Exception? logSaveError = null;
-        try
-        {
-            resultLogPath = resultWriter.WriteAutoLog(plan, execution, auditContext.ExecutionId);
-        }
-        catch (Exception ex)
-        {
-            logSaveError = ex;
-        }
+        (string? resultLogPath, Exception? logSaveError) = await TryRunAsync(
+            () => Task.FromResult(resultWriter.WriteAutoLog(plan, execution, auditContext.ExecutionId)));
 
-        SyncPlan? remainingPlan = null;
-        Exception? reconciliationError = null;
-        try
+        (SyncPlan? remainingPlan, Exception? reconciliationError) = await TryRunAsync(() =>
         {
             reconciliationStarting?.Invoke();
             // キャンセル時も取りこぼしを検出するため、既にキャンセル済みの可能性があるトークンではなく
             // CancellationToken.Noneで最新状態を取得する。渡されたトークンをそのまま使うと、
             // キャンセル直後は最新状態の取得自体も即座に中断され、取りこぼしを検出できなくなる
             CancellationToken reconciliationToken = execution.Cancelled ? CancellationToken.None : cancellationToken;
-            remainingPlan = await plans.ReconcileAsync(plan, reconciliationToken);
+            return plans.ReconcileAsync(plan, reconciliationToken);
+        });
+
+        return new SyncExecutionOutcome(plan, execution, resultLogPath ?? "",
+            logSaveError, remainingPlan, reconciliationError);
+    }
+
+    // ログ保存とreconciliationのどちらも「実行して、成功/失敗を戻り値で表す」という同型の
+    // try/catchだったため、共通ヘルパーへ抽出した
+    private static async Task<(T? Value, Exception? Error)> TryRunAsync<T>(Func<Task<T>> action)
+    {
+        try
+        {
+            return (await action(), null);
         }
         catch (Exception ex)
         {
-            reconciliationError = ex;
+            return (default, ex);
         }
-
-        return new SyncExecutionOutcome(plan, execution, resultLogPath,
-            logSaveError, remainingPlan, reconciliationError);
     }
 
     /// <summary>
@@ -102,6 +102,9 @@ public sealed class SyncExecutionCoordinator(ISyncPlanService plans, ISyncExecut
     }
 }
 
+// 3段階のラップ構造の中段。SyncOperationsResult(Graphへの操作結果そのもの)を内包し、
+// 監査CSV保存・Teams側最新状態の再取得という独立して失敗し得る後処理まで含めた1回のExecuteAsync呼び出し
+// 全体を表す。実行直前の再検証まで含めた全体はSyncExecutionAttempt(このOutcomeを内包)を参照
 /// <summary>同期ユースケースの実行結果と、独立して失敗し得る後処理の状態</summary>
 /// <param name="ExecutedPlan">実行に使用した同期プラン</param>
 /// <param name="Execution">同期操作の実行結果</param>
@@ -111,12 +114,14 @@ public sealed class SyncExecutionCoordinator(ISyncPlanService plans, ISyncExecut
 /// <param name="ReconciliationError">実行後の最新状態取得エラー。取得に成功した場合はnull</param>
 public sealed record SyncExecutionOutcome(
     SyncPlan ExecutedPlan,
-    SyncExecutionResult Execution,
+    SyncOperationsResult Execution,
     string ResultLogPath,
     Exception? LogSaveError,
     SyncPlan? RemainingPlan,
     Exception? ReconciliationError);
 
+// 3段階のラップ構造の最も外側。SyncExecutionOutcome(実行結果+後処理)を内包し、
+// 実行直前の再検証でチーム構成の変化を検出して実行そのものを見送った場合(IsStale)も表現する
 /// <summary>実行直前の再検証を経て、同期を実行できたかどうかを表す</summary>
 /// <param name="LatestPlan">実行直前に再取得した最新の同期プラン</param>
 /// <param name="Outcome">実行結果。チーム構成の変化により実行しなかった場合はnull</param>

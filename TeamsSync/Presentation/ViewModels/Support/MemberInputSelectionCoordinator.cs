@@ -1,4 +1,5 @@
 using TeamsSync.Application.Models;
+using TeamsSync.Presentation.ViewModels;
 
 namespace TeamsSync.Presentation.ViewModels.Support;
 
@@ -16,7 +17,7 @@ internal sealed class MemberInputSelectionCoordinator(MemberInputDocumentState d
         if (index == (int)MemberInputMethod.Paste && documents.PastedDocument is null)
         {
             pasteInfo = string.IsNullOrWhiteSpace(pastedText)
-                ? "1行につき1ユーザー（氏名またはメールアドレス）"
+                ? MemberPasteInputState.DefaultInfoText
                 : "「入力を反映」を押してください";
             return null;
         }
