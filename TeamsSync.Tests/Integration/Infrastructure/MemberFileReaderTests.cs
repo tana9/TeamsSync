@@ -1,4 +1,3 @@
-using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -25,26 +24,6 @@ public sealed class MemberFileReaderTests : IDisposable
         {
             Directory.Delete(_directory, true);
         }
-    }
-
-    [Fact]
-    public void ReadExcel_展開後サイズが上限を超えるZipを拒否する()
-    {
-        string path = Path.Combine(_directory, "oversized.xlsx");
-        using (ZipArchive archive = ZipFile.Open(path, ZipArchiveMode.Create))
-        using (Stream stream = archive.CreateEntry("xl/sharedStrings.xml", CompressionLevel.SmallestSize).Open())
-        {
-            byte[] block = new byte[1024 * 1024];
-            for (int i = 0; i <= MemberFileSecurityValidator.MaximumExpandedArchiveBytes / block.Length; i++)
-            {
-                stream.Write(block);
-            }
-        }
-
-        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
-            new MemberListReader().Read(path, CancellationToken.None));
-
-        Assert.Contains("MBまで", exception.Message);
     }
 
     [Fact]

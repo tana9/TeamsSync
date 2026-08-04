@@ -137,11 +137,6 @@ public sealed class MemberListReader : IMemberListReader
     /// <summary>Excelファイルの先頭ワークシートを解析し、アドレス候補列を抽出する</summary>
     private static ParsedMemberSource ReadExcel(string path, CancellationToken cancellationToken)
     {
-        using (FileStream archiveStream = SharedFileAccess.Open(path))
-        {
-            MemberFileSecurityValidator.ValidateExcelArchive(archiveStream, cancellationToken);
-        }
-
         using FileStream stream = SharedFileAccess.Open(path);
         using XLWorkbook book = new(stream);
         IXLWorksheet sheet = book.Worksheets.FirstOrDefault() ?? throw new InvalidDataException("Excelにワークシートがありません。");

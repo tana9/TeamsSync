@@ -8,8 +8,7 @@ using TeamsSync.Infrastructure.Logging;
 namespace TeamsSync.Infrastructure.Files;
 
 /// <summary>
-///     同期プランと実行結果を、日時と対象チーム名をファイル名としたCSVログとして自動的に記録する。
-///     CSVインジェクション対策として外部由来の値は数式として解釈されないよう無害化する
+///     同期プランと実行結果を、日時と対象チーム名をファイル名としたCSVログとして自動的に記録する
 /// </summary>
 /// <param name="logDirectory">
 ///     ログの出力先フォルダー。省略時はユーザー別のLocalApplicationData配下を使う。
@@ -18,9 +17,6 @@ namespace TeamsSync.Infrastructure.Files;
 public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? timeProvider = null,
     IIdentifierGenerator? identifierGenerator = null) : ISyncResultWriter
 {
-    // OWASPが推奨するCSVインジェクション対策として、数式の開始として解釈され得る文字
-    private static readonly char[] FormulaTriggerChars = ['=', '+', '-', '@'];
-
     private readonly string _logDirectory = logDirectory ?? AuditLogging.LogDirectory;
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     private readonly IIdentifierGenerator _identifierGenerator = identifierGenerator ?? new IdentifierGenerator();
@@ -76,8 +72,8 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
     private static void WriteRow(TextWriter writer, SyncPlan plan, ChangeKind kind, string displayName,
         string email, string status, string error)
     {
-        writer.WriteLine(string.Join(",", CsvExternal(plan.Team.DisplayName), Csv(SyncModeLabel(plan.Mode)),
-            Csv(OperationLabel(kind)), CsvExternal(displayName), CsvExternal(email), Csv(status), CsvExternal(error)));
+        writer.WriteLine(string.Join(",", Csv(plan.Team.DisplayName), Csv(SyncModeLabel(plan.Mode)),
+            Csv(OperationLabel(kind)), Csv(displayName), Csv(email), Csv(status), Csv(error)));
     }
 
     /// <summary>同期モードを利用者向けの日本語へ変換する</summary>
@@ -138,25 +134,5 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
     private static string Csv(string value)
     {
         return $"\"{value.Replace("\"", "\"\"")}\"";
-    }
-
-    // テナントやGraph API由来の外部値をCSV出力する際に使う。
-    // 数式注入(CSVインジェクション)を防ぐため、無害化してからCSVエスケープする
-    /// <summary>CSVインジェクション対策の無害化を行ったうえでCSVフィールド化する</summary>
-    private static string CsvExternal(string value)
-    {
-        return Csv(SanitizeFormulaInjection(value));
-    }
-
-    /// <summary>
-    ///     値の先頭が数式トリガー文字の場合、表計算ソフトに数式評価されないようシングルクォートを付与する
-    /// </summary>
-    private static string SanitizeFormulaInjection(string value)
-    {
-        // 先頭の空白・タブ・改行を除いた最初の文字が=, +, -, @の場合、
-        // 表計算ソフトが数式として評価してしまう。先頭にシングルクォートを付与し、
-        // 文字列として扱わせる(OWASP CSV Injection Prevention Cheat Sheet準拠)
-        string trimmed = value.TrimStart();
-        return trimmed.Length > 0 && Array.IndexOf(FormulaTriggerChars, trimmed[0]) >= 0 ? "'" + value : value;
     }
 }

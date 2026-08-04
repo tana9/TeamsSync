@@ -1,11 +1,9 @@
-using System.IO.Compression;
 using System.Security.Cryptography;
 
 namespace TeamsSync.Infrastructure.Files;
 
 /// <summary>
-///     メンバーリストファイルの読込に関するセキュリティ・堅牢性検証(サイズ・行数・列数の上限、
-///     Excel(.xlsx)のZip展開後サイズ、内容ハッシュ)をまとめて担当する
+///     メンバーリストファイルの読込に関するセキュリティ・堅牢性検証(サイズ・行数・列数の上限、内容ハッシュ)をまとめて担当する
 /// </summary>
 internal static class MemberFileSecurityValidator
 {
@@ -19,11 +17,6 @@ internal static class MemberFileSecurityValidator
 
     // 列数は通常のメンバー名簿では数列で収まるため、数百列を超える場合は誤ったファイルの可能性が高いとみなす
     public const int MaximumColumns = 200;
-
-    public const long MaximumExpandedArchiveBytes = 100 * 1024 * 1024;
-    public const int MaximumArchiveEntries = 1000;
-    public const long MaximumArchiveEntryBytes = 50 * 1024 * 1024;
-    public const int MaximumCompressionRatio = 1000;
 
     /// <summary>ファイルサイズが上限内であることを検証する</summary>
     public static void EnsureFileSizeWithinLimit(long lengthBytes)
@@ -71,52 +64,6 @@ internal static class MemberFileSecurityValidator
         }
     }
 
-    /// <summary>Excel(.xlsx)をZipアーカイブとして展開後サイズを検証し、Zip爆弾的な入力を拒否する</summary>
-    public static void ValidateExcelArchive(Stream stream, CancellationToken cancellationToken)
-    {
-        using ZipArchive archive = new(stream, ZipArchiveMode.Read);
-        List<ArchiveEntryMetadata> entries = new(archive.Entries.Count);
-        foreach (ZipArchiveEntry entry in archive.Entries)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            entries.Add(new ArchiveEntryMetadata(entry.Length, entry.CompressedLength));
-        }
-
-        ValidateArchiveMetadata(entries);
-    }
-
-    internal static void ValidateArchiveMetadata(IReadOnlyList<ArchiveEntryMetadata> entries)
-    {
-        if (entries.Count > MaximumArchiveEntries)
-        {
-            throw new InvalidDataException($"ExcelのZIPエントリー数は{MaximumArchiveEntries:N0}件までです。");
-        }
-
-        long expandedBytes = 0;
-        foreach (ArchiveEntryMetadata entry in entries)
-        {
-            if (entry.ExpandedLength > MaximumArchiveEntryBytes)
-            {
-                throw new InvalidDataException($"Excel内の単一ファイルは{MaximumArchiveEntryBytes / 1024 / 1024:N0}MBまでです。");
-            }
-
-            if (entry.ExpandedLength > 0 && (entry.CompressedLength == 0 ||
-                                             entry.ExpandedLength / (double)entry.CompressedLength >
-                                             MaximumCompressionRatio))
-            {
-                throw new InvalidDataException("Excel内に圧縮率が異常に高いファイルが含まれています。");
-            }
-
-            if (entry.ExpandedLength > MaximumExpandedArchiveBytes - expandedBytes)
-            {
-                throw new InvalidDataException(
-                    $"Excelの展開後サイズは{MaximumExpandedArchiveBytes / 1024 / 1024:N0}MBまでです。");
-            }
-
-            expandedBytes += entry.ExpandedLength;
-        }
-    }
-
     /// <summary>ファイル内容のSHA-256ハッシュを16進文字列で計算する</summary>
     public static string ComputeSha256(Stream stream)
     {
@@ -128,6 +75,4 @@ internal static class MemberFileSecurityValidator
     {
         return Convert.ToHexString(SHA256.HashData(bytes));
     }
-
-    internal readonly record struct ArchiveEntryMetadata(long ExpandedLength, long CompressedLength);
 }

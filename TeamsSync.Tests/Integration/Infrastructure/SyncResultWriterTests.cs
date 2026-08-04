@@ -232,61 +232,6 @@ public sealed class SyncResultWriterTests : IDisposable
         Assert.Contains($"\"{expected}\"", csv);
     }
 
-    [Theory]
-    [InlineData("=SUM(A1:A10)")]
-    [InlineData("+1+1")]
-    [InlineData("-1+1")]
-    [InlineData("@SUM(A1)")]
-    public void WriteAutoLog_チーム名が数式開始文字で始まる場合はシングルクォートを付与する(string dangerous)
-    {
-        (SyncPlan plan, SyncOperationsResult result) = Build(dangerous,
-            [new SyncOperationResult(ChangeKind.Add, "user@example.com", true, null)]);
-
-        string csv = WriteAndRead(plan, result);
-
-        Assert.Contains($"\"'{dangerous}\"", csv);
-    }
-
-    [Theory]
-    [InlineData("=cmd|' /C calc'!A1")]
-    [InlineData("+HYPERLINK(\"http://evil.example/\")")]
-    [InlineData("-2+3")]
-    [InlineData("@example.com")]
-    public void WriteAutoLog_メールアドレスが数式開始文字で始まる場合はシングルクォートを付与する(string dangerous)
-    {
-        (SyncPlan plan, SyncOperationsResult result) = Build("チーム",
-            [new SyncOperationResult(ChangeKind.Add, dangerous, true, null)]);
-
-        string csv = WriteAndRead(plan, result);
-
-        string expected = "'" + dangerous.Replace("\"", "\"\"");
-        Assert.Contains($"\"{expected}\"", csv);
-    }
-
-    [Fact]
-    public void WriteAutoLog_エラー文が数式開始文字で始まる場合はシングルクォートを付与する()
-    {
-        (SyncPlan plan, SyncOperationsResult result) = Build("チーム",
-            [new SyncOperationResult(ChangeKind.Add, "user@example.com", false, "=1+1 権限がありません")]);
-
-        string csv = WriteAndRead(plan, result);
-
-        Assert.Contains("\"'=1+1 権限がありません\"", csv);
-    }
-
-    [Theory]
-    [InlineData("  =SUM(A1)")]
-    [InlineData("\t=SUM(A1)")]
-    public void WriteAutoLog_先頭の空白やタブの後に数式開始文字がある場合もシングルクォートを付与する(string dangerous)
-    {
-        (SyncPlan plan, SyncOperationsResult result) = Build("チーム",
-            [new SyncOperationResult(ChangeKind.Add, dangerous, true, null)]);
-
-        string csv = WriteAndRead(plan, result);
-
-        Assert.Contains($"\"'{dangerous}\"", csv);
-    }
-
     [Fact]
     public void WriteAutoLog_引用符を含む値は二重引用符へエスケープされる()
     {
