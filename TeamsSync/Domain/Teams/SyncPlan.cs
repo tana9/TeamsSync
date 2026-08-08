@@ -50,8 +50,7 @@ public sealed record SyncPlan(
     public bool HasNoActionableChanges => !HasErrors && AddCount == 0 && RemoveCount == 0;
 
     /// <summary>実際にGraphへ送信する操作(追加・削除)だけを抽出した一覧</summary>
-    public IReadOnlyList<SyncChange> Operations =>
-        Changes.Where(x => x.Kind is ChangeKind.Add or ChangeKind.Remove).ToList();
+    public IReadOnlyList<SyncChange> Operations => Changes.Where(x => x.IsOperation).ToList();
 
     /// <summary>
     ///     選択した同期モードと、含まれる追加・削除の内容が矛盾していないかどうか。
@@ -109,7 +108,7 @@ public sealed record SyncPlan(
 
         HashSet<string> excluded = new(userIds, StringComparer.OrdinalIgnoreCase);
         List<SyncChange> updated = Changes.Select(change =>
-            change.Kind is ChangeKind.Add or ChangeKind.Remove &&
+            change.IsOperation &&
             change.UserId is not null && excluded.Contains(change.UserId)
                 ? change with { Kind = ChangeKind.Excluded, Reason = ChangeReason.ManuallyExcluded }
                 : change).ToList();

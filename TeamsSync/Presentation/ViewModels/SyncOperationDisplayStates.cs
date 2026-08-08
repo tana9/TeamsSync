@@ -82,7 +82,7 @@ public sealed partial class SyncExecutionDisplayState : ObservableObject
         ProgressValue = progress.Completed;
         ProgressMaximum = Math.Max(1, progress.Total);
         ProgressText =
-            $"{progress.Completed} / {progress.Total}件 — {(progress.Kind == ChangeKind.Add ? "追加" : "削除")}中: {progress.Email}";
+            $"{progress.Completed} / {progress.Total}件 — {ChangeKindText.Label(progress.Kind)}中: {progress.Email}";
         return ProgressText;
     }
 

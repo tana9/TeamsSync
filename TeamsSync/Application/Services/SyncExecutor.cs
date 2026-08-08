@@ -81,7 +81,7 @@ public sealed class SyncExecutor(ITeamsGateway teamsGateway, ILogger<SyncExecuto
     private async Task<bool> ExecuteChangeAsync(string teamId, SyncChange change, int index, int totalOperations,
         IProgress<SyncProgress>? progress, List<SyncOperationResult> results, CancellationToken cancellationToken)
     {
-        string? targetObjectId = change.Kind == ChangeKind.Add ? change.UserId : change.MembershipId;
+        string? targetObjectId = change.TargetObjectId;
         _logger.LogInformation("MemberOperationStarted Kind={Kind} TargetObjectId={TargetObjectId}",
             change.Kind, targetObjectId);
         try

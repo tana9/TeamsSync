@@ -105,7 +105,23 @@ public sealed record SyncChange(
     string Email,
     ChangeReason Reason = ChangeReason.Unspecified,
     string? UserId = null,
-    string? MembershipId = null);
+    string? MembershipId = null)
+{
+    /// <summary>実際にGraphへ送信する操作(追加・削除)かどうか</summary>
+    public bool IsOperation => Kind is ChangeKind.Add or ChangeKind.Remove;
+
+    /// <summary>
+    ///     Graphへの操作対象を識別するオブジェクトID。追加はユーザーID、削除はメンバーシップIDを指す
+    ///     (Graphの追加・削除がそれぞれ異なる識別子を要求するため)。追加・削除以外の種別、または
+    ///     対応するIDが未解決の場合はnull
+    /// </summary>
+    public string? TargetObjectId => Kind switch
+    {
+        ChangeKind.Add => UserId,
+        ChangeKind.Remove => MembershipId,
+        _ => null
+    };
+}
 
 /// <summary>
 ///     同期プランを再検証するための、プラン作成時点のメンバーシップのスナップショット
