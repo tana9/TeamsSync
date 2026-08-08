@@ -74,6 +74,9 @@ public static class SyncPlanFactory
         HashSet<string> AmbiguousMemberIds) ClassifyResolutions(
             IReadOnlyList<AddressResolution> resolutions, SyncMode mode)
     {
+        // resolutions件数分ループする中で毎回SyncModePolicy.Forを呼び直さないよう、
+        // モードに依存しないループの外で1回だけ解決する
+        SyncModePolicy policy = SyncModePolicy.For(mode);
         Dictionary<string, DirectoryUser> resolved = new(StringComparer.OrdinalIgnoreCase);
         List<SyncChange> changes = [];
         Dictionary<string, int> rowIndexByUserId = new(StringComparer.OrdinalIgnoreCase);
@@ -118,7 +121,7 @@ public static class SyncPlanFactory
                     break;
                 case { Outcome: ResolutionOutcome.ExistingSingle, ExistingMember: { } existing }:
                     (ChangeKind existingKind, ChangeReason existingReason) = ClassifyExistingMember(
-                        existing.IsOwner, mode, ChangeReason.AlreadyMember, resolution.MatchedByNameOnly);
+                        existing.IsOwner, policy, ChangeReason.AlreadyMember, resolution.MatchedByNameOnly);
                     AddOrMergeChange(resolution.Address, existing.UserId, existing.MembershipId,
                         existing.DisplayName, existingKind, existingReason);
                     break;
@@ -129,13 +132,13 @@ public static class SyncPlanFactory
                 }:
                     resolved[resolution.Address] = sameUserAccount;
                     (ChangeKind sameUserKind, ChangeReason sameUserReason) = ClassifyExistingMember(
-                        sameUser.IsOwner, mode, ChangeReason.AlreadyMemberDifferentIdentifier, false);
+                        sameUser.IsOwner, policy, ChangeReason.AlreadyMemberDifferentIdentifier, false);
                     AddOrMergeChange(resolution.Address, sameUser.UserId, sameUser.MembershipId,
                         sameUser.DisplayName, sameUserKind, sameUserReason);
                     break;
                 case { Outcome: ResolutionOutcome.NewUser, User: { } user }:
                     resolved[resolution.Address] = user;
-                    (ChangeKind newUserKind, ChangeReason newUserReason) = SyncModePolicy.For(mode).ClassifyNewUser();
+                    (ChangeKind newUserKind, ChangeReason newUserReason) = policy.ClassifyNewUser();
                     AddOrMergeChange(resolution.Address, user.Id, null, user.DisplayName,
                         newUserKind, newUserReason);
                     break;
@@ -150,7 +153,7 @@ public static class SyncPlanFactory
     ///     データ側の不変条件のためここで判定する)、所有者でなければモード固有の扱いを
     ///     <see cref="SyncModePolicy.ClassifyMatchedNonOwner" />へ委ねる
     /// </summary>
-    private static (ChangeKind Kind, ChangeReason Reason) ClassifyExistingMember(bool isOwner, SyncMode mode,
+    private static (ChangeKind Kind, ChangeReason Reason) ClassifyExistingMember(bool isOwner, SyncModePolicy policy,
         ChangeReason keepReason, bool matchedByNameOnly)
     {
         if (isOwner)
@@ -158,7 +161,7 @@ public static class SyncPlanFactory
             return (ChangeKind.Protected, ChangeReason.OwnerProtected);
         }
 
-        return SyncModePolicy.For(mode).ClassifyMatchedNonOwner(keepReason, matchedByNameOnly);
+        return policy.ClassifyMatchedNonOwner(keepReason, matchedByNameOnly);
     }
 
     /// <summary>

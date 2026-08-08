@@ -115,8 +115,7 @@ public sealed class MemberListReader : IMemberListReader
                 MemberFileSecurityValidator.EnsureCsvColumnCountWithinLimit(fields.Length, physicalRow);
                 if (rows.Count > 0 && fields.Length != rows[0].Length)
                 {
-                    throw new InvalidDataException(
-                        $"{physicalRow}行目の列数が1行目と一致しません（1行目: {rows[0].Length}列、{physicalRow}行目: {fields.Length}列）。");
+                    throw ColumnCountMismatchError(rows[0].Length, fields.Length, physicalRow);
                 }
 
                 rows.Add(fields);
@@ -167,22 +166,28 @@ public sealed class MemberListReader : IMemberListReader
             rows.Add(fields);
         }
 
-        ExtractedColumn extracted = ExtractColumn(rows);
+        // ヘッダー行の列選択(selection)は上のループで既に計算済みなので、ExtractColumn内で
+        // 同じFindColumns呼び出しを再度行わずに済むオーバーロードへ渡す。rows.Count == 0の場合のみ
+        // selectionは未計算(null)のままなので、その場合は空データ用のオーバーロードにフォールバックする
+        ExtractedColumn extracted = selection is null ? ExtractColumn(rows) : ExtractColumn(rows, selection);
         return new ParsedMemberSource(extracted.Values, sheet.Name, extracted.Column, extracted.IsNameColumn);
     }
 
-    /// <summary>
-    ///     ヘッダー行からメールアドレス列・氏名列を推定し、値を抽出する。列の見つかり方(なし/片方/両方)に
-    ///     応じた分岐は<see cref="ColumnSelection" />自身へ委ねており、ここでは行を1件ずつ渡すだけでよい
-    /// </summary>
+    /// <summary>ヘッダー行からメールアドレス列・氏名列を推定したうえで、値を抽出する</summary>
     private static ExtractedColumn ExtractColumn(IReadOnlyList<string[]> rows)
     {
-        if (rows.Count == 0)
-        {
-            return new ExtractedColumn([], "1列目", false);
-        }
+        return rows.Count == 0
+            ? new ExtractedColumn([], "1列目", false)
+            : ExtractColumn(rows, FindColumns(rows[0]));
+    }
 
-        ColumnSelection selection = FindColumns(rows[0]);
+    /// <summary>
+    ///     既に検出済みの列選択(<paramref name="selection" />)を使って値を抽出する。列の見つかり方
+    ///     (なし/片方/両方)に応じた分岐は<see cref="ColumnSelection" />自身へ委ねており、
+    ///     ここでは行を1件ずつ渡すだけでよい
+    /// </summary>
+    private static ExtractedColumn ExtractColumn(IReadOnlyList<string[]> rows, ColumnSelection selection)
+    {
         if (selection.IsEmpty)
         {
             return new ExtractedColumn(rows.Select(r => r.Length > 0 ? r[0] : ""), "1列目（ヘッダーなし）", false);
@@ -223,6 +228,16 @@ public sealed class MemberListReader : IMemberListReader
     private static string NormalizeHeader(string value)
     {
         return value.Trim().Replace("_", "").Replace(" ", "").ToLowerInvariant();
+    }
+
+    /// <summary>
+    ///     列数不一致のエラーを組み立てる。CSV(<see cref="ReadCsv" />)・Excel
+    ///     (<see cref="ColumnSelection.NormalizeRowWidth" />)の両読込経路で文言を共有する
+    /// </summary>
+    private static InvalidDataException ColumnCountMismatchError(int headerWidth, int actualWidth, int rowNumber)
+    {
+        return new InvalidDataException(
+            $"{rowNumber}行目の列数が1行目と一致しません（1行目: {headerWidth}列、{rowNumber}行目: {actualWidth}列）。");
     }
 
     // 旧実装は(IEnumerable<string>, string, string, bool)という名前なしタプルを返しており、
@@ -299,7 +314,10 @@ public sealed class MemberListReader : IMemberListReader
         ///     Excelで末尾セルが未入力のとき<c>LastCellUsed</c>がそこまで伸びず行の見かけの列数が
         ///     縮む挙動を吸収するため空欄で埋め、<see cref="SelectValue" />のフォールバック判定に委ねる。
         ///     片方の列しか見つからない場合はフォールバックできず値を無警告で取りこぼしてしまうため、
-        ///     従来通りエラーとする
+        ///     従来通りエラーとする。
+        ///     この非対称性(単一列検出時、CSVは末尾セル空欄でもエラーにならずExcelはエラーになる)は、
+        ///     CSVがカンマ区切りで空欄も1フィールドとして残るのに対し、Excelは未入力セルがそもそも
+        ///     セル自体として存在せず行の見かけの幅が縮む、というファイル形式側の違いに起因する
         /// </summary>
         public string[] NormalizeRowWidth(string[] fields, int headerWidth, int rowNumber)
         {
@@ -313,8 +331,7 @@ public sealed class MemberListReader : IMemberListReader
                 return [.. fields, .. Enumerable.Repeat("", headerWidth - fields.Length)];
             }
 
-            throw new InvalidDataException(
-                $"{rowNumber}行目の列数が1行目と一致しません（1行目: {headerWidth}列、{rowNumber}行目: {fields.Length}列）。");
+            throw ColumnCountMismatchError(headerWidth, fields.Length, rowNumber);
         }
     }
 }

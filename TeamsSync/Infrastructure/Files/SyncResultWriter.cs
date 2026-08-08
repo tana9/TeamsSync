@@ -46,6 +46,11 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
         return path;
     }
 
+    // 呼び出し元(SyncExecutionCoordinator)からは1回の同期実行につき高々1回だけ呼ばれる想定のため、
+    // 実装は真のファイル追記(FileMode.Append)ではなく、AtomicFileWriterによる全文読み込み→
+    // 書き直しにしている。監査CSVは操作件数に比例した小サイズであることもあり、この頻度では
+    // 実害はない。ただし将来、同じログへ複数回追記する用途が増えた場合は、追記のたびに
+    // O(ファイル全体)の読み書きが発生する点に注意すること
     /// <inheritdoc />
     public void AppendReconciliationResult(string logPath, SyncPlan? remainingPlan, Exception? reconciliationError)
     {

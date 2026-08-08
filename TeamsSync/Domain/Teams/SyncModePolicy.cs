@@ -34,10 +34,6 @@ public sealed record SyncModePolicy(
         };
     }
 
-    // 現行の3モードでは「追加を許可しない」のはRemoveSpecifiedだけ(AddOnly/FullSyncは常にAllowsAdd)
-    // なので、!AllowsAddだけで「指定メンバー削除モードかどうか」を安全に判定できる。SyncPlanFactory側に
-    // 直接mode == SyncMode.RemoveSpecifiedと書く代わりにこちらへ寄せることで、モード追加時の
-    // 分岐漏れをSyncModePolicy.For側の1箇所に留められる
     /// <summary>
     ///     入力で解決できたが現在チームに所属していない新規ユーザーを、このモードでどう扱うかを返す。
     ///     追加を許可しないモードでは、削除対象でもないことを示すNotMemberとして扱う
@@ -51,14 +47,16 @@ public sealed record SyncModePolicy(
 
     /// <summary>
     ///     入力で解決できた、既にチームに所属している非所有者メンバーを、このモードでどう扱うかを返す。
-    ///     追加を許可しないモードでのみ削除対象とし、それ以外は<paramref name="keepReason" />を理由に維持する。
-    ///     氏名のみによる一致(<paramref name="matchedByNameOnly" />)の場合は、削除・維持のいずれでも
-    ///     確度が低いことが伝わる理由へ差し替える
+    ///     追加を許可せず削除は許可するモード(指定メンバー削除)でのみ削除対象とし、それ以外は
+    ///     <paramref name="keepReason" />を理由に維持する。AllowsAdd/AllowsRemoveの両方を見て判定するため、
+    ///     将来「追加も削除も許可しないモード」が追加されても、削除は許可されていないのに削除対象と
+    ///     誤判定することはない。氏名のみによる一致(<paramref name="matchedByNameOnly" />)の場合は、
+    ///     削除・維持のいずれでも確度が低いことが伝わる理由へ差し替える
     /// </summary>
     public (ChangeKind Kind, ChangeReason Reason) ClassifyMatchedNonOwner(ChangeReason keepReason,
         bool matchedByNameOnly)
     {
-        if (!AllowsAdd)
+        if (!AllowsAdd && AllowsRemove)
         {
             return (ChangeKind.Remove,
                 matchedByNameOnly ? ChangeReason.RemoveSpecifiedNameMatchOnly : ChangeReason.RemoveSpecified);
