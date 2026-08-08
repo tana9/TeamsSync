@@ -161,7 +161,7 @@ public sealed class MemberListReader : IMemberListReader
             }
             else
             {
-                fields = NormalizeExcelRowWidth(fields, rows[0].Length, selection!, row.RowNumber());
+                fields = selection!.NormalizeRowWidth(fields, rows[0].Length, row.RowNumber());
             }
 
             rows.Add(fields);
@@ -172,8 +172,8 @@ public sealed class MemberListReader : IMemberListReader
     }
 
     /// <summary>
-    ///     ヘッダー行からメールアドレス列・氏名列を推定し、値を抽出する。片方しか見つからない場合は
-    ///     従来通りその列だけを使う。両方見つかった場合は<see cref="ExtractWithFallback" />へ委ねる
+    ///     ヘッダー行からメールアドレス列・氏名列を推定し、値を抽出する。列の見つかり方(なし/片方/両方)に
+    ///     応じた分岐は<see cref="ColumnSelection" />自身へ委ねており、ここでは行を1件ずつ渡すだけでよい
     /// </summary>
     private static ExtractedColumn ExtractColumn(IReadOnlyList<string[]> rows)
     {
@@ -183,78 +183,22 @@ public sealed class MemberListReader : IMemberListReader
         }
 
         ColumnSelection selection = FindColumns(rows[0]);
-        if (selection.AddressIndex is null && selection.NameIndex is null)
+        if (selection.IsEmpty)
         {
             return new ExtractedColumn(rows.Select(r => r.Length > 0 ? r[0] : ""), "1列目（ヘッダーなし）", false);
         }
 
-        if (selection.AddressIndex is null || selection.NameIndex is null)
-        {
-            int column = selection.AddressIndex ?? selection.NameIndex!.Value;
-            IEnumerable<string> values = rows.Skip(1).Select(row => row.Length > column ? row[column] : "");
-            return new ExtractedColumn(values, rows[0][column].Trim(), selection.NameIndex is not null);
-        }
-
-        return ExtractWithFallback(rows, selection.AddressIndex.Value, selection.NameIndex.Value);
-    }
-
-    /// <summary>
-    ///     メールアドレス列・氏名列の両方が見つかった場合、行ごとにメールアドレス列の値を優先し、
-    ///     その行が空欄のときだけ氏名列の値で補う。どちらか一方が空でも、もう一方に値があれば
-    ///     同期対象から漏れないようにするための処理。実際に氏名列へフォールバックした行が
-    ///     1件でもあった場合に限り、列ラベルと氏名列フラグへその旨を反映し、同姓同名の確認を
-    ///     促す画面表示(<see cref="MemberListDocument.IsNameColumn" />)につなげる。メールアドレス列だけで
-    ///     全行を賄えた場合は、氏名列が存在していても従来通りメールアドレス列単独の扱いとする
-    /// </summary>
-    private static ExtractedColumn ExtractWithFallback(IReadOnlyList<string[]> rows, int addressIndex,
-        int nameIndex)
-    {
         List<string> values = [];
         bool usedNameFallback = false;
         foreach (string[] row in rows.Skip(1))
         {
-            string address = row.Length > addressIndex ? row[addressIndex].Trim() : "";
-            if (!string.IsNullOrWhiteSpace(address))
-            {
-                values.Add(address);
-                continue;
-            }
-
-            string name = row.Length > nameIndex ? row[nameIndex] : "";
-            values.Add(name);
-            usedNameFallback |= !string.IsNullOrWhiteSpace(name);
+            (string value, bool fellBackToName) = selection.SelectValue(row);
+            values.Add(value);
+            usedNameFallback |= fellBackToName;
         }
 
-        string addressLabel = rows[0][addressIndex].Trim();
-        string label = usedNameFallback ? $"{addressLabel} / {rows[0][nameIndex].Trim()}" : addressLabel;
-        return new ExtractedColumn(values, label, usedNameFallback);
-    }
-
-    /// <summary>
-    ///     Excelのデータ行の列数をヘッダー行と揃える。ヘッダーより多い場合は誤って別データが
-    ///     紛れ込んだ可能性が高いため、CSVの列数不一致チェックと同様に行番号付きのエラーとする。
-    ///     少ない場合、メールアドレス列・氏名列の両方が見つかっていれば、Excelで末尾セルが
-    ///     未入力のとき<c>LastCellUsed</c>がそこまで伸びず行の見かけの列数が縮む挙動を吸収するため、
-    ///     空欄で埋めて<see cref="ExtractWithFallback" />のフォールバック判定に委ねる。
-    ///     いずれか一方の列しか見つからない場合はフォールバックできず値を無警告で
-    ///     取りこぼしてしまうため、従来通りエラーとする
-    /// </summary>
-    private static string[] NormalizeExcelRowWidth(string[] fields, int headerWidth, ColumnSelection selection,
-        int rowNumber)
-    {
-        if (fields.Length == headerWidth)
-        {
-            return fields;
-        }
-
-        bool canFallBackToName = selection is { AddressIndex: not null, NameIndex: not null };
-        if (fields.Length < headerWidth && canFallBackToName)
-        {
-            return [.. fields, .. Enumerable.Repeat("", headerWidth - fields.Length)];
-        }
-
-        throw new InvalidDataException(
-            $"{rowNumber}行目の列数が1行目と一致しません（1行目: {headerWidth}列、{rowNumber}行目: {fields.Length}列）。");
+        string label = selection.BuildLabel(rows[0], usedNameFallback);
+        return new ExtractedColumn(values, label, usedNameFallback || selection.IsSingleNameColumn);
     }
 
     /// <summary>ヘッダー名からメールアドレス列・氏名列のインデックスをそれぞれ独立に探す</summary>
@@ -291,6 +235,86 @@ public sealed class MemberListReader : IMemberListReader
     private sealed record ParsedMemberSource(IEnumerable<string> Values, string SourceName, string Column,
         bool IsNameColumn);
 
+    // 「見つかった列がなし/片方だけ/両方」という分岐、行ごとの値の選び方、列不足行の許容判定、
+    // 列ラベルの組み立てをすべてここへ集約している。以前はこれらの分岐がExtractColumn・
+    // ExtractWithFallback・NormalizeExcelRowWidthの3メソッドに分散しており、呼び出し側は
+    // 単に「どの行がどの意味を持つか」を渡すだけでよくなった
     /// <summary>ヘッダー行から見つかったメールアドレス列・氏名列のインデックス(見つからない場合はnull)</summary>
-    private sealed record ColumnSelection(int? AddressIndex, int? NameIndex);
+    private sealed record ColumnSelection(int? AddressIndex, int? NameIndex)
+    {
+        /// <summary>メールアドレス列・氏名列のどちらも見つからなかったかどうか(ヘッダーなし扱い)</summary>
+        public bool IsEmpty => AddressIndex is null && NameIndex is null;
+
+        /// <summary>メールアドレス列・氏名列の両方が見つかっており、行ごとに互いを補えるかどうか</summary>
+        public bool CanFallBackToName => AddressIndex is not null && NameIndex is not null;
+
+        /// <summary>片方の列しか見つからず、それが氏名列であるかどうか(氏名列のみ検出のケース)</summary>
+        public bool IsSingleNameColumn => AddressIndex is null && NameIndex is not null;
+
+        /// <summary>
+        ///     1行分のセル値から、この選択に従って値を1つ取り出す。両方の列が見つかっている場合は
+        ///     メールアドレス列を優先し、その値が空欄のときだけ氏名列の値を返す。戻り値の
+        ///     UsedNameFallbackは、実際に氏名列の値(空でないもの)を採用したかどうかを表す
+        /// </summary>
+        public (string Value, bool UsedNameFallback) SelectValue(string[] row)
+        {
+            string address = AddressIndex is { } addressIndex && row.Length > addressIndex
+                ? row[addressIndex].Trim()
+                : "";
+            if (!string.IsNullOrWhiteSpace(address))
+            {
+                return (address, false);
+            }
+
+            string name = NameIndex is { } nameIndex && row.Length > nameIndex ? row[nameIndex] : "";
+            return (name, CanFallBackToName && !string.IsNullOrWhiteSpace(name));
+        }
+
+        /// <summary>
+        ///     ヘッダー行から、この選択に対応する列ラベルを組み立てる。氏名列へフォールバックした行が
+        ///     1件もなければメールアドレス列(または唯一検出できた列)の見出しだけを返す
+        /// </summary>
+        public string BuildLabel(string[] header, bool usedNameFallback)
+        {
+            if (!CanFallBackToName)
+            {
+                int column = AddressIndex ?? NameIndex!.Value;
+                return header.Length > column ? header[column].Trim() : "1列目";
+            }
+
+            string addressLabel = header.Length > AddressIndex!.Value ? header[AddressIndex.Value].Trim() : "";
+            if (!usedNameFallback)
+            {
+                return addressLabel;
+            }
+
+            string nameLabel = header.Length > NameIndex!.Value ? header[NameIndex.Value].Trim() : "";
+            return $"{addressLabel} / {nameLabel}";
+        }
+
+        /// <summary>
+        ///     データ行の列数をヘッダー行と揃える。ヘッダーより多い場合は誤って別データが紛れ込んだ
+        ///     可能性が高いため、CSVの列数不一致チェックと同様に行番号付きのエラーとする。少ない場合、
+        ///     メールアドレス列・氏名列の両方が見つかっていれば(<see cref="CanFallBackToName" />)、
+        ///     Excelで末尾セルが未入力のとき<c>LastCellUsed</c>がそこまで伸びず行の見かけの列数が
+        ///     縮む挙動を吸収するため空欄で埋め、<see cref="SelectValue" />のフォールバック判定に委ねる。
+        ///     片方の列しか見つからない場合はフォールバックできず値を無警告で取りこぼしてしまうため、
+        ///     従来通りエラーとする
+        /// </summary>
+        public string[] NormalizeRowWidth(string[] fields, int headerWidth, int rowNumber)
+        {
+            if (fields.Length == headerWidth)
+            {
+                return fields;
+            }
+
+            if (fields.Length < headerWidth && CanFallBackToName)
+            {
+                return [.. fields, .. Enumerable.Repeat("", headerWidth - fields.Length)];
+            }
+
+            throw new InvalidDataException(
+                $"{rowNumber}行目の列数が1行目と一致しません（1行目: {headerWidth}列、{rowNumber}行目: {fields.Length}列）。");
+        }
+    }
 }

@@ -88,17 +88,7 @@ public sealed record SyncChangeRowViewModel(SyncChange Change)
     public ChangeKind Kind => Change.Kind;
 
     /// <summary>種別の日本語表示ラベル</summary>
-    public string KindLabel => Kind switch
-    {
-        ChangeKind.Add => "追加",
-        ChangeKind.Remove => "削除",
-        ChangeKind.Keep => "維持",
-        ChangeKind.Protected => "所有者保護",
-        ChangeKind.NotMember => "未所属",
-        ChangeKind.Error => "エラー",
-        ChangeKind.Excluded => "個別除外",
-        _ => Kind.ToString()
-    };
+    public string KindLabel => ChangeKindText.Label(Kind);
 
     /// <summary>対象ユーザーの表示名</summary>
     public string DisplayName => Change.DisplayName;
@@ -116,7 +106,7 @@ public sealed record SyncChangeRowViewModel(SyncChange Change)
 public sealed record SyncResultRowViewModel(SyncOperationResult Result)
 {
     /// <summary>種別の日本語表示ラベル</summary>
-    public string KindLabel => Result.Kind == ChangeKind.Add ? "追加" : "削除";
+    public string KindLabel => ChangeKindText.Label(Result.Kind);
 
     /// <summary>対象のアドレス</summary>
     public string Email => Result.Email;

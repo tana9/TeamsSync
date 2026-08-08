@@ -60,13 +60,7 @@ public static class SyncWorkspaceTextFormatter
     /// <summary>同期モードの画面表示用ラベルを組み立てる</summary>
     public static string BuildModeLabel(SyncMode mode)
     {
-        return mode switch
-        {
-            SyncMode.AddOnly => "追加のみ（既存メンバーを維持）",
-            SyncMode.RemoveSpecified => "指定メンバーを削除",
-            SyncMode.FullSync => "完全同期（リスト外を削除）",
-            _ => mode.ToString()
-        };
+        return SyncModePolicy.For(mode).DetailedLabel;
     }
 
     /// <summary>差分確認中の進捗テキストを組み立てる</summary>

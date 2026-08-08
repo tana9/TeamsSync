@@ -58,12 +58,14 @@ public sealed record SyncPlan(
     ///     「追加のみ」モードでの削除、「指定メンバーを削除」モードでの追加は矛盾とみなす。
     ///     <see cref="EnsureExecutable" />と<see cref="CanExecute" />が共通してこの判定を使う
     /// </summary>
-    private bool IsModeConsistent => Mode switch
+    private bool IsModeConsistent
     {
-        SyncMode.AddOnly => RemoveCount == 0,
-        SyncMode.RemoveSpecified => AddCount == 0,
-        _ => true
-    };
+        get
+        {
+            SyncModePolicy policy = SyncModePolicy.For(Mode);
+            return (policy.AllowsRemove || RemoveCount == 0) && (policy.AllowsAdd || AddCount == 0);
+        }
+    }
 
     /// <summary>未解決の変更がなく、モードと矛盾せず、かつ実行対象の変更が1件以上あるため実行可能かどうか</summary>
     public bool CanExecute => !HasErrors && !HasNoActionableChanges && IsModeConsistent;
@@ -82,9 +84,7 @@ public sealed record SyncPlan(
 
         if (!IsModeConsistent)
         {
-            throw new InvalidOperationException(Mode == SyncMode.AddOnly
-                ? "追加のみモードではメンバーを削除できません。"
-                : "指定メンバー削除モードではメンバーを追加できません。");
+            throw new InvalidOperationException(SyncModePolicy.For(Mode).InconsistentOperationMessage);
         }
 
         if (HasNoActionableChanges)

@@ -186,13 +186,7 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
     /// <summary>同期モードを利用者向けの日本語へ変換する</summary>
     private static string SyncModeLabel(SyncMode mode)
     {
-        return mode switch
-        {
-            SyncMode.AddOnly => "追加のみ",
-            SyncMode.RemoveSpecified => "指定メンバーを削除",
-            SyncMode.FullSync => "完全同期",
-            _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "未対応の同期モードです。")
-        };
+        return SyncModePolicy.For(mode).ShortLabel;
     }
 
     /// <summary>実行した操作を利用者向けの日本語へ変換する</summary>
@@ -200,8 +194,7 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
     {
         return kind switch
         {
-            ChangeKind.Add => "追加",
-            ChangeKind.Remove => "削除",
+            ChangeKind.Add or ChangeKind.Remove => ChangeKindText.Label(kind),
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "実行結果に未対応の操作種別が含まれています。")
         };
     }
