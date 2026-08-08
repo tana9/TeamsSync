@@ -135,9 +135,9 @@ public static class SyncPlanFactory
                     break;
                 case { Outcome: ResolutionOutcome.NewUser, User: { } user }:
                     resolved[resolution.Address] = user;
+                    (ChangeKind newUserKind, ChangeReason newUserReason) = SyncModePolicy.For(mode).ClassifyNewUser();
                     AddOrMergeChange(resolution.Address, user.Id, null, user.DisplayName,
-                        mode == SyncMode.RemoveSpecified ? ChangeKind.NotMember : ChangeKind.Add,
-                        mode == SyncMode.RemoveSpecified ? ChangeReason.NotCurrentMember : ChangeReason.AddToTeam);
+                        newUserKind, newUserReason);
                     break;
             }
         }
@@ -146,10 +146,9 @@ public static class SyncPlanFactory
     }
 
     /// <summary>
-    ///     既にチームに所属しているメンバーの変更種別・理由を判定する。所有者は常に保護し、
-    ///     所有者でなければ指定削除モードは削除、それ以外は<paramref name="keepReason" />を理由に維持する。
-    ///     氏名のみによる一致(<paramref name="matchedByNameOnly" />)の場合は、削除・維持のいずれでも
-    ///     確度が低いことが伝わる理由へ差し替える
+    ///     既にチームに所属しているメンバーの変更種別・理由を判定する。所有者は常に保護し(モードに依存しない
+    ///     データ側の不変条件のためここで判定する)、所有者でなければモード固有の扱いを
+    ///     <see cref="SyncModePolicy.ClassifyMatchedNonOwner" />へ委ねる
     /// </summary>
     private static (ChangeKind Kind, ChangeReason Reason) ClassifyExistingMember(bool isOwner, SyncMode mode,
         ChangeReason keepReason, bool matchedByNameOnly)
@@ -159,13 +158,7 @@ public static class SyncPlanFactory
             return (ChangeKind.Protected, ChangeReason.OwnerProtected);
         }
 
-        if (mode == SyncMode.RemoveSpecified)
-        {
-            return (ChangeKind.Remove,
-                matchedByNameOnly ? ChangeReason.RemoveSpecifiedNameMatchOnly : ChangeReason.RemoveSpecified);
-        }
-
-        return (ChangeKind.Keep, matchedByNameOnly ? ChangeReason.AlreadyMemberNameMatchOnly : keepReason);
+        return SyncModePolicy.For(mode).ClassifyMatchedNonOwner(keepReason, matchedByNameOnly);
     }
 
     /// <summary>
