@@ -88,11 +88,11 @@ public sealed class SyncExecutor(ITeamsGateway teamsGateway, ILogger<SyncExecuto
         {
             if (change.Kind == ChangeKind.Add)
             {
-                await teamsGateway.AddMemberAsync(teamId, change.UserId!, cancellationToken);
+                await teamsGateway.AddMemberAsync(teamId, targetObjectId!, cancellationToken);
             }
             else
             {
-                await teamsGateway.RemoveMemberAsync(teamId, change.MembershipId!, cancellationToken);
+                await teamsGateway.RemoveMemberAsync(teamId, targetObjectId!, cancellationToken);
             }
 
             results.Add(new SyncOperationResult(change.Kind, change.Email, true, null, change.DisplayName));
