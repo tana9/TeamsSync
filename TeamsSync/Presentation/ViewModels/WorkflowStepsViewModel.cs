@@ -1,5 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 
+using TeamsSync.Presentation.ViewModels.Support;
+
 namespace TeamsSync.Presentation.ViewModels;
 
 /// <summary>
@@ -23,28 +25,10 @@ public sealed class WorkflowStepsViewModel : ObservableObject
         _memberFile = memberFile;
         _syncWorkspace = syncWorkspace;
 
-        signIn.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(SignInViewModel.IsSignedIn))
-            {
-                NotifySteps();
-            }
-        };
-        teamSelection.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(TeamSelectionViewModel.SelectedTeam))
-            {
-                NotifySteps();
-            }
-        };
+        signIn.WhenChanged(nameof(SignInViewModel.IsSignedIn), NotifySteps);
+        teamSelection.WhenChanged(nameof(TeamSelectionViewModel.SelectedTeam), NotifySteps);
         memberFile.DocumentChanged += NotifySteps;
-        syncWorkspace.Plan.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(SyncPlanDisplayState.HasPlan))
-            {
-                NotifySteps();
-            }
-        };
+        syncWorkspace.Plan.WhenChanged(nameof(SyncPlanDisplayState.HasPlan), NotifySteps);
     }
 
     // 実際の操作順は厳密には固定していない(先にファイルを選んでもよい)ため、番号は「案内の順序」であり、

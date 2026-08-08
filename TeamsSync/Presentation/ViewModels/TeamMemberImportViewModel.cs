@@ -9,11 +9,25 @@ using TeamsSync.Presentation.ViewModels.Support;
 
 namespace TeamsSync.Presentation.ViewModels;
 
+// 以前は「実行可否」「既存入力の有無」を2つのFunc<bool>としてコンストラクターへ渡していたため、
+// それぞれが何を意味するかは呼び出し元(MemberFileViewModel)のラムダを遡らないと分からなかった。
+// 名前付きのインターフェースへ切り出すことで、このクラス単体を読むだけで依存の内容が分かるようにする
+/// <summary>
+///     Teamsからのメンバー取り込みが、呼び出し元(入力欄)の状態から見て実行可能かどうかを表す
+/// </summary>
+internal interface IMemberInputAvailability
+{
+    /// <summary>入力欄側の状態(ファイル読込中・解析中・テキスト貼り付けタブが選択されているかなど)から見た実行可否</summary>
+    bool CanImportCurrentMembers { get; }
+
+    /// <summary>置き換え確認が必要な既存入力があるかどうか</summary>
+    bool HasExistingInput { get; }
+}
+
 /// <summary>選択中チームの現在の一般メンバーをGraph APIから取得し、入力欄へ反映する取り込み操作を管理する</summary>
 public partial class TeamMemberImportViewModel : ObservableObject
 {
-    private readonly Func<bool> _canImport;
-    private readonly Func<bool> _hasExistingInput;
+    private readonly IMemberInputAvailability _availability;
     private readonly RestartableCancellation _importCancellation = new();
     private readonly MemberFileInputCoordinator _inputCoordinator;
     private readonly IMemberInputConfirmationService _inputConfirmation;
@@ -22,22 +36,20 @@ public partial class TeamMemberImportViewModel : ObservableObject
     private TeamInfo? _selectedTeam;
 
     /// <summary>
-    ///     コンストラクター。<paramref name="canImport" />には入力欄側(ファイル読込中・解析中・
-    ///     テキスト貼り付けタブが選択されているかなど)の実行可否を、<paramref name="hasExistingInput" />には
-    ///     置き換え確認が必要な既存入力の有無を、それぞれ呼び出し元(<see cref="MemberFileViewModel" />)から渡す。
-    ///     <paramref name="inputCoordinator" />は<see cref="MemberFileViewModel" />が持つものを共有し、
-    ///     貼り付け入力と同じ経路(UIスレッド外でのTask.Run実行)でテキストを解析する
+    ///     コンストラクター。<paramref name="availability" />には呼び出し元(<see cref="MemberFileViewModel" />)の
+    ///     入力状態から見た実行可否・既存入力の有無を渡す。<paramref name="inputCoordinator" />は
+    ///     <see cref="MemberFileViewModel" />が持つものを共有し、貼り付け入力と同じ経路
+    ///     (UIスレッド外でのTask.Run実行)でテキストを解析する
     /// </summary>
     internal TeamMemberImportViewModel(TeamsAccessService teamsAccess, MemberFileInputCoordinator inputCoordinator,
         INotificationService notifications, IMemberInputConfirmationService inputConfirmation,
-        Func<bool> canImport, Func<bool> hasExistingInput)
+        IMemberInputAvailability availability)
     {
         _teamsAccess = teamsAccess;
         _inputCoordinator = inputCoordinator;
         _notifications = notifications;
         _inputConfirmation = inputConfirmation;
-        _canImport = canImport;
-        _hasExistingInput = hasExistingInput;
+        _availability = availability;
     }
 
     /// <summary>現在のチームメンバーを取得中かどうか</summary>
@@ -145,7 +157,7 @@ public partial class TeamMemberImportViewModel : ObservableObject
     private async Task<bool> ConfirmReplacementAsync(TeamInfo team, int memberCount,
         CancellationToken cancellationToken)
     {
-        if (!_hasExistingInput())
+        if (!_availability.HasExistingInput)
         {
             return true;
         }
@@ -175,7 +187,7 @@ public partial class TeamMemberImportViewModel : ObservableObject
 
     private bool CanImportCurrentMembers()
     {
-        return !IsImportingMembers && _selectedTeam is not null && _canImport();
+        return !IsImportingMembers && _selectedTeam is not null && _availability.CanImportCurrentMembers;
     }
 
     /// <summary>実行中の現在メンバー取り込みをキャンセルする</summary>

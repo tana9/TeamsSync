@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Application.Services;
 using TeamsSync.Presentation.Services;
+using TeamsSync.Presentation.ViewModels.Support;
 
 namespace TeamsSync.Presentation.ViewModels;
 
@@ -31,58 +32,26 @@ public partial class MainWindowViewModel : ObservableObject
         WorkflowSteps = new WorkflowStepsViewModel(SignIn, TeamSelection, MemberFile, SyncWorkspace);
 
         // SelectedTeam/IsBusyはMVVM Toolkitの[ObservableProperty]が自動でPropertyChangedを発行するため、
-        // 専用のカスタムイベントを設けず、子ViewModelのPropertyChangedをプロパティ名でフィルターして購読する
-        SignIn.PropertyChanged += (_, e) =>
+        // 専用のカスタムイベントを設けず、子ViewModelのPropertyChangedをプロパティ名でフィルターして購読する。
+        // WhenChangedは「どのプロパティの変化に何を反応させるか」だけを1行で表す拡張メソッド
+        // (WorkflowStepsViewModelも一部同じ発生源(SignIn.IsSignedIn等)を独立に購読しているが、
+        // 目的が異なる(こちらは入力有効化、あちらは手順進捗表示)ため、あえて別々の購読のままにしている)
+        SignIn.WhenChanged(nameof(SignInViewModel.IsBusy), UpdateAvailability);
+        SignIn.WhenChanged(nameof(SignInViewModel.IsSignedIn), () =>
         {
-            switch (e.PropertyName)
-            {
-                case nameof(SignInViewModel.IsBusy):
-                    UpdateAvailability();
-                    break;
-                case nameof(SignInViewModel.IsSignedIn):
-                    UpdateSyncContext();
-                    UpdateAvailability();
-                    break;
-            }
-        };
+            UpdateSyncContext();
+            UpdateAvailability();
+        });
         SignIn.SignedOut += () => TeamSelection.Clear();
-        TeamSelection.PropertyChanged += (_, e) =>
-        {
-            switch (e.PropertyName)
-            {
-                case nameof(TeamSelectionViewModel.SelectedTeam):
-                    UpdateSyncContext();
-                    break;
-                case nameof(TeamSelectionViewModel.IsBusy):
-                    UpdateAvailability();
-                    break;
-            }
-        };
+        TeamSelection.WhenChanged(nameof(TeamSelectionViewModel.SelectedTeam), UpdateSyncContext);
+        TeamSelection.WhenChanged(nameof(TeamSelectionViewModel.IsBusy), UpdateAvailability);
         TeamSelection.StatusChanged += SetStatus;
         MemberFile.DocumentChanged += UpdateSyncContext;
         MemberFile.StatusChanged += SetStatus;
-        MemberFile.Import.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(TeamMemberImportViewModel.IsImportingMembers))
-            {
-                UpdateAvailability();
-            }
-        };
+        MemberFile.Import.WhenChanged(nameof(TeamMemberImportViewModel.IsImportingMembers), UpdateAvailability);
         SyncWorkspace.StatusChanged += SetStatus;
-        SyncWorkspace.Preview.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(SyncPreviewDisplayState.IsBusy))
-            {
-                UpdateAvailability();
-            }
-        };
-        SyncWorkspace.Execution.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(SyncExecutionDisplayState.IsBusy))
-            {
-                UpdateAvailability();
-            }
-        };
+        SyncWorkspace.Preview.WhenChanged(nameof(SyncPreviewDisplayState.IsBusy), UpdateAvailability);
+        SyncWorkspace.Execution.WhenChanged(nameof(SyncExecutionDisplayState.IsBusy), UpdateAvailability);
         if (preferences.LoadWarning is not null)
         {
             SetStatus(preferences.LoadWarning, true);

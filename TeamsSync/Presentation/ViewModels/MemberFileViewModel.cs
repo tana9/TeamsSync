@@ -15,7 +15,7 @@ namespace TeamsSync.Presentation.ViewModels;
 ///     解析結果の<see cref="MemberListDocument" />を保持する。Teamsからの現在メンバー取り込みは
 ///     <see cref="Import" />(<see cref="TeamMemberImportViewModel" />)へ委譲する
 /// </summary>
-public partial class MemberFileViewModel : ObservableObject
+public partial class MemberFileViewModel : ObservableObject, IMemberInputAvailability
 {
     private readonly IFilePickerService _filePicker;
     private readonly IMemberInputConfirmationService _inputConfirmation;
@@ -38,10 +38,7 @@ public partial class MemberFileViewModel : ObservableObject
         _filePicker = filePicker;
         _notifications = notifications;
         _inputConfirmation = inputConfirmation;
-        Import = new TeamMemberImportViewModel(teamsAccess, _inputCoordinator, notifications, inputConfirmation,
-            () => _enabled && !FileLoad.IsLoading && !PasteInput.IsParsing &&
-                  SelectedInputIndex == (int)MemberInputMethod.Paste,
-            () => Document is not null || _documents.FileDocument is not null || !string.IsNullOrWhiteSpace(PastedText));
+        Import = new TeamMemberImportViewModel(teamsAccess, _inputCoordinator, notifications, inputConfirmation, this);
         Import.Imported += OnMembersImported;
         Import.StatusChanged += (message, isError) => _uiEvents.Status(message, isError);
         Import.PropertyChanged += (_, args) =>
@@ -143,6 +140,15 @@ public partial class MemberFileViewModel : ObservableObject
     {
         Import.SetSelectedTeam(team);
     }
+
+    // IMemberInputAvailabilityはTeamMemberImportViewModel専用の内部依存であり、XAMLバインディング等の
+    // 一般公開プロパティと混同されないよう、明示的インターフェース実装としてIntelliSense上も分離している
+    bool IMemberInputAvailability.CanImportCurrentMembers =>
+        _enabled && !FileLoad.IsLoading && !PasteInput.IsParsing &&
+        SelectedInputIndex == (int)MemberInputMethod.Paste;
+
+    bool IMemberInputAvailability.HasExistingInput =>
+        Document is not null || _documents.FileDocument is not null || !string.IsNullOrWhiteSpace(PastedText);
 
     /// <summary>入力状態に依存するすべてのコマンドの実行可否を再評価する</summary>
     private void NotifyCommandStates()
