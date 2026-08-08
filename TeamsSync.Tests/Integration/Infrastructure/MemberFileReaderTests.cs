@@ -116,11 +116,88 @@ public sealed class MemberFileReaderTests : IDisposable
     }
 
     [Fact]
-    public void ReadExcel_ヘッダーと異なる列数を行番号付きで拒否する()
+    public void ReadCsv_メールアドレスが空の行は氏名列で補う()
     {
-        // CSV(ReadCsv_ヘッダーと異なる列数を行番号付きで拒否する)と挙動を揃え、
-        // 列が少ない行を対象列の値なしとして無警告で除外しないことを確認する
+        string path = Path.Combine(_directory, "mixed.csv");
+        File.WriteAllText(path,
+            "氏名,メールアドレス\n山田 太郎,\n佐藤 花子,sato@example.com\n鈴木 一郎,\n");
+
+        MemberListDocument document = new MemberListReader().Read(path, CancellationToken.None);
+
+        Assert.Equal(["山田 太郎", "sato@example.com", "鈴木 一郎"], document.Addresses);
+        Assert.True(document.IsNameColumn);
+        Assert.Equal("メールアドレス / 氏名", document.DetectedColumn);
+    }
+
+    [Fact]
+    public void ReadExcel_UPNが空の行は氏名列で補う()
+    {
+        string path = Path.Combine(_directory, "mixed.xlsx");
+        using (XLWorkbook book = new())
+        {
+            IXLWorksheet sheet = book.AddWorksheet("Members");
+            sheet.Cell(1, 1).Value = "氏名";
+            sheet.Cell(1, 2).Value = "UserPrincipalName";
+            sheet.Cell(2, 1).Value = "山田 太郎";
+            sheet.Cell(2, 2).Value = "";
+            sheet.Cell(3, 1).Value = "佐藤 花子";
+            sheet.Cell(3, 2).Value = "sato@example.com";
+            book.SaveAs(path);
+        }
+
+        MemberListDocument document = new MemberListReader().Read(path, CancellationToken.None);
+
+        Assert.Equal(["山田 太郎", "sato@example.com"], document.Addresses);
+        Assert.True(document.IsNameColumn);
+    }
+
+    [Fact]
+    public void ReadCsv_全行にメールアドレスがあれば氏名列が存在してもフォールバック扱いにしない()
+    {
+        string path = Path.Combine(_directory, "email-complete.csv");
+        File.WriteAllText(path,
+            "氏名,メールアドレス\n山田 太郎,taro@example.com\n佐藤 花子,sato@example.com\n");
+
+        MemberListDocument document = new MemberListReader().Read(path, CancellationToken.None);
+
+        Assert.Equal(["taro@example.com", "sato@example.com"], document.Addresses);
+        Assert.False(document.IsNameColumn);
+        Assert.Equal("メールアドレス", document.DetectedColumn);
+    }
+
+    [Fact]
+    public void ReadExcel_単一列しか検出できない場合は列数不一致を行番号付きで拒否する()
+    {
+        // メールアドレス列・氏名列のどちらか一方しか検出できない場合はフォールバック先がなく、
+        // 列が少ない行を対象列の値なしとして無警告で除外してしまうため、従来通り拒否する
         string path = Path.Combine(_directory, "column-mismatch.xlsx");
+        using (XLWorkbook book = new())
+        {
+            IXLWorksheet sheet = book.AddWorksheet("Members");
+            sheet.Cell(1, 1).Value = "email";
+            sheet.Cell(1, 2).Value = "社員番号";
+            sheet.Cell(2, 1).Value = "user1@example.com";
+            sheet.Cell(2, 2).Value = "1001";
+            sheet.Cell(3, 1).Value = "user2@example.com";
+            // 3行目は社員番号列を意図的に空のままにし、LastCellUsedが1列目までしかない行を作る
+            book.SaveAs(path);
+        }
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            new MemberListReader().Read(path, CancellationToken.None));
+
+        Assert.Contains("3行目", exception.Message);
+        Assert.Contains("1行目: 2列", exception.Message);
+        Assert.Contains("3行目: 1列", exception.Message);
+    }
+
+    [Fact]
+    public void ReadExcel_メールアドレス氏名両方の列がある場合は末尾セル空欄の行を許容する()
+    {
+        // メールアドレス列・氏名列の両方を検出できる場合、Excelで末尾セルが未入力のため
+        // LastCellUsedが縮んだ行(=氏名列側だけ空欄)は、氏名列でフォールバックできるため
+        // エラーにせず読み込めることを確認する
+        string path = Path.Combine(_directory, "trailing-blank.xlsx");
         using (XLWorkbook book = new())
         {
             IXLWorksheet sheet = book.AddWorksheet("Members");
@@ -133,12 +210,36 @@ public sealed class MemberFileReaderTests : IDisposable
             book.SaveAs(path);
         }
 
+        MemberListDocument document = new MemberListReader().Read(path, CancellationToken.None);
+
+        Assert.Equal(["user1@example.com", "user2@example.com"], document.Addresses);
+    }
+
+    [Fact]
+    public void ReadExcel_メールアドレス氏名両方の列があってもヘッダーより列が多い行は拒否する()
+    {
+        // 末尾セル空欄による列不足は許容するが、ヘッダーより列が多い行は誤って別データが
+        // 紛れ込んだ可能性が高いため、従来通り拒否されることを確認する
+        string path = Path.Combine(_directory, "extra-column.xlsx");
+        using (XLWorkbook book = new())
+        {
+            IXLWorksheet sheet = book.AddWorksheet("Members");
+            sheet.Cell(1, 1).Value = "email";
+            sheet.Cell(1, 2).Value = "name";
+            sheet.Cell(2, 1).Value = "user1@example.com";
+            sheet.Cell(2, 2).Value = "User One";
+            sheet.Cell(3, 1).Value = "user2@example.com";
+            sheet.Cell(3, 2).Value = "User Two";
+            sheet.Cell(3, 3).Value = "予期しない列";
+            book.SaveAs(path);
+        }
+
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
             new MemberListReader().Read(path, CancellationToken.None));
 
         Assert.Contains("3行目", exception.Message);
         Assert.Contains("1行目: 2列", exception.Message);
-        Assert.Contains("3行目: 1列", exception.Message);
+        Assert.Contains("3行目: 3列", exception.Message);
     }
 
     [Fact]

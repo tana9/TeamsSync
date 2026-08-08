@@ -21,11 +21,11 @@ public sealed class MemberListReader : IMemberListReader
     // Excelなどが排他的にファイルを開いている場合のWin32エラーコード(ERROR_SHARING_VIOLATION)に対応するHResult
     private const int SharingViolationHResult = unchecked((int)0x80070020);
 
-    private static readonly string[] HeaderNames =
-        ["email", "mail", "upn", "userprincipalname", "name", "displayname", "メール", "メールアドレス", "氏名", "姓名", "名前"];
-
     private static readonly string[] AddressHeaderNames =
         ["email", "mail", "upn", "userprincipalname", "メール", "メールアドレス"];
+
+    private static readonly string[] NameHeaderNames =
+        ["name", "displayname", "氏名", "姓名", "名前"];
 
     // ヘッダー行も1行目のデータとして自前で扱う(ExtractColumn参照)ためHasHeaderRecord=false。
     // 行数上限の判定を物理行単位で行うため空行もスキップせずIgnoreBlankLines=false。
@@ -149,17 +149,19 @@ public sealed class MemberListReader : IMemberListReader
         MemberFileSecurityValidator.EnsureExcelColumnCountWithinLimit(columnCount);
 
         List<string[]> rows = [];
+        ColumnSelection? selection = null;
         foreach (IXLRow row in sheet.RowsUsed())
         {
             cancellationToken.ThrowIfCancellationRequested();
             int width = Math.Max(1, row.LastCellUsed()?.Address.ColumnNumber ?? 1);
             string[] fields = row.Cells(1, width).Select(c => c.GetFormattedString()).ToArray();
-            // CSVの列数不一致チェック(ReadCsv)と挙動を揃え、1行目より列が少ない行を
-            // 対象列の値なしとして無警告で除外せず、行番号付きのエラーとして明示する
-            if (rows.Count > 0 && fields.Length != rows[0].Length)
+            if (rows.Count == 0)
             {
-                throw new InvalidDataException(
-                    $"{row.RowNumber()}行目の列数が1行目と一致しません（1行目: {rows[0].Length}列、{row.RowNumber()}行目: {fields.Length}列）。");
+                selection = FindColumns(fields);
+            }
+            else
+            {
+                fields = NormalizeExcelRowWidth(fields, rows[0].Length, selection!, row.RowNumber());
             }
 
             rows.Add(fields);
@@ -170,7 +172,8 @@ public sealed class MemberListReader : IMemberListReader
     }
 
     /// <summary>
-    ///     ヘッダー行からアドレス列(またはフォールバックの氏名列)を推定し、その列の値を抽出する
+    ///     ヘッダー行からメールアドレス列・氏名列を推定し、値を抽出する。片方しか見つからない場合は
+    ///     従来通りその列だけを使う。両方見つかった場合は<see cref="ExtractWithFallback" />へ委ねる
     /// </summary>
     private static ExtractedColumn ExtractColumn(IReadOnlyList<string[]> rows)
     {
@@ -179,32 +182,90 @@ public sealed class MemberListReader : IMemberListReader
             return new ExtractedColumn([], "1列目", false);
         }
 
-        PreferredColumn preferred = FindPreferredColumn(rows[0]);
-        bool hasHeader = preferred.Index >= 0;
-        int column = hasHeader ? preferred.Index : 0;
-        string label = hasHeader ? rows[0][column].Trim() : "1列目（ヘッダーなし）";
-        return new ExtractedColumn(
-            rows.Skip(hasHeader ? 1 : 0).Where(r => r.Length > column).Select(r => r[column]), label,
-            hasHeader && preferred.IsNameColumn);
+        ColumnSelection selection = FindColumns(rows[0]);
+        if (selection.AddressIndex is null && selection.NameIndex is null)
+        {
+            return new ExtractedColumn(rows.Select(r => r.Length > 0 ? r[0] : ""), "1列目（ヘッダーなし）", false);
+        }
+
+        if (selection.AddressIndex is null || selection.NameIndex is null)
+        {
+            int column = selection.AddressIndex ?? selection.NameIndex!.Value;
+            IEnumerable<string> values = rows.Skip(1).Select(row => row.Length > column ? row[column] : "");
+            return new ExtractedColumn(values, rows[0][column].Trim(), selection.NameIndex is not null);
+        }
+
+        return ExtractWithFallback(rows, selection.AddressIndex.Value, selection.NameIndex.Value);
     }
 
     /// <summary>
-    ///     ヘッダー名からメールアドレス列を優先的に探し、なければ氏名列を含む候補列を探す。
-    ///     戻り値には、見つかった列がメールアドレス列ではなく氏名列かどうかもあわせて含める
+    ///     メールアドレス列・氏名列の両方が見つかった場合、行ごとにメールアドレス列の値を優先し、
+    ///     その行が空欄のときだけ氏名列の値で補う。どちらか一方が空でも、もう一方に値があれば
+    ///     同期対象から漏れないようにするための処理。実際に氏名列へフォールバックした行が
+    ///     1件でもあった場合に限り、列ラベルと氏名列フラグへその旨を反映し、同姓同名の確認を
+    ///     促す画面表示(<see cref="MemberListDocument.IsNameColumn" />)につなげる。メールアドレス列だけで
+    ///     全行を賄えた場合は、氏名列が存在していても従来通りメールアドレス列単独の扱いとする
     /// </summary>
-    private static PreferredColumn FindPreferredColumn(IReadOnlyList<string> headers)
+    private static ExtractedColumn ExtractWithFallback(IReadOnlyList<string[]> rows, int addressIndex,
+        int nameIndex)
+    {
+        List<string> values = [];
+        bool usedNameFallback = false;
+        foreach (string[] row in rows.Skip(1))
+        {
+            string address = row.Length > addressIndex ? row[addressIndex].Trim() : "";
+            if (!string.IsNullOrWhiteSpace(address))
+            {
+                values.Add(address);
+                continue;
+            }
+
+            string name = row.Length > nameIndex ? row[nameIndex] : "";
+            values.Add(name);
+            usedNameFallback |= !string.IsNullOrWhiteSpace(name);
+        }
+
+        string addressLabel = rows[0][addressIndex].Trim();
+        string label = usedNameFallback ? $"{addressLabel} / {rows[0][nameIndex].Trim()}" : addressLabel;
+        return new ExtractedColumn(values, label, usedNameFallback);
+    }
+
+    /// <summary>
+    ///     Excelのデータ行の列数をヘッダー行と揃える。ヘッダーより多い場合は誤って別データが
+    ///     紛れ込んだ可能性が高いため、CSVの列数不一致チェックと同様に行番号付きのエラーとする。
+    ///     少ない場合、メールアドレス列・氏名列の両方が見つかっていれば、Excelで末尾セルが
+    ///     未入力のとき<c>LastCellUsed</c>がそこまで伸びず行の見かけの列数が縮む挙動を吸収するため、
+    ///     空欄で埋めて<see cref="ExtractWithFallback" />のフォールバック判定に委ねる。
+    ///     いずれか一方の列しか見つからない場合はフォールバックできず値を無警告で
+    ///     取りこぼしてしまうため、従来通りエラーとする
+    /// </summary>
+    private static string[] NormalizeExcelRowWidth(string[] fields, int headerWidth, ColumnSelection selection,
+        int rowNumber)
+    {
+        if (fields.Length == headerWidth)
+        {
+            return fields;
+        }
+
+        bool canFallBackToName = selection is { AddressIndex: not null, NameIndex: not null };
+        if (fields.Length < headerWidth && canFallBackToName)
+        {
+            return [.. fields, .. Enumerable.Repeat("", headerWidth - fields.Length)];
+        }
+
+        throw new InvalidDataException(
+            $"{rowNumber}行目の列数が1行目と一致しません（1行目: {headerWidth}列、{rowNumber}行目: {fields.Length}列）。");
+    }
+
+    /// <summary>ヘッダー名からメールアドレス列・氏名列のインデックスをそれぞれ独立に探す</summary>
+    private static ColumnSelection FindColumns(IReadOnlyList<string> headers)
     {
         List<string> normalized = headers.Select(NormalizeHeader).ToList();
         int addressIndex = normalized.FindIndex(header =>
             AddressHeaderNames.Contains(header, StringComparer.OrdinalIgnoreCase));
-        if (addressIndex >= 0)
-        {
-            return new PreferredColumn(addressIndex, false);
-        }
-
-        int fallbackIndex =
-            normalized.FindIndex(header => HeaderNames.Contains(header, StringComparer.OrdinalIgnoreCase));
-        return new PreferredColumn(fallbackIndex, fallbackIndex >= 0);
+        int nameIndex = normalized.FindIndex(header =>
+            NameHeaderNames.Contains(header, StringComparer.OrdinalIgnoreCase));
+        return new ColumnSelection(addressIndex >= 0 ? addressIndex : null, nameIndex >= 0 ? nameIndex : null);
     }
 
     /// <summary>ファイル内容のSHA-256ハッシュを16進文字列で計算する</summary>
@@ -230,6 +291,6 @@ public sealed class MemberListReader : IMemberListReader
     private sealed record ParsedMemberSource(IEnumerable<string> Values, string SourceName, string Column,
         bool IsNameColumn);
 
-    /// <summary>ヘッダー行から見つかったアドレス列(または氏名列)のインデックスと種別</summary>
-    private sealed record PreferredColumn(int Index, bool IsNameColumn);
+    /// <summary>ヘッダー行から見つかったメールアドレス列・氏名列のインデックス(見つからない場合はnull)</summary>
+    private sealed record ColumnSelection(int? AddressIndex, int? NameIndex);
 }
