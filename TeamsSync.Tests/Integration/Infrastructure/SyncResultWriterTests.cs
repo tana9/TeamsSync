@@ -22,6 +22,12 @@ public sealed class SyncResultWriterTests : IDisposable
         return new SyncPlan(new TeamInfo("team-id", teamDisplayName, null), [], []);
     }
 
+    private static SyncAuditContext CreateAuditContext(Guid? executionId = null)
+    {
+        return new SyncAuditContext(executionId ?? Guid.NewGuid(), "members.csv", "hash",
+            "tenant-1", "actor-object-id", "山田 太郎 (taro@example.com)");
+    }
+
     // WriteCsvはplan.Operationsを基準に行を出力するため(SyncExecutorの実際の積み上げ方に合わせている)、
     // CSV出力内容を検証するテストは、resultの各要素と対応するSyncChangeを持つplanを組み立てる必要がある
     private static (SyncPlan Plan, SyncOperationsResult Result) Build(string teamDisplayName,
@@ -36,7 +42,7 @@ public sealed class SyncResultWriterTests : IDisposable
 
     private string WriteAndRead(SyncPlan plan, SyncOperationsResult result)
     {
-        new SyncResultWriter(_directory).WriteAutoLog(plan, result, Guid.NewGuid());
+        new SyncResultWriter(_directory).WriteAutoLog(plan, result, CreateAuditContext());
         string path = Assert.Single(Directory.GetFiles(_directory));
         return File.ReadAllText(path);
     }
@@ -49,7 +55,7 @@ public sealed class SyncResultWriterTests : IDisposable
         SyncOperationsResult result = new(
             [new SyncOperationResult(ChangeKind.Add, "user1@example.com", true, null)], false);
 
-        new SyncResultWriter(_directory).WriteAutoLog(plan, result, Guid.NewGuid());
+        new SyncResultWriter(_directory).WriteAutoLog(plan, result, CreateAuditContext());
 
         Assert.True(Directory.Exists(_directory));
     }
@@ -62,7 +68,7 @@ public sealed class SyncResultWriterTests : IDisposable
             [new SyncOperationResult(ChangeKind.Add, "user1@example.com", true, null)], false);
         DateTime before = DateTime.Now;
 
-        new SyncResultWriter(_directory).WriteAutoLog(plan, result, Guid.NewGuid());
+        new SyncResultWriter(_directory).WriteAutoLog(plan, result, CreateAuditContext());
 
         string fileName = Path.GetFileName(Assert.Single(Directory.GetFiles(_directory)));
         Assert.EndsWith("_営業チーム.csv", fileName);
@@ -78,7 +84,7 @@ public sealed class SyncResultWriterTests : IDisposable
         SyncOperationsResult result = new([], false);
         Guid executionId = Guid.NewGuid();
 
-        string path = new SyncResultWriter(_directory).WriteAutoLog(plan, result, executionId);
+        string path = new SyncResultWriter(_directory).WriteAutoLog(plan, result, CreateAuditContext(executionId));
 
         Assert.Equal(Path.GetFullPath(path), path);
         Assert.Contains(executionId.ToString("N"), Path.GetFileName(path));
@@ -93,10 +99,10 @@ public sealed class SyncResultWriterTests : IDisposable
 
         (SyncPlan plan1, SyncOperationsResult result1) = Build("営業チーム",
             [new SyncOperationResult(ChangeKind.Add, "first@example.com", true, null)]);
-        string first = writer.WriteAutoLog(plan1, result1, executionId);
+        string first = writer.WriteAutoLog(plan1, result1, CreateAuditContext(executionId));
         (SyncPlan plan2, SyncOperationsResult result2) = Build("営業チーム",
             [new SyncOperationResult(ChangeKind.Add, "second@example.com", true, null)]);
-        string second = writer.WriteAutoLog(plan2, result2, executionId);
+        string second = writer.WriteAutoLog(plan2, result2, CreateAuditContext(executionId));
 
         Assert.NotEqual(first, second);
         Assert.Contains("first@example.com", File.ReadAllText(first));
@@ -111,7 +117,7 @@ public sealed class SyncResultWriterTests : IDisposable
         SyncOperationsResult result = new(
             [new SyncOperationResult(ChangeKind.Add, "user1@example.com", true, null)], false);
 
-        new SyncResultWriter(_directory).WriteAutoLog(plan, result, Guid.NewGuid());
+        new SyncResultWriter(_directory).WriteAutoLog(plan, result, CreateAuditContext());
 
         string fileName = Path.GetFileName(Assert.Single(Directory.GetFiles(_directory)));
         Assert.EndsWith("_開発_QA_チーム.csv", fileName);
@@ -124,12 +130,41 @@ public sealed class SyncResultWriterTests : IDisposable
         SyncOperationsResult result = new(
             [new SyncOperationResult(ChangeKind.Add, "user1@example.com", true, null)], false);
 
-        string path = new SyncResultWriter(_directory).WriteAutoLog(plan, result, Guid.NewGuid());
+        string path = new SyncResultWriter(_directory).WriteAutoLog(plan, result, CreateAuditContext());
 
         string fileName = Path.GetFileName(path);
         Assert.True(fileName.Length < 200,
             $"ファイル名が長すぎます({fileName.Length}文字)。パス長超過で保存に失敗する可能性があります。");
         Assert.True(File.Exists(path));
+    }
+
+    [Fact]
+    public void WriteAutoLog_実行情報セクションに実行日時操作ユーザー対象チームを出力する()
+    {
+        string csv = WriteAndRead(CreatePlan("営業チーム"), new SyncOperationsResult([], false));
+
+        Assert.Contains("実行情報", csv);
+        Assert.Contains("実行日時,実行ID,操作ユーザー表示名,操作ユーザーオブジェクトID,対象チーム,同期モード", csv);
+        Assert.Contains("\"山田 太郎 (taro@example.com)\"", csv);
+        Assert.Contains("\"actor-object-id\"", csv);
+        Assert.Contains("\"営業チーム\"", csv);
+    }
+
+    [Fact]
+    public void WriteAutoLog_処理前メンバー一覧セクションにプラン作成時点の全メンバーを出力する()
+    {
+        SyncPlan plan = new(new TeamInfo("team-id", "営業チーム", null), [], [], CurrentMembers:
+        [
+            new TeamMember("m-owner", "u-owner", "所有者 太郎", "owner@example.com", true),
+            new TeamMember("m-1", "u-1", "一般 花子", "member@example.com", false)
+        ]);
+
+        string csv = WriteAndRead(plan, new SyncOperationsResult([], false));
+
+        Assert.Contains("処理前メンバー一覧", csv);
+        Assert.Contains("表示名,メールアドレス,区分", csv);
+        Assert.Contains("\"所有者 太郎\",\"owner@example.com\",\"所有者\"", csv);
+        Assert.Contains("\"一般 花子\",\"member@example.com\",\"一般\"", csv);
     }
 
     [Fact]
@@ -146,11 +181,12 @@ public sealed class SyncResultWriterTests : IDisposable
     }
 
     [Fact]
-    public void WriteAutoLog_ヘッダーを日本語で出力する()
+    public void WriteAutoLog_同期操作セクションのヘッダーを日本語で出力する()
     {
         string csv = WriteAndRead(CreatePlan("営業チーム"), new SyncOperationsResult([], false));
 
-        Assert.StartsWith("チーム,同期モード,操作,表示名,メールアドレス,結果,エラー", csv);
+        Assert.Contains("同期操作", csv);
+        Assert.Contains("チーム,同期モード,操作,表示名,メールアドレス,結果,エラー", csv);
     }
 
     [Fact]
@@ -182,7 +218,6 @@ public sealed class SyncResultWriterTests : IDisposable
         Assert.Contains("\"実行済み\",\"done@example.com\",\"成功\"", csv);
         Assert.Contains("\"未実行1\",\"pending1@example.com\",\"未実行\",\"同期がキャンセルされたため未実行\"", csv);
         Assert.Contains("\"未実行2\",\"pending2@example.com\",\"未実行\",\"同期がキャンセルされたため未実行\"", csv);
-        Assert.Equal(4, csv.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).Length);
     }
 
     [Fact]
@@ -264,5 +299,67 @@ public sealed class SyncResultWriterTests : IDisposable
 
         Assert.Contains("\"taro.yamada@example.com\"", csv);
         Assert.DoesNotContain("'taro.yamada@example.com", csv);
+    }
+
+    [Fact]
+    public void AppendReconciliationResult_未反映の差分がない場合は到達済みと記録する()
+    {
+        SyncPlan plan = CreatePlan("営業チーム");
+        SyncResultWriter writer = new(_directory);
+        string path = writer.WriteAutoLog(plan, new SyncOperationsResult([], false), CreateAuditContext());
+        SyncPlan remainingPlan = new(new TeamInfo("team-id", "営業チーム", null), [], []);
+
+        writer.AppendReconciliationResult(path, remainingPlan, null);
+
+        string csv = File.ReadAllText(path);
+        Assert.Contains("最終照合結果", csv);
+        Assert.Contains("目的の状態に到達しています(未反映の差分なし)", csv);
+        Assert.DoesNotContain("未反映の差分\r\n操作,表示名,メールアドレス", csv);
+    }
+
+    [Fact]
+    public void AppendReconciliationResult_未反映の差分がある場合はその一覧を記録する()
+    {
+        SyncPlan plan = CreatePlan("営業チーム");
+        SyncResultWriter writer = new(_directory);
+        string path = writer.WriteAutoLog(plan, new SyncOperationsResult([], false), CreateAuditContext());
+        SyncPlan remainingPlan = new(new TeamInfo("team-id", "営業チーム", null),
+            [new SyncChange(ChangeKind.Add, "未反映 太郎", "remaining@example.com", ChangeReason.AddToTeam, "u-1")],
+            ["remaining@example.com"]);
+
+        writer.AppendReconciliationResult(path, remainingPlan, null);
+
+        string csv = File.ReadAllText(path);
+        Assert.Contains("未反映の差分が残っています(追加待ち1件、削除待ち0件)", csv);
+        Assert.Contains("未反映の差分", csv);
+        Assert.Contains("\"追加\",\"未反映 太郎\",\"remaining@example.com\"", csv);
+    }
+
+    [Fact]
+    public void AppendReconciliationResult_照合自体が失敗した場合はエラー内容を記録する()
+    {
+        SyncPlan plan = CreatePlan("営業チーム");
+        SyncResultWriter writer = new(_directory);
+        string path = writer.WriteAutoLog(plan, new SyncOperationsResult([], false), CreateAuditContext());
+
+        writer.AppendReconciliationResult(path, null, new InvalidOperationException("再取得に失敗しました"));
+
+        string csv = File.ReadAllText(path);
+        Assert.Contains("照合に失敗しました: 再取得に失敗しました", csv);
+    }
+
+    [Fact]
+    public void AppendReconciliationResult_既存の同期操作セクションは保持される()
+    {
+        (SyncPlan plan, SyncOperationsResult result) = Build("営業チーム",
+            [new SyncOperationResult(ChangeKind.Add, "user1@example.com", true, null)]);
+        SyncResultWriter writer = new(_directory);
+        string path = writer.WriteAutoLog(plan, result, CreateAuditContext());
+
+        writer.AppendReconciliationResult(path, new SyncPlan(plan.Team, [], []), null);
+
+        string csv = File.ReadAllText(path);
+        Assert.Contains("\"user1@example.com\"", csv);
+        Assert.Contains("最終照合結果", csv);
     }
 }

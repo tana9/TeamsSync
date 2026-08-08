@@ -164,9 +164,9 @@ public partial class SyncWorkspaceViewModel : ObservableObject
 
     /// <summary>選択中のチーム・メンバーリスト・サインイン状態を設定し、変化があれば差分を無効化する</summary>
     public void SetContext(TeamInfo? team, MemberListDocument? document, bool signedIn,
-        string? tenantId = null, string? actorObjectId = null)
+        string? tenantId = null, string? actorObjectId = null, string? actorDisplayName = null)
     {
-        if (!_context.Update(team, document, signedIn, tenantId, actorObjectId))
+        if (!_context.Update(team, document, signedIn, tenantId, actorObjectId, actorDisplayName))
         {
             return;
         }
@@ -337,7 +337,8 @@ public partial class SyncWorkspaceViewModel : ObservableObject
             try
             {
                 attempt = await _executionRunner.RunAsync(
-                    Plan.Current, _context.Document!, _context.TenantId, _context.ActorObjectId, progress,
+                    Plan.Current, _context.Document!, _context.TenantId, _context.ActorObjectId,
+                    _context.ActorDisplayName, progress,
                     () => _uiEvents.Status("Teams側の最新状態を確認しています…", false),
                     _syncCancellation.Token);
             }

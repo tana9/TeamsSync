@@ -44,7 +44,7 @@ public sealed class SyncExecutionCoordinator(ISyncPlanService plans, ISyncExecut
             plan, progress, auditContext, cancellationToken);
 
         (string? resultLogPath, Exception? logSaveError) = await TryRunAsync(
-            () => Task.FromResult(resultWriter.WriteAutoLog(plan, execution, auditContext.ExecutionId)));
+            () => Task.FromResult(resultWriter.WriteAutoLog(plan, execution, auditContext)));
 
         (SyncPlan? remainingPlan, Exception? reconciliationError) = await TryRunAsync(() =>
         {
@@ -55,6 +55,18 @@ public sealed class SyncExecutionCoordinator(ISyncPlanService plans, ISyncExecut
             CancellationToken reconciliationToken = execution.Cancelled ? CancellationToken.None : cancellationToken;
             return plans.ReconcileAsync(plan, reconciliationToken);
         });
+
+        // 監査ログ自体が保存できていない場合は追記先がないため試みない。追記の失敗は
+        // 監査ログという補助情報の欠落に留まり、同期結果そのものには影響しないため、
+        // ログ保存・再取得と同様にベストエフォートで扱い、結果には反映しない
+        if (!string.IsNullOrEmpty(resultLogPath))
+        {
+            await TryRunAsync(() =>
+            {
+                resultWriter.AppendReconciliationResult(resultLogPath, remainingPlan, reconciliationError);
+                return Task.FromResult(true);
+            });
+        }
 
         return new SyncExecutionOutcome(plan, execution, resultLogPath ?? "",
             logSaveError, remainingPlan, reconciliationError);

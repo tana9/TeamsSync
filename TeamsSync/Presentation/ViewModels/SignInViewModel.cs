@@ -59,6 +59,9 @@ public partial class SignInViewModel : ObservableObject
     /// <summary>サインイン中のユーザーのオブジェクトID</summary>
     public string? CurrentUserId { get; private set; }
 
+    /// <summary>サインイン中のユーザーの表示名とUPN(監査ログの操作ユーザーに使用)</summary>
+    public string? CurrentUserDisplayName { get; private set; }
+
     /// <summary>サインアウトが完了したときに発行される</summary>
     public event Action? SignedOut;
 
@@ -78,7 +81,8 @@ public partial class SignInViewModel : ObservableObject
             await _authentication.GetTokenAsync(true);
             CurrentUser me = await _teamsAccess.GetCurrentUserAsync();
             CurrentUserId = me.Id;
-            AccountText = $"{me.DisplayName} ({me.UserPrincipalName})";
+            CurrentUserDisplayName = $"{me.DisplayName} ({me.UserPrincipalName})";
+            AccountText = CurrentUserDisplayName;
             IsSignedIn = true;
             await _initializeTeamsAsync(me.Id);
         }, HandleAuthenticationException);
@@ -104,6 +108,7 @@ public partial class SignInViewModel : ObservableObject
         }
 
         CurrentUserId = null;
+        CurrentUserDisplayName = null;
         IsSignedIn = false;
         AccountText = "未サインイン";
         _reportStatus("サインアウトしました", false);

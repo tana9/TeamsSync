@@ -10,11 +10,11 @@ internal sealed class SyncExecutionRunner(SyncExecutionCoordinator coordinator,
     IIdentifierGenerator identifierGenerator)
 {
     public Task<SyncExecutionAttempt> RunAsync(SyncPlan plan, MemberListDocument document,
-        string? tenantId, string? actorObjectId, IProgress<SyncProgress>? progress,
+        string? tenantId, string? actorObjectId, string? actorDisplayName, IProgress<SyncProgress>? progress,
         Action? reconciliationStarting, CancellationToken cancellationToken)
     {
         SyncAuditContext auditContext = new(identifierGenerator.NewGuid(), document.FileName,
-            document.ContentSha256, tenantId, actorObjectId);
+            document.ContentSha256, tenantId, actorObjectId, actorDisplayName);
         return coordinator.RevalidateAndExecuteAsync(
             plan, auditContext, progress, reconciliationStarting, cancellationToken);
     }

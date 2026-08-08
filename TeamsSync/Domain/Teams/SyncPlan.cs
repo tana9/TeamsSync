@@ -7,14 +7,19 @@ namespace TeamsSync.Domain.Teams;
 /// <param name="CurrentMemberCount">プラン作成時点の一般メンバー数</param>
 /// <param name="MembershipSnapshot">プラン作成時点のメンバーシップのスナップショット(再検証用)</param>
 /// <param name="Mode">同期の実行モード</param>
+/// <param name="CurrentMembers">プラン作成時点のチーム全メンバー(監査ログの「処理前メンバー一覧」に使用)</param>
 public sealed record SyncPlan(
     TeamInfo Team,
     IReadOnlyList<SyncChange> Changes,
     IReadOnlyList<string> InputAddresses,
     int CurrentMemberCount = 0,
     IReadOnlyList<TeamMembershipSnapshot>? MembershipSnapshot = null,
-    SyncMode Mode = SyncMode.FullSync)
+    SyncMode Mode = SyncMode.FullSync,
+    IReadOnlyList<TeamMember>? CurrentMembers = null)
 {
+    /// <summary>プラン作成時点のチーム全メンバー。未指定の場合は空一覧</summary>
+    public IReadOnlyList<TeamMember> CurrentMembersOrEmpty => CurrentMembers ?? [];
+
     /// <summary>追加対象の件数</summary>
     public int AddCount => CountOf(ChangeKind.Add);
 

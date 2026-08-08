@@ -129,7 +129,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         MemberFile.SetSelectedTeam(TeamSelection.SelectedTeam);
         SyncWorkspace.SetContext(TeamSelection.SelectedTeam, MemberFile.Document, SignIn.IsSignedIn,
-            SignIn.TenantId, SignIn.CurrentUserId);
+            SignIn.TenantId, SignIn.CurrentUserId, SignIn.CurrentUserDisplayName);
     }
 
     /// <summary>ステータスメッセージとエラー表示状態を設定する</summary>

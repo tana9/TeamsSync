@@ -69,8 +69,19 @@ public interface IMemberTextParser
 /// <summary>同期結果をログファイルへ自動的に記録する</summary>
 public interface ISyncResultWriter
 {
-    /// <summary>同期プランと実行結果を一意なログファイルへ書き出し、保存したファイルのフルパスを返す</summary>
-    string WriteAutoLog(SyncPlan plan, SyncOperationsResult result, Guid executionId);
+    /// <summary>
+    ///     同期プランと実行結果を一意なログファイルへ書き出し、保存したファイルのフルパスを返す。
+    ///     実行日時・操作ユーザー・対象チーム・処理前メンバー一覧・追加削除結果を記録する
+    /// </summary>
+    string WriteAutoLog(SyncPlan plan, SyncOperationsResult result, SyncAuditContext auditContext);
+
+    /// <summary>
+    ///     指定したログファイルへ、実行後の最新状態取得(最終照合)の結果を追記する。
+    ///     ログファイル自体が保存できなかった場合は呼び出さない
+    /// </summary>
+    void AppendReconciliationResult(string logPath, SyncPlan? remainingPlan, Exception? reconciliationError)
+    {
+    }
 
     /// <summary>ログ保存先を作成し、一時ファイルへ書き込めることを確認する</summary>
     void VerifyWriteAccess()

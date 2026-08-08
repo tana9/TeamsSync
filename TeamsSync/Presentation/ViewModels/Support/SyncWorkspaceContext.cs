@@ -11,12 +11,13 @@ internal sealed class SyncWorkspaceContext
     public bool SignedIn { get; private set; }
     public string? TenantId { get; private set; }
     public string? ActorObjectId { get; private set; }
+    public string? ActorDisplayName { get; private set; }
 
     public bool Update(TeamInfo? team, MemberListDocument? document, bool signedIn,
-        string? tenantId, string? actorObjectId)
+        string? tenantId, string? actorObjectId, string? actorDisplayName = null)
     {
         if (ReferenceEquals(Team, team) && ReferenceEquals(Document, document) && SignedIn == signedIn &&
-            TenantId == tenantId && ActorObjectId == actorObjectId)
+            TenantId == tenantId && ActorObjectId == actorObjectId && ActorDisplayName == actorDisplayName)
         {
             return false;
         }
@@ -26,6 +27,7 @@ internal sealed class SyncWorkspaceContext
         SignedIn = signedIn;
         TenantId = tenantId;
         ActorObjectId = actorObjectId;
+        ActorDisplayName = actorDisplayName;
         return true;
     }
 }

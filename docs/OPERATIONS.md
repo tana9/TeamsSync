@@ -38,7 +38,7 @@ $env:TEAMSSYNC_Entra__TenantId = "テナントID"
 | 監査ログ | `%LocalAppData%\TeamsSync\Logs\audit-*.jsonl` | 実行ID、対象ID、件数、結果、Graph相関IDなど |
 | ユーザー設定 | `%LocalAppData%\TeamsSync\preferences.json` | 最後に利用したフォルダー |
 | 破損設定の退避 | `%LocalAppData%\TeamsSync\preferences.corrupt-*.json` | 読み込めなかった旧設定 |
-| 結果CSV | `%LocalAppData%\TeamsSync\Logs\*.csv` | 同期操作ごとの結果。画面の同期結果から直接開ける |
+| 結果CSV | `%LocalAppData%\TeamsSync\Logs\*.csv` | 実行日時・操作ユーザー・対象チーム、処理前のチームメンバー一覧、同期操作ごとの結果、実行後の最終照合結果。画面の同期結果から直接開ける |
 | 一時マニュアル | `%Temp%\TeamsSync\Manual.html` | EXEから展開した利用者マニュアル |
 
 入力したCSV・Excelや貼り付け内容そのものはアプリ専用領域へ保存しません。監査ログには入力ファイル名とSHA-256を記録しますが、フルパス、氏名、メールアドレス、UPN、アクセストークンは記録しません。

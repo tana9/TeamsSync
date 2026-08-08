@@ -32,12 +32,14 @@ public sealed record MemberListDocument(
 /// <param name="InputFileSha256">入力内容のSHA-256ハッシュ値</param>
 /// <param name="TenantId">実行者のテナントID。取得できない場合はnull</param>
 /// <param name="ActorObjectId">実行者のオブジェクトID。取得できない場合はnull</param>
+/// <param name="ActorDisplayName">実行者の表示名とUPN(例:「山田 太郎 (taro@example.com)」)。取得できない場合はnull</param>
 public sealed record SyncAuditContext(
     Guid ExecutionId,
     string InputFileName,
     string InputFileSha256,
     string? TenantId = null,
-    string? ActorObjectId = null);
+    string? ActorObjectId = null,
+    string? ActorDisplayName = null);
 
 /// <summary>同期処理の進捗を表す</summary>
 /// <param name="Completed">完了した操作数</param>
