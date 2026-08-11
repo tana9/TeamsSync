@@ -59,6 +59,17 @@
             </DataTrigger>
         </Style.Triggers>
     </Style>
+    <!-- MemberListInputViewの貼り付け入力案内テキスト。StatusTextStyleと同じ「エラー時に強調表示」の
+         構成だが、既定の文字色がPrimary(貼り付けタブは案内文が本文相当のため)である点が異なる -->
+    <Style x:Key="PasteInputInfoTextStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding PasteInput.HasError}" Value="True">
+                <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
     <!-- SyncActionBarViewの結果アイコン。既定は成功アイコンで、失敗・キャンセル時に切り替える -->
     <Style x:Key="ResultStatusIconStyle" TargetType="ui:SymbolIcon">
         <Style.Triggers>

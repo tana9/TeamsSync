@@ -86,20 +86,7 @@
                             <ColumnDefinition Width="*" /><ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="{Binding PasteInput.InfoText}" FontSize="12" VerticalAlignment="Center"
-                                   TextWrapping="Wrap">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding PasteInput.HasError}" Value="True">
-                                            <Setter Property="Foreground"
-                                                    Value="{DynamicResource SystemFillColorCriticalBrush}" />
-                                            <Setter Property="FontWeight" Value="SemiBold" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
+                                   TextWrapping="Wrap" Style="{StaticResource PasteInputInfoTextStyle}" />
                         <!-- 狭いウィンドウ幅でも右端がクリップされないよう、固定幅Autoの水平StackPanelではなく
                              折り返し可能なWrapPanelにする。列もAutoから*へ変更し、実際に折り返せる有限幅を与える -->
                         <WrapPanel Grid.Column="1" HorizontalAlignment="Right">
