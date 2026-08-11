@@ -79,9 +79,7 @@ public interface ISyncResultWriter
     ///     指定したログファイルへ、実行後の最新状態取得(最終照合)の結果を追記する。
     ///     ログファイル自体が保存できなかった場合は呼び出さない
     /// </summary>
-    void AppendReconciliationResult(string logPath, SyncPlan? remainingPlan, Exception? reconciliationError)
-    {
-    }
+    void AppendReconciliationResult(string logPath, SyncPlan? remainingPlan, Exception? reconciliationError);
 
     /// <summary>ログ保存先を作成し、一時ファイルへ書き込めることを確認する</summary>
     void VerifyWriteAccess()

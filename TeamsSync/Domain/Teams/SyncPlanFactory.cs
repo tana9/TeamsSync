@@ -59,7 +59,7 @@ public static class SyncPlanFactory
         }
 
         return new SyncPlan(team, changes, inputAddresses, roster.NonOwnerCount,
-            roster.BuildMembershipSnapshot(), mode, roster.Members);
+            roster.BuildMembershipSnapshot(), mode, roster.Members.ToList());
     }
 
     /// <summary>

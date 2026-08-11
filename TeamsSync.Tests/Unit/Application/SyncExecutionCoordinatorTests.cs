@@ -90,6 +90,30 @@ public sealed class SyncExecutionCoordinatorTests
     }
 
     [Fact]
+    public async Task Execute_監査ログへの照合結果追記に失敗した場合は保存済みのログ保存エラーと区別して返す()
+    {
+        FakeTeamsGateway gateway = new();
+        FakeResultWriter writer = new()
+        {
+            ResultPath = @"C:\Logs\result.csv",
+            AppendException = new IOException("append failed")
+        };
+        SyncExecutionCoordinator coordinator = new(new SyncPlanService(gateway), new SyncExecutor(gateway), writer);
+        SyncPlan plan = new(Team,
+            [new SyncChange(ChangeKind.Add, "New", "new@example.com", ChangeReason.Unspecified, "new-id")],
+            ["new@example.com"], Mode: SyncMode.AddOnly);
+
+        SyncExecutionOutcome outcome = await coordinator.ExecuteAsync(plan,
+            new SyncAuditContext(Guid.NewGuid(), "members.csv", "hash"),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(writer.ResultPath, outcome.ResultLogPath);
+        Assert.Null(outcome.LogSaveError);
+        Assert.IsType<IOException>(outcome.ReconciliationLogAppendError);
+        Assert.Null(outcome.ReconciliationError);
+    }
+
+    [Fact]
     public async Task RevalidateAndExecuteAsync_プレビュー後にチーム構成が変化していれば実行せず最新プランを返す()
     {
         // 実行経路(RevalidateAndExecuteAsync)を直接呼び出すだけで、呼び出し元(ViewModel等)が
