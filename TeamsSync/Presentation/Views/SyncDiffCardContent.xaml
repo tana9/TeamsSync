@@ -2,7 +2,6 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-             xmlns:domain="clr-namespace:TeamsSync.Domain.Teams"
              xmlns:vm="clr-namespace:TeamsSync.Presentation.ViewModels"
              xmlns:views="clr-namespace:TeamsSync.Presentation.Views">
     <Grid>
@@ -116,40 +115,8 @@
                         <DataTemplate>
                             <!-- 枠線なしの塗りつぶしだけにすることで、このアプリのui:Button(角丸+枠線+塗りつぶし)と
                                  見た目が紛らわしくならないようにしている。判定はクリックできない状態表示 -->
-                            <Border HorizontalAlignment="Left" Padding="12,4" CornerRadius="4">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Setter Property="Background"
-                                                Value="{DynamicResource SystemFillColorNeutralBackgroundBrush}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding Kind}"
-                                                         Value="{x:Static domain:ChangeKind.Add}">
-                                                <Setter Property="Background"
-                                                        Value="{DynamicResource SystemFillColorSuccessBackgroundBrush}" />
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding Kind}"
-                                                         Value="{x:Static domain:ChangeKind.Remove}">
-                                                <Setter Property="Background"
-                                                        Value="{DynamicResource SystemFillColorCriticalBackgroundBrush}" />
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding Kind}"
-                                                         Value="{x:Static domain:ChangeKind.Protected}">
-                                                <Setter Property="Background"
-                                                        Value="{DynamicResource SystemFillColorAttentionBackgroundBrush}" />
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding Kind}"
-                                                         Value="{x:Static domain:ChangeKind.NotMember}">
-                                                <Setter Property="Background"
-                                                        Value="{DynamicResource SystemFillColorNeutralBackgroundBrush}" />
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding Kind}"
-                                                         Value="{x:Static domain:ChangeKind.Error}">
-                                                <Setter Property="Background"
-                                                        Value="{DynamicResource SystemFillColorCautionBackgroundBrush}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
+                            <Border HorizontalAlignment="Left" Padding="12,4" CornerRadius="4"
+                                    Style="{StaticResource ChangeKindBadgeBackgroundStyle}">
                                 <TextBlock Text="{Binding KindLabel}"
                                            Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                             </Border>

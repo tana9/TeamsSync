@@ -44,20 +44,8 @@
                                Foreground="{DynamicResource SystemFillColorCriticalBrush}"
                                Visibility="{Binding IsStatusError, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" Margin="0,0,12,0"
-                           AutomationProperties.LiveSetting="Polite">
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-                            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsStatusError}" Value="True">
-                                    <Setter Property="Foreground"
-                                            Value="{DynamicResource SystemFillColorCriticalBrush}" />
-                                    <Setter Property="FontWeight" Value="SemiBold" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
+                           AutomationProperties.LiveSetting="Polite"
+                           Style="{StaticResource StatusTextStyle}" />
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal">
                 <ui:Button Content="チームに_反映" Command="{Binding SyncWorkspace.ExecuteSyncCommand}"
@@ -78,24 +66,8 @@
                 AutomationProperties.Name="同期実行結果">
             <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                    <ui:SymbolIcon FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center" Symbol="CheckmarkCircle24">
-                        <ui:SymbolIcon.Style>
-                            <Style TargetType="ui:SymbolIcon">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding SyncWorkspace.Result.HasFailedResults}" Value="True">
-                                        <Setter Property="Symbol" Value="Warning24" />
-                                        <Setter Property="Foreground"
-                                                Value="{DynamicResource SystemFillColorCriticalBrush}" />
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding SyncWorkspace.Result.Cancelled}" Value="True">
-                                        <Setter Property="Symbol" Value="Warning24" />
-                                        <Setter Property="Foreground"
-                                                Value="{DynamicResource SystemFillColorCautionBrush}" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </ui:SymbolIcon.Style>
-                    </ui:SymbolIcon>
+                    <ui:SymbolIcon FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center" Symbol="CheckmarkCircle24"
+                                   Style="{StaticResource ResultStatusIconStyle}" />
                     <TextBlock Text="{Binding SyncWorkspace.Result.SummaryText}" FontWeight="SemiBold"
                                VerticalAlignment="Center" />
                 </StackPanel>

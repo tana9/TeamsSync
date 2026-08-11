@@ -107,43 +107,11 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     public string EmptyStateMessage =>
         SyncWorkspaceTextFormatter.BuildEmptyStateMessage(_context.SignedIn, _context.Team, _context.Document);
 
-    /// <summary>ラジオボタン用に「追加のみ」モードが選択されているかどうかを表す。設定すると当該モードへ切り替える</summary>
-    public bool IsAddOnlySelected
+    /// <summary>選択中の同期モード種別。ラジオボタンのIsCheckedバインディング(EnumToBooleanConverter経由)用に、SelectedModeのMode部分を公開する</summary>
+    public SyncMode SelectedSyncMode
     {
-        get => SelectedMode.Mode == SyncMode.AddOnly;
-        set
-        {
-            if (value)
-            {
-                SelectedMode = Modes[0];
-            }
-        }
-    }
-
-    /// <summary>ラジオボタン用に「完全同期」モードが選択されているかどうかを表す。設定すると当該モードへ切り替える</summary>
-    public bool IsFullSyncSelected
-    {
-        get => SelectedMode.Mode == SyncMode.FullSync;
-        set
-        {
-            if (value)
-            {
-                SelectedMode = Modes.Single(mode => mode.Mode == SyncMode.FullSync);
-            }
-        }
-    }
-
-    /// <summary>ラジオボタン用に「指定メンバーを削除」モードが選択されているかどうかを表す</summary>
-    public bool IsRemoveSpecifiedSelected
-    {
-        get => SelectedMode.Mode == SyncMode.RemoveSpecified;
-        set
-        {
-            if (value)
-            {
-                SelectedMode = Modes.Single(mode => mode.Mode == SyncMode.RemoveSpecified);
-            }
-        }
+        get => SelectedMode.Mode;
+        set => SelectedMode = Modes.Single(mode => mode.Mode == value);
     }
 
     /// <summary>ステータスメッセージを通知するために発行される</summary>
@@ -188,9 +156,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     /// <summary>同期モードの変更に応じて関連プロパティを通知し、既存の差分プランを無効化する</summary>
     partial void OnSelectedModeChanged(SyncModeOption value)
     {
-        OnPropertyChanged(nameof(IsAddOnlySelected));
-        OnPropertyChanged(nameof(IsRemoveSpecifiedSelected));
-        OnPropertyChanged(nameof(IsFullSyncSelected));
+        OnPropertyChanged(nameof(SelectedSyncMode));
         bool hadPlan = Plan.Current is not null;
         InvalidatePlan();
         if (hadPlan)
@@ -312,9 +278,7 @@ public partial class SyncWorkspaceViewModel : ObservableObject
                     return true;
                 }
 
-                _notifications.ShowWarning("同期差分が変更されました",
-                    "チームのメンバー構成がプレビュー後に変更されました。最新の差分を確認して、もう一度チームに反映してください。");
-                _uiEvents.Status("最新の同期差分を表示しました。内容を再確認してください", true);
+                ShowPlanChangedWarning("チームのメンバー構成がプレビュー後に変更されました。");
                 return false;
             }, ex => new BusyOperationRunner.SpecificExceptionResult(
                 "再検証に失敗しました。通知の「詳細をコピー」から内容を確認できます"),
@@ -369,6 +333,11 @@ public partial class SyncWorkspaceViewModel : ObservableObject
                 _notifications.ShowWarning("実行ログを保存できませんでした",
                     $"同期処理自体は完了しています。{Environment.NewLine}{outcome.LogSaveError.Message}");
             }
+            else if (outcome.ReconciliationLogAppendError is not null)
+            {
+                _notifications.ShowWarning("実行ログへの最終照合結果の追記に失敗しました",
+                    $"同期処理自体は完了しており、実行ログも保存済みです。{Environment.NewLine}{outcome.ReconciliationLogAppendError.Message}");
+            }
 
             HandleReconciliation(outcome, _lastResult.Cancelled);
             ExecuteSyncCommand.NotifyCanExecuteChanged();
@@ -394,8 +363,17 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     private void HandleStaleBeforeExecution(SyncPlan latestPlan)
     {
         ApplyPlanSilently(latestPlan);
+        ShowPlanChangedWarning("チームのメンバー構成が実行直前に変更されたため、同期を中断しました。");
+    }
+
+    /// <summary>
+    ///     再検証・実行直前チェックのいずれでも共通の「同期差分が変更されました」通知とステータスを表示する。
+    ///     <paramref name="changeDescription" />には変更を検出した経緯を示す文(句点まで)を渡す
+    /// </summary>
+    private void ShowPlanChangedWarning(string changeDescription)
+    {
         _notifications.ShowWarning("同期差分が変更されました",
-            "チームのメンバー構成が実行直前に変更されたため、同期を中断しました。最新の差分を確認して、もう一度チームに反映してください。");
+            $"{changeDescription}最新の差分を確認して、もう一度チームに反映してください。");
         _uiEvents.Status("最新の同期差分を表示しました。内容を再確認してください", true);
     }
 
@@ -408,43 +386,44 @@ public partial class SyncWorkspaceViewModel : ObservableObject
     {
         if (outcome.ReconciliationError is null && outcome.RemainingPlan is not null)
         {
-            SyncPlan remaining = outcome.RemainingPlan;
-            ApplyPlanSilently(remaining);
-            int remainingCount = remaining.AddCount + remaining.RemoveCount;
-            Result.SetRemainingCount(remainingCount);
-            if (cancelled)
-            {
-                _resultPresenter.ShowWarning("同期を中止しました",
-                    $"{_lastResult!.SuccessCount}件は処理済みです。Teams側の最新状態を確認しました。未反映 {remainingCount}件を再実行できます。");
-            }
-            else if (_lastResult!.FailureCount > 0)
-            {
-                _resultPresenter.ShowWarning("一部の操作に失敗しました",
-                    $"成功 {_lastResult.SuccessCount}件 / 失敗 {_lastResult.FailureCount}件。未反映 {remainingCount}件を再実行できます。");
-            }
-            else
-            {
-                _resultPresenter.ShowSuccess("同期完了",
-                    $"{_lastResult.SuccessCount}件の変更が完了し、Teams側の状態を確認しました。");
-            }
-
-            _uiEvents.Status(cancelled
-                ? $"同期を中止しました。Teams側の最新状態を確認しました。未反映 {remainingCount}件を再実行できます"
-                : remainingCount > 0
-                    ? $"最終状態を確認しました。未反映 {remainingCount}件を再実行できます"
-                    : "同期完了: Teams側の状態を確認済みです", cancelled || remainingCount > 0);
+            ApplyReconciledRemainingPlan(outcome.RemainingPlan, cancelled);
             return;
         }
 
+        ApplyReconciliationFailure(outcome.ReconciliationError, cancelled);
+    }
+
+    /// <summary>Teams側の最終状態を再取得できた場合に、未反映分の差分を反映し通知・ステータスを表示する</summary>
+    private void ApplyReconciledRemainingPlan(SyncPlan remaining, bool cancelled)
+    {
+        ApplyPlanSilently(remaining);
+        int remainingCount = remaining.AddCount + remaining.RemoveCount;
+        Result.SetRemainingCount(remainingCount);
+
+        ReconciliationPresentation presentation = SyncWorkspaceTextFormatter.BuildReconciliationPresentation(
+            cancelled, _lastResult!.SuccessCount, _lastResult.FailureCount, remainingCount);
+        if (presentation.IsWarning)
+        {
+            _resultPresenter.ShowWarning(presentation.NotificationTitle, presentation.NotificationMessage);
+        }
+        else
+        {
+            _resultPresenter.ShowSuccess(presentation.NotificationTitle, presentation.NotificationMessage);
+        }
+
+        _uiEvents.Status(presentation.StatusText, presentation.IsStatusError);
+    }
+
+    /// <summary>Teams側の最終状態を再取得できなかった場合に、防御的な通知・ステータスを表示する</summary>
+    private void ApplyReconciliationFailure(Exception? reconciliationError, bool cancelled)
+    {
         InvalidatePlan(false);
         Result.MarkRemainingCountUnavailable();
-        _resultPresenter.ShowWarning(cancelled ? "同期を中止しました" : "最終状態を確認できませんでした",
-            cancelled
-                ? $"{_lastResult!.SuccessCount}件は処理済みの可能性があります。Teams側の最新状態を確認できませんでした。差分を再確認してください。{Environment.NewLine}{outcome.ReconciliationError?.Message}"
-                : $"操作結果は保存済みです。差分を再確認してください。{Environment.NewLine}{outcome.ReconciliationError?.Message}");
-        _uiEvents.Status(cancelled
-            ? "同期を中止しました。最終状態を確認できませんでした。差分を再確認してください"
-            : "最終状態を確認できませんでした。差分を再確認してください", true);
+
+        ReconciliationFailurePresentation presentation = SyncWorkspaceTextFormatter.BuildReconciliationFailurePresentation(
+            cancelled, _lastResult!.SuccessCount, reconciliationError?.Message);
+        _resultPresenter.ShowWarning(presentation.NotificationTitle, presentation.NotificationMessage);
+        _uiEvents.Status(presentation.StatusText, true);
     }
 
     /// <summary>部分失敗やキャンセル後に、Graphの最新状態から未反映分を再計画する</summary>

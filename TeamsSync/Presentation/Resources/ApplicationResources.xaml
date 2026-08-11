@@ -1,7 +1,8 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-                    xmlns:converters="clr-namespace:TeamsSync.Presentation.Converters">
+                    xmlns:converters="clr-namespace:TeamsSync.Presentation.Converters"
+                    xmlns:domain="clr-namespace:TeamsSync.Domain.Teams">
     <ResourceDictionary.MergedDictionaries>
         <ui:ThemesDictionary Theme="Light" />
         <ui:ControlsDictionary />
@@ -17,6 +18,7 @@
     <Color x:Key="AccentFillColorTertiary">#CC0067C0</Color>
     <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     <converters:HeightMinusOffsetConverter x:Key="HeightMinusOffsetConverter" />
+    <converters:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
     <GridLength x:Key="SectionLabelColumnWidth">Auto</GridLength>
     <!-- SyncModeSelectorViewの各RadioButton内アイコンで共通のDisabled表現(トリガー部分)だけを切り出す。
          平常時のForegroundは意味ごとに異なる(成功/注意/危険)ため、利用側でBasedOnして上書きする。 -->
@@ -25,6 +27,48 @@
             <DataTrigger Binding="{Binding IsEnabled, RelativeSource={RelativeSource AncestorType=RadioButton}}"
                          Value="False">
                 <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+    <!-- 同期差分一覧(SyncDiffCardContent)の「判定」列バッジの背景色をChangeKindごとに切り替える共通スタイル。
+         Keep/NotMember/Excludedは既定値(SystemFillColorNeutralBackgroundBrush)のままでよいためトリガーを持たない -->
+    <Style x:Key="ChangeKindBadgeBackgroundStyle" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource SystemFillColorNeutralBackgroundBrush}" />
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding Kind}" Value="{x:Static domain:ChangeKind.Add}">
+                <Setter Property="Background" Value="{DynamicResource SystemFillColorSuccessBackgroundBrush}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Kind}" Value="{x:Static domain:ChangeKind.Remove}">
+                <Setter Property="Background" Value="{DynamicResource SystemFillColorCriticalBackgroundBrush}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Kind}" Value="{x:Static domain:ChangeKind.Protected}">
+                <Setter Property="Background" Value="{DynamicResource SystemFillColorAttentionBackgroundBrush}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Kind}" Value="{x:Static domain:ChangeKind.Error}">
+                <Setter Property="Background" Value="{DynamicResource SystemFillColorCautionBackgroundBrush}" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+    <!-- SyncActionBarViewのステータステキスト。エラー時は強調表示に切り替える -->
+    <Style x:Key="StatusTextStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsStatusError}" Value="True">
+                <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+    <!-- SyncActionBarViewの結果アイコン。既定は成功アイコンで、失敗・キャンセル時に切り替える -->
+    <Style x:Key="ResultStatusIconStyle" TargetType="ui:SymbolIcon">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding SyncWorkspace.Result.HasFailedResults}" Value="True">
+                <Setter Property="Symbol" Value="Warning24" />
+                <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding SyncWorkspace.Result.Cancelled}" Value="True">
+                <Setter Property="Symbol" Value="Warning24" />
+                <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCautionBrush}" />
             </DataTrigger>
         </Style.Triggers>
     </Style>

@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:views="clr-namespace:TeamsSync.Presentation.Views"
+             xmlns:domain="clr-namespace:TeamsSync.Domain.Teams"
              AutomationProperties.Name="同期モード">
     <Grid>
         <Grid.ColumnDefinitions>
@@ -11,7 +12,9 @@
         <views:StepHeaderView IconSymbol="ArrowSync24" HeaderText="3  同期モード"
                                SubtitleText="入力リストを追加・指定削除・完全同期のどれに使うか選択します" />
         <WrapPanel Grid.Column="1" VerticalAlignment="Center">
-            <RadioButton IsChecked="{Binding IsAddOnlySelected, Mode=TwoWay}"
+            <RadioButton IsChecked="{Binding SelectedSyncMode, Mode=TwoWay,
+                                     Converter={StaticResource EnumToBooleanConverter},
+                                     ConverterParameter={x:Static domain:SyncMode.AddOnly}}"
                          GroupName="SyncMode" AutomationProperties.Name="追加のみ（既存メンバーを維持）"
                          ToolTip="リストにいる人を追加します。今のメンバーは削除されません。"
                          VerticalAlignment="Center" Margin="0,0,24,0">
@@ -27,7 +30,9 @@
                     <TextBlock Text="追加のみ（既存メンバーを維持）" />
                 </StackPanel>
             </RadioButton>
-            <RadioButton IsChecked="{Binding IsRemoveSpecifiedSelected, Mode=TwoWay}"
+            <RadioButton IsChecked="{Binding SelectedSyncMode, Mode=TwoWay,
+                                     Converter={StaticResource EnumToBooleanConverter},
+                                     ConverterParameter={x:Static domain:SyncMode.RemoveSpecified}}"
                          GroupName="SyncMode" AutomationProperties.Name="指定メンバーを削除"
                          ToolTip="入力リストで指定した一般メンバーだけを削除します。入力していないメンバーと所有者は削除されません。"
                          VerticalAlignment="Center" Margin="0,0,24,0">
@@ -43,7 +48,9 @@
                     <TextBlock Text="指定メンバーを削除" />
                 </StackPanel>
             </RadioButton>
-            <RadioButton IsChecked="{Binding IsFullSyncSelected, Mode=TwoWay}"
+            <RadioButton IsChecked="{Binding SelectedSyncMode, Mode=TwoWay,
+                                     Converter={StaticResource EnumToBooleanConverter},
+                                     ConverterParameter={x:Static domain:SyncMode.FullSync}}"
                          GroupName="SyncMode" AutomationProperties.Name="完全同期（リスト外を削除）"
                          ToolTip="リストにいる人を追加し、リストにない一般メンバーを削除します。チームの所有者は削除されません。"
                          VerticalAlignment="Center">

@@ -218,7 +218,7 @@ public sealed class SyncWorkspaceViewModelTests
         raisedProperties.Clear();
         executeCanExecuteChanged = 0;
 
-        viewModel.IsFullSyncSelected = true;
+        viewModel.SelectedSyncMode = SyncMode.FullSync;
 
         Assert.Contains(nameof(SyncPlanDisplayState.HasPlan), raisedProperties);
         Assert.Contains(nameof(SyncPlanDisplayState.HasErrors), raisedProperties);
@@ -300,14 +300,14 @@ public sealed class SyncWorkspaceViewModelTests
         };
         SyncWorkspaceViewModel viewModel = SyncWorkspaceViewModelFactory.Create(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), new FakeDialogs(), new FakeDialogs());
-        viewModel.IsRemoveSpecifiedSelected = true;
+        viewModel.SelectedSyncMode = SyncMode.RemoveSpecified;
         viewModel.SetContext(new TeamInfo("team-1", "開発", null),
             new MemberListDocument(["target@example.com", "owner@example.com"], "members.csv",
                 "C:\\members.csv", DateTime.Now, "CSV", "email"), true);
 
         await viewModel.PreviewCommand.ExecuteAsync(null);
 
-        Assert.True(viewModel.IsRemoveSpecifiedSelected);
+        Assert.Equal(SyncMode.RemoveSpecified, viewModel.SelectedSyncMode);
         Assert.Single(viewModel.Plan.Changes, change => change.Kind == ChangeKind.Remove);
         Assert.Single(viewModel.Plan.Changes, change => change.Kind == ChangeKind.Protected);
         Assert.DoesNotContain(viewModel.Plan.Changes, change => change.Change.UserId == "other-user");
@@ -338,7 +338,7 @@ public sealed class SyncWorkspaceViewModelTests
         List<string> notifications = new();
         viewModel.StatusChanged += (message, _) => notifications.Add(message);
 
-        viewModel.IsFullSyncSelected = true;
+        viewModel.SelectedSyncMode = SyncMode.FullSync;
 
         Assert.Empty(viewModel.Plan.Changes);
         Assert.Contains(notifications, message => message.Contains("クリア"));
@@ -352,7 +352,7 @@ public sealed class SyncWorkspaceViewModelTests
         List<string> notifications = new();
         viewModel.StatusChanged += (message, _) => notifications.Add(message);
 
-        viewModel.IsFullSyncSelected = true;
+        viewModel.SelectedSyncMode = SyncMode.FullSync;
 
         Assert.Empty(notifications);
     }

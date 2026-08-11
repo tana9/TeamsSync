@@ -124,6 +124,50 @@ public static class SyncWorkspaceTextFormatter
                 : $"リストにない一般メンバー {plan.RemoveCount}名を削除します。");
     }
 
+    /// <summary>
+    ///     同期実行後、Teams側の最終状態を再取得できた場合の通知・ステータス表示テキストを組み立てる。
+    ///     通知(タイトル・本文・警告/成功の別)とステータスバー表示は文言の切り口が異なるため、
+    ///     それぞれ独立した条件分岐で組み立てる
+    /// </summary>
+    public static ReconciliationPresentation BuildReconciliationPresentation(
+        bool cancelled, int successCount, int failureCount, int remainingCount)
+    {
+        (string title, string message, bool isWarning) = cancelled
+            ? ("同期を中止しました",
+                $"{successCount}件は処理済みです。Teams側の最新状態を確認しました。未反映 {remainingCount}件を再実行できます。",
+                true)
+            : failureCount > 0
+                ? ("一部の操作に失敗しました",
+                    $"成功 {successCount}件 / 失敗 {failureCount}件。未反映 {remainingCount}件を再実行できます。",
+                    true)
+                : ("同期完了",
+                    $"{successCount}件の変更が完了し、Teams側の状態を確認しました。",
+                    false);
+
+        string statusText = cancelled
+            ? $"同期を中止しました。Teams側の最新状態を確認しました。未反映 {remainingCount}件を再実行できます"
+            : remainingCount > 0
+                ? $"最終状態を確認しました。未反映 {remainingCount}件を再実行できます"
+                : "同期完了: Teams側の状態を確認済みです";
+
+        return new ReconciliationPresentation(title, message, isWarning, statusText, cancelled || remainingCount > 0);
+    }
+
+    /// <summary>同期実行後、Teams側の最終状態を再取得できなかった場合の通知・ステータス表示テキストを組み立てる</summary>
+    public static ReconciliationFailurePresentation BuildReconciliationFailurePresentation(
+        bool cancelled, int successCount, string? errorMessage)
+    {
+        string title = cancelled ? "同期を中止しました" : "最終状態を確認できませんでした";
+        string message = cancelled
+            ? $"{successCount}件は処理済みの可能性があります。Teams側の最新状態を確認できませんでした。差分を再確認してください。{Environment.NewLine}{errorMessage}"
+            : $"操作結果は保存済みです。差分を再確認してください。{Environment.NewLine}{errorMessage}";
+        string statusText = cancelled
+            ? "同期を中止しました。最終状態を確認できませんでした。差分を再確認してください"
+            : "最終状態を確認できませんでした。差分を再確認してください";
+
+        return new ReconciliationFailurePresentation(title, message, statusText);
+    }
+
     /// <summary>実行結果から失敗した操作だけを行モデルへ変換する</summary>
     public static IReadOnlyList<SyncResultRowViewModel> BuildFailedRows(SyncOperationsResult? result,
         int maxCount = int.MaxValue)
@@ -139,3 +183,11 @@ public static class SyncWorkspaceTextFormatter
 
 /// <summary>同期プランの件数サマリーと削除警告の表示テキスト</summary>
 public sealed record PlanPresentation(string Summary, string RemovalTitle, string RemovalMessage);
+
+/// <summary>Teams側の最終状態を再取得できた場合の通知・ステータス表示テキスト</summary>
+public sealed record ReconciliationPresentation(
+    string NotificationTitle, string NotificationMessage, bool IsWarning, string StatusText, bool IsStatusError);
+
+/// <summary>Teams側の最終状態を再取得できなかった場合の通知・ステータス表示テキスト</summary>
+public sealed record ReconciliationFailurePresentation(
+    string NotificationTitle, string NotificationMessage, string StatusText);
