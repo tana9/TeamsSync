@@ -121,6 +121,33 @@ public sealed class MemberFileViewModelTests
     }
 
     [Fact]
+    public async Task MemberFile_文書確定後は折りたたみ表示になり変更で編集画面へ戻る()
+    {
+        MemberListDocument document = new(["user@example.com"], "members.csv", "C:\\members.csv",
+            new DateTime(2026, 7, 28), "CSV", "email");
+        MemberFileViewModel viewModel = new(new FakeMemberListReader(document), new MemberTextParser(),
+            new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs());
+        Assert.False(viewModel.ShowCollapsedSummary);
+        Assert.True(viewModel.ShowFullInput);
+
+        await viewModel.LoadDroppedFileCommand.ExecuteAsync(document.FullPath);
+
+        Assert.True(viewModel.ShowCollapsedSummary);
+        Assert.False(viewModel.ShowFullInput);
+        Assert.Contains("1件", viewModel.SummaryText);
+
+        viewModel.EditInputCommand.Execute(null);
+
+        Assert.False(viewModel.ShowCollapsedSummary);
+        Assert.True(viewModel.ShowFullInput);
+
+        await viewModel.LoadDroppedFileCommand.ExecuteAsync(document.FullPath);
+
+        Assert.True(viewModel.ShowCollapsedSummary);
+        Assert.False(viewModel.ShowFullInput);
+    }
+
+    [Fact]
     public async Task MemberFile_新しいファイルの読込失敗時は以前の文書を無効化する()
     {
         MemberListDocument first = new(["old@example.com"], "old.csv", "C:\\old.csv",

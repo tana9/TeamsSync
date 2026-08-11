@@ -53,7 +53,29 @@ public partial class MemberFileViewModel : ObservableObject, IMemberInputAvailab
         FileLoad.PropertyChanged += (_, _) => NotifyCommandStates();
         PasteInput.PropertyChanged += (_, _) => NotifyCommandStates();
         DocumentChanged += () => OnPropertyChanged(nameof(HasUnappliedPastedText));
+        DocumentChanged += () => OnPropertyChanged(nameof(ShowCollapsedSummary));
+        DocumentChanged += () => OnPropertyChanged(nameof(ShowFullInput));
+        DocumentChanged += () => OnPropertyChanged(nameof(SummaryText));
     }
+
+    /// <summary>
+    ///     利用者が「変更」を押して、折りたたみ済みの入力要約を再びファイル/テキスト入力の
+    ///     編集画面へ戻しているかどうか。新しい入力が確定するたびに<see cref="NotifyDocumentChanged" />で
+    ///     falseへ戻し、次に文書が確定すると再び折りたたみ表示になる
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowCollapsedSummary))]
+    [NotifyPropertyChangedFor(nameof(ShowFullInput))]
+    public partial bool IsEditingInput { get; set; }
+
+    /// <summary>入力確定済みで編集中でないとき、1行の要約表示に折りたたむかどうか</summary>
+    public bool ShowCollapsedSummary => Document is not null && !IsEditingInput;
+
+    /// <summary>ファイル/テキスト入力のタブUIをフル表示するかどうか(<see cref="ShowCollapsedSummary" />の否定)</summary>
+    public bool ShowFullInput => !ShowCollapsedSummary;
+
+    /// <summary>折りたたみ表示に使う、入力元・検出列・件数の要約テキスト</summary>
+    public string SummaryText => SyncWorkspaceTextFormatter.BuildInputSummary(Document);
 
     /// <summary>ファイル入力の読込中状態と表示状態</summary>
     public MemberFileLoadState FileLoad { get; } = new();
@@ -416,9 +438,17 @@ public partial class MemberFileViewModel : ObservableObject, IMemberInputAvailab
         NotifyDocumentChanged();
     }
 
+    /// <summary>折りたたみ済みの入力要約を、元のファイル/テキスト入力の編集画面へ戻す</summary>
+    [RelayCommand]
+    private void EditInput()
+    {
+        IsEditingInput = true;
+    }
+
     /// <summary><see cref="DocumentChanged" />を発行し、成功時は件数をステータスとして通知する</summary>
     private void NotifyDocumentChanged()
     {
+        IsEditingInput = false;
         DocumentChanged?.Invoke();
         if (Document is not null)
         {

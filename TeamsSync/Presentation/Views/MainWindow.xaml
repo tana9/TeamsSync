@@ -137,7 +137,17 @@
                 <views:SyncDiffCardContent DataContext="{Binding SyncWorkspace}" VerticalAlignment="Stretch" />
             </ui:Card>
 
-            <views:SyncActionBarView x:Name="SyncActionBar" Grid.Row="2" Margin="0,8,0,0" />
+            <!-- 実行結果パネルが伸びてもウィンドウ下端の外へはみ出さないよう、手順4カードの
+                 最低保証分(MinHeight=208+ここでの上マージン8=216、上のMaxHeight計算と同じ値)を
+                 差し引いた残りをアクションバーの上限にする。ContentGrid.ActualHeightだけに依存し
+                 アクションバー自身の実測高さには依存しないため、上のMaxHeight計算とは循環しない -->
+            <views:SyncActionBarView x:Name="SyncActionBar" Grid.Row="2" Margin="0,8,0,0">
+                <views:SyncActionBarView.MaxHeight>
+                    <MultiBinding Converter="{StaticResource HeightMinusOffsetConverter}" ConverterParameter="216">
+                        <Binding ElementName="ContentGrid" Path="ActualHeight" />
+                    </MultiBinding>
+                </views:SyncActionBarView.MaxHeight>
+            </views:SyncActionBarView>
 
             <ui:ContentDialogHost x:Name="DialogHost" Grid.RowSpan="3" />
             <ui:SnackbarPresenter x:Name="SnackbarPresenter" Grid.RowSpan="3" VerticalAlignment="Bottom" Margin="20" />
