@@ -19,7 +19,7 @@
                         Margin="20,0,0,0" VerticalAlignment="Center">
                 <TextBlock Text="表示:" VerticalAlignment="Center" Margin="0,0,8,0"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                <ComboBox Width="130" ItemsSource="{Binding Plan.Filters}"
+                <ComboBox MinWidth="130" ItemsSource="{Binding Plan.Filters}"
                           SelectedItem="{Binding Plan.SelectedFilter}"
                           DisplayMemberPath="DisplayText"
                           IsEnabled="{Binding Plan.HasChanges}"
