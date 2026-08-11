@@ -20,6 +20,12 @@ public sealed class SyncExecutionCoordinator(ISyncPlanService plans, ISyncExecut
     }
 
     /// <summary>入力されたチームとアドレスから同期プランを作成する</summary>
+    /// <param name="team">同期先のチーム</param>
+    /// <param name="addresses">入力されたメールアドレス(または氏名)の一覧</param>
+    /// <param name="mode">同期モード</param>
+    /// <param name="progress">照合の進捗を受け取る通知先。通知が不要な場合はnull</param>
+    /// <param name="cancellationToken">処理のキャンセルを通知するトークン</param>
+    /// <returns>作成した同期プラン</returns>
     public Task<SyncPlan> BuildPlanAsync(TeamInfo team, IReadOnlyList<string> addresses,
         SyncMode mode, IProgress<int>? progress = null, CancellationToken cancellationToken = default)
     {

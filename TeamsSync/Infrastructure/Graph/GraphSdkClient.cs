@@ -13,6 +13,7 @@ namespace TeamsSync.Infrastructure.Graph;
 /// <param name="factory">名前付きHTTPクライアントを作成するファクトリ</param>
 /// <param name="authentication">Graphのアクセストークンを取得する認証サービス</param>
 /// <param name="logger">Graph通信の診断情報を記録するロガー</param>
+/// <param name="identifierGenerator">リクエストIDの生成に使うID生成器。省略時は既定の実装を使う</param>
 public sealed class GraphSdkClient(IHttpClientFactory factory, IAuthenticationService authentication,
     ILogger<GraphHttpClient> logger, IIdentifierGenerator? identifierGenerator = null)
 {

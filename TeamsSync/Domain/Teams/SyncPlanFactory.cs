@@ -47,6 +47,7 @@ public static class SyncPlanFactory
     ///     アドレスごとの解決結果を追加・維持・保護・エラーへ分類し、完全同期モードでは
     ///     リスト外の一般メンバーの削除も加えて、同期プランを作成する
     /// </summary>
+    /// <returns>分類済みの変更一覧と件数サマリーを持つ同期プラン</returns>
     public static SyncPlan Create(TeamInfo team, TeamRoster roster,
         IReadOnlyList<AddressResolution> resolutions, SyncMode mode, IReadOnlyList<string> inputAddresses)
     {

@@ -535,17 +535,8 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         OnPropertyChanged(nameof(SyncUnavailableReason));
     }
 
-    /// <summary>
-    ///     作成した同期プランを画面へ反映する(差分一覧・件数サマリー・削除警告)。
-    ///     ステータスを通知する場合は、差分一覧へのフォーカス移動も要求する
-    /// </summary>
-    /// <param name="plan">画面へ反映する同期プラン</param>
-    /// <param name="announceStatus">
-    ///     既定のステータスメッセージを通知し、差分一覧へのフォーカス移動を要求する場合はtrue。
-    ///     呼び出し元が個別のステータスを通知する場合はfalse
-    /// </param>
     // ApplyPlan既定の案内文を、この直後により具体的なメッセージ・通知に置き換える3箇所
-    // (RevalidateBeforeExecuteAsync/HandleStaleBeforeExecution/HandleReconciliation)で使う。
+    // (RevalidateBeforeExecuteAsync/HandleStaleBeforeExecution/ApplyReconciledRemainingPlan)で使う。
     // 同じ内容をスクリーンリーダーへ二重に読み上げさせないよう、既定の案内は抑制する
     /// <summary>
     ///     同期プランを画面へ反映するが、既定のステータス通知・フォーカス移動は行わない。
@@ -556,6 +547,15 @@ public partial class SyncWorkspaceViewModel : ObservableObject
         ApplyPlan(plan, false);
     }
 
+    /// <summary>
+    ///     作成した同期プランを画面へ反映する(差分一覧・件数サマリー・削除警告)。
+    ///     ステータスを通知する場合は、差分一覧へのフォーカス移動も要求する
+    /// </summary>
+    /// <param name="plan">画面へ反映する同期プラン</param>
+    /// <param name="announceStatus">
+    ///     既定のステータスメッセージを通知し、差分一覧へのフォーカス移動を要求する場合はtrue。
+    ///     呼び出し元が個別のステータスを通知する場合はfalse
+    /// </param>
     private void ApplyPlan(SyncPlan plan, bool announceStatus = true)
     {
         Plan.Apply(plan);

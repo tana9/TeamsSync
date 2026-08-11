@@ -14,6 +14,8 @@ namespace TeamsSync.Infrastructure.Files;
 ///     ログの出力先フォルダー。省略時はユーザー別のLocalApplicationData配下を使う。
 ///     テストから一時フォルダーを指定できるようにコンストラクター引数にしている
 /// </param>
+/// <param name="timeProvider">ログのファイル名・記録時刻に使う時刻源。省略時はシステム時刻を使う</param>
+/// <param name="identifierGenerator">一時ファイル名の生成に使うID生成器。省略時は既定の実装を使う</param>
 public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? timeProvider = null,
     IIdentifierGenerator? identifierGenerator = null) : ISyncResultWriter
 {
