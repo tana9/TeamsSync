@@ -11,7 +11,7 @@ namespace TeamsSync.Infrastructure.Files;
 ///     同期プランと実行結果を、日時と対象チーム名をファイル名としたCSVログとして自動的に記録する
 /// </summary>
 /// <param name="logDirectory">
-///     ログの出力先フォルダー。省略時はEXEと同じフォルダー配下(<see cref="AuditLogging.SyncResultLogDirectory" />)を使う。
+///     ログの出力先フォルダー。省略時はユーザー別のLocalApplicationData配下を使う。
 ///     テストから一時フォルダーを指定できるようにコンストラクター引数にしている
 /// </param>
 /// <param name="timeProvider">ログのファイル名・記録時刻に使う時刻源。省略時はシステム時刻を使う</param>
