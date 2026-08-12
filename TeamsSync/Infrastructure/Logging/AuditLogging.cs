@@ -27,8 +27,16 @@ public sealed class AuditLoggingOptions
 /// </summary>
 public static class AuditLogging
 {
-    /// <summary>監査ログファイルの出力先ディレクトリ</summary>
+    /// <summary>監査ログ(audit-*.jsonl)・起動失敗ログの出力先ディレクトリ</summary>
     public static string LogDirectory => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "TeamsSync", "AuditLogs");
+
+    // 監査ログ(Serilogの技術的な診断ログ)と同期結果CSV(利用者が直接開く実行ログ)は
+    // 性質が異なるため、フォルダーを分けている。結果CSV側のパスもここへ集約し、
+    // 各所での個別組み立て(過去に3箇所で重複していた)を再発させない
+    /// <summary>同期結果CSV(<see cref="TeamsSync.Infrastructure.Files.SyncResultWriter" />)の既定の出力先ディレクトリ</summary>
+    public static string SyncResultLogDirectory => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "TeamsSync", "Logs");
 

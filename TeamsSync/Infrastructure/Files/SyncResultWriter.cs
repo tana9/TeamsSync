@@ -19,7 +19,7 @@ namespace TeamsSync.Infrastructure.Files;
 public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? timeProvider = null,
     IIdentifierGenerator? identifierGenerator = null) : ISyncResultWriter
 {
-    private readonly string _logDirectory = logDirectory ?? AuditLogging.LogDirectory;
+    private readonly string _logDirectory = logDirectory ?? AuditLogging.SyncResultLogDirectory;
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     private readonly IIdentifierGenerator _identifierGenerator = identifierGenerator ?? new IdentifierGenerator();
 

@@ -35,7 +35,8 @@ $env:TEAMSSYNC_Entra__TenantId = "テナントID"
 
 | データ | 既定の場所 | 内容 |
 |---|---|---|
-| 監査ログ | `%LocalAppData%\TeamsSync\Logs\audit-*.jsonl` | 実行ID、対象ID、件数、結果、Graph相関IDなど |
+| 監査ログ | `%LocalAppData%\TeamsSync\AuditLogs\audit-*.jsonl` | 実行ID、対象ID、件数、結果、Graph相関IDなど |
+| 起動失敗ログ | `%LocalAppData%\TeamsSync\AuditLogs\startup-failure.log` | アプリの起動そのものに失敗した場合の記録(監査ログと同じフォルダー) |
 | ユーザー設定 | `%LocalAppData%\TeamsSync\preferences.json` | 最後に利用したフォルダー |
 | 破損設定の退避 | `%LocalAppData%\TeamsSync\preferences.corrupt-*.json` | 読み込めなかった旧設定 |
 | 結果CSV | `%LocalAppData%\TeamsSync\Logs\*.csv` | 実行日時・操作ユーザー・対象チーム、処理前のチームメンバー一覧、同期操作ごとの結果、実行後の最終照合結果。画面の同期結果から直接開ける |
