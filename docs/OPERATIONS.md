@@ -35,21 +35,26 @@ $env:TEAMSSYNC_Entra__TenantId = "テナントID"
 
 | データ | 既定の場所 | 内容 |
 |---|---|---|
-| 監査ログ | `%LocalAppData%\TeamsSync\AuditLogs\audit-*.jsonl` | 実行ID、対象ID、件数、結果、Graph相関IDなど |
-| 起動失敗ログ | `%LocalAppData%\TeamsSync\AuditLogs\startup-failure.log` | アプリの起動そのものに失敗した場合の記録(監査ログと同じフォルダー) |
+| 監査ログ | `<EXEのフォルダー>\AuditLogs\audit-*.jsonl` | 実行ID、対象ID、件数、結果、Graph相関IDなど |
+| 起動失敗ログ | `<EXEのフォルダー>\AuditLogs\startup-failure.log` | アプリの起動そのものに失敗した場合の記録(監査ログと同じフォルダー) |
 | ユーザー設定 | `%LocalAppData%\TeamsSync\preferences.json` | 最後に利用したフォルダー |
 | 破損設定の退避 | `%LocalAppData%\TeamsSync\preferences.corrupt-*.json` | 読み込めなかった旧設定 |
-| 結果CSV | `%LocalAppData%\TeamsSync\Logs\*.csv` | 実行日時・操作ユーザー・対象チーム、処理前のチームメンバー一覧、同期操作ごとの結果、実行後の最終照合結果。画面の同期結果から直接開ける |
+| 結果CSV | `<EXEのフォルダー>\Logs\*.csv` | 実行日時・操作ユーザー・対象チーム、処理前のチームメンバー一覧、同期操作ごとの結果、実行後の最終照合結果。画面の同期結果から直接開ける |
 | 一時マニュアル | `%Temp%\TeamsSync\Manual.html` | EXEから展開した利用者マニュアル |
 
-入力したCSV・Excelや貼り付け内容そのものはアプリ専用領域へ保存しません。監査ログには入力ファイル名とSHA-256を記録しますが、フルパス、氏名、メールアドレス、UPN、アクセストークンは記録しません。
+監査ログ・起動失敗ログ・結果CSVはEXEと同じフォルダー配下に既定で作成されるため、
+**EXEを配置するフォルダーには、実行アカウントの書き込み権限が必要**(`Program Files`等の
+管理者権限が必要な場所には配置しない、または権限を付与する)。入力したCSV・Excelや
+貼り付け内容そのものはアプリ専用領域へ保存しません。監査ログには入力ファイル名とSHA-256を
+記録しますが、フルパス、氏名、メールアドレス、UPN、アクセストークンは記録しません。
 
 ## データの削除
 
 1. TeamsSyncを終了する。
 2. 必要な監査ログと結果CSVを組織の記録保持方針に従って退避する。
-3. `%LocalAppData%\TeamsSync`を削除すると、監査ログ、結果CSV、ユーザー設定、破損設定の退避を削除できる。
-4. `%Temp%\TeamsSync`を削除すると、展開済みマニュアルを削除できる。
+3. EXEと同じフォルダーの`AuditLogs`・`Logs`を削除すると、監査ログ・起動失敗ログ・結果CSVを削除できる。
+4. `%LocalAppData%\TeamsSync`を削除すると、ユーザー設定・破損設定の退避を削除できる。
+5. `%Temp%\TeamsSync`を削除すると、展開済みマニュアルを削除できる。
 
 ログは既定で日次または25MBごとにローテーションし、30ファイルを保持します。`AuditLogging:RetainedFileCount`と`AuditLogging:FileSizeLimitBytes`で組織の保持方針に合わせて変更できます。
 
