@@ -229,7 +229,6 @@ internal sealed class BlockingTextParser : IMemberTextParser
 internal sealed class FakeResultWriter : ISyncResultWriter
 {
     public Exception? Exception { get; set; }
-    public Exception? AppendException { get; set; }
     public string ResultPath { get; set; } = @"C:\Logs\result.csv";
 
     public string WriteAutoLog(SyncPlan plan, SyncOperationsResult result, SyncAuditContext auditContext)
@@ -240,14 +239,6 @@ internal sealed class FakeResultWriter : ISyncResultWriter
         }
 
         return ResultPath;
-    }
-
-    public void AppendReconciliationResult(string logPath, SyncPlan? remainingPlan, Exception? reconciliationError)
-    {
-        if (AppendException is not null)
-        {
-            throw AppendException;
-        }
     }
 }
 

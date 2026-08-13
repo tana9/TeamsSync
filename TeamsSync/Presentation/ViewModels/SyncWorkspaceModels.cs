@@ -2,7 +2,6 @@ using System.ComponentModel;
 
 using TeamsSync.Application.Models;
 using TeamsSync.Domain.Teams;
-using TeamsSync.Presentation.ViewModels.Support;
 
 namespace TeamsSync.Presentation.ViewModels;
 

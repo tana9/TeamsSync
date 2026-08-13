@@ -28,7 +28,8 @@ public sealed class SyncResultWriterTests : IDisposable
             "tenant-1", "actor-object-id", "山田 太郎 (taro@example.com)");
     }
 
-    // WriteCsvはplan.Operationsを基準に行を出力するため(SyncExecutorの実際の積み上げ方に合わせている)、
+    // WriteCsvはplan.Changesの全件を行として出力し、そのうち追加・削除(plan.Operations)だけを
+    // resultの実行結果と対応付けるため(SyncExecutorの実際の積み上げ方に合わせている)、
     // CSV出力内容を検証するテストは、resultの各要素と対応するSyncChangeを持つplanを組み立てる必要がある
     private static (SyncPlan Plan, SyncOperationsResult Result) Build(string teamDisplayName,
         IReadOnlyList<SyncOperationResult> results, bool cancelled = false, SyncMode mode = SyncMode.FullSync)
@@ -139,32 +140,41 @@ public sealed class SyncResultWriterTests : IDisposable
     }
 
     [Fact]
-    public void WriteAutoLog_実行情報セクションに実行日時操作ユーザー対象チームを出力する()
+    public void WriteAutoLog_実行日時操作ユーザー対象チーム同期モードを各行の列として出力する()
     {
-        string csv = WriteAndRead(CreatePlan("営業チーム"), new SyncOperationsResult([], false));
+        (SyncPlan plan, SyncOperationsResult result) = Build("営業チーム",
+            [new SyncOperationResult(ChangeKind.Add, "user1@example.com", true, null)]);
 
-        Assert.Contains("実行情報", csv);
-        Assert.Contains("実行日時,実行ID,操作ユーザー表示名,操作ユーザーオブジェクトID,対象チーム,同期モード", csv);
-        Assert.Contains("\"山田 太郎 (taro@example.com)\"", csv);
-        Assert.Contains("\"actor-object-id\"", csv);
-        Assert.Contains("\"営業チーム\"", csv);
+        string csv = WriteAndRead(plan, result);
+
+        Assert.Contains(
+            "実行日時,実行ID,操作ユーザー表示名,操作ユーザーオブジェクトID,対象チーム,同期モード,表示名,メールアドレス,状態,詳細,結果,エラー",
+            csv);
+        Assert.Contains("\"山田 太郎 (taro@example.com)\",\"actor-object-id\",\"営業チーム\",\"完全同期\"", csv);
     }
 
     [Fact]
-    public void WriteAutoLog_処理前メンバー一覧セクションにプラン作成時点の全メンバーを出力する()
+    public void WriteAutoLog_変更一覧に全種別のメンバーと状態を出力する()
     {
-        SyncPlan plan = new(new TeamInfo("team-id", "営業チーム", null), [], [], CurrentMembers:
+        SyncPlan plan = new(new TeamInfo("team-id", "営業チーム", null),
         [
-            new TeamMember("m-owner", "u-owner", "所有者 太郎", "owner@example.com", true),
-            new TeamMember("m-1", "u-1", "一般 花子", "member@example.com", false)
-        ]);
+            new SyncChange(ChangeKind.Add, "伊藤 三郎", "saburo.ito@example.com", ChangeReason.AddToTeam, "u-1"),
+            new SyncChange(ChangeKind.Keep, "佐藤 花子", "hanako.sato@example.com", ChangeReason.AlreadyMember,
+                "u-2"),
+            new SyncChange(ChangeKind.Protected, "鈴木 一郎", "ichiro.suzuki@example.com", ChangeReason.OwnerProtected,
+                "u-3")
+        ], ["saburo.ito@example.com"]);
+        SyncOperationsResult result = new(
+            [new SyncOperationResult(ChangeKind.Add, "saburo.ito@example.com", true, null, "伊藤 三郎")], false);
 
-        string csv = WriteAndRead(plan, new SyncOperationsResult([], false));
+        string csv = WriteAndRead(plan, result);
 
-        Assert.Contains("処理前メンバー一覧", csv);
-        Assert.Contains("表示名,メールアドレス,区分", csv);
-        Assert.Contains("\"所有者 太郎\",\"owner@example.com\",\"所有者\"", csv);
-        Assert.Contains("\"一般 花子\",\"member@example.com\",\"一般\"", csv);
+        Assert.Contains("表示名,メールアドレス,状態,詳細,結果,エラー", csv);
+        Assert.Contains("\"伊藤 三郎\",\"saburo.ito@example.com\",\"追加\",\"メンバーに追加します\",\"成功\",\"\"",
+            csv);
+        Assert.Contains("\"佐藤 花子\",\"hanako.sato@example.com\",\"維持\",\"既にメンバーです\",\"\",\"\"", csv);
+        Assert.Contains(
+            "\"鈴木 一郎\",\"ichiro.suzuki@example.com\",\"所有者保護\",\"所有者のため削除しません\",\"\",\"\"", csv);
     }
 
     [Fact]
@@ -181,12 +191,13 @@ public sealed class SyncResultWriterTests : IDisposable
     }
 
     [Fact]
-    public void WriteAutoLog_同期操作セクションのヘッダーを日本語で出力する()
+    public void WriteAutoLog_ヘッダー行を単一テーブルの列として出力する()
     {
         string csv = WriteAndRead(CreatePlan("営業チーム"), new SyncOperationsResult([], false));
 
-        Assert.Contains("同期操作", csv);
-        Assert.Contains("チーム,同期モード,操作,表示名,メールアドレス,結果,エラー", csv);
+        Assert.StartsWith(
+            "実行日時,実行ID,操作ユーザー表示名,操作ユーザーオブジェクトID,対象チーム,同期モード,表示名,メールアドレス,状態,詳細,結果,エラー",
+            csv);
     }
 
     [Fact]
@@ -215,9 +226,13 @@ public sealed class SyncResultWriterTests : IDisposable
 
         string csv = WriteAndRead(plan, result);
 
-        Assert.Contains("\"実行済み\",\"done@example.com\",\"成功\"", csv);
-        Assert.Contains("\"未実行1\",\"pending1@example.com\",\"未実行\",\"同期がキャンセルされたため未実行\"", csv);
-        Assert.Contains("\"未実行2\",\"pending2@example.com\",\"未実行\",\"同期がキャンセルされたため未実行\"", csv);
+        Assert.Contains("\"実行済み\",\"done@example.com\",\"追加\",\"\",\"成功\",\"\"", csv);
+        Assert.Contains(
+            "\"未実行1\",\"pending1@example.com\",\"削除\",\"\",\"未実行\",\"同期がキャンセルされたため未実行\"",
+            csv);
+        Assert.Contains(
+            "\"未実行2\",\"pending2@example.com\",\"追加\",\"\",\"未実行\",\"同期がキャンセルされたため未実行\"",
+            csv);
     }
 
     [Fact]
@@ -236,8 +251,8 @@ public sealed class SyncResultWriterTests : IDisposable
 
         string csv = WriteAndRead(plan, result);
 
-        Assert.Contains("\"失敗\",\"failed@example.com\",\"失敗\",\"権限エラー\"", csv);
-        Assert.Contains("\"成功\",\"success@example.com\",\"成功\",\"\"", csv);
+        Assert.Contains("\"失敗\",\"failed@example.com\",\"追加\",\"\",\"失敗\",\"権限エラー\"", csv);
+        Assert.Contains("\"成功\",\"success@example.com\",\"追加\",\"\",\"成功\",\"\"", csv);
     }
 
     [Theory]
@@ -301,65 +316,4 @@ public sealed class SyncResultWriterTests : IDisposable
         Assert.DoesNotContain("'taro.yamada@example.com", csv);
     }
 
-    [Fact]
-    public void AppendReconciliationResult_未反映の差分がない場合は到達済みと記録する()
-    {
-        SyncPlan plan = CreatePlan("営業チーム");
-        SyncResultWriter writer = new(_directory);
-        string path = writer.WriteAutoLog(plan, new SyncOperationsResult([], false), CreateAuditContext());
-        SyncPlan remainingPlan = new(new TeamInfo("team-id", "営業チーム", null), [], []);
-
-        writer.AppendReconciliationResult(path, remainingPlan, null);
-
-        string csv = File.ReadAllText(path);
-        Assert.Contains("最終照合結果", csv);
-        Assert.Contains("目的の状態に到達しています(未反映の差分なし)", csv);
-        Assert.DoesNotContain("未反映の差分\r\n操作,表示名,メールアドレス", csv);
-    }
-
-    [Fact]
-    public void AppendReconciliationResult_未反映の差分がある場合はその一覧を記録する()
-    {
-        SyncPlan plan = CreatePlan("営業チーム");
-        SyncResultWriter writer = new(_directory);
-        string path = writer.WriteAutoLog(plan, new SyncOperationsResult([], false), CreateAuditContext());
-        SyncPlan remainingPlan = new(new TeamInfo("team-id", "営業チーム", null),
-            [new SyncChange(ChangeKind.Add, "未反映 太郎", "remaining@example.com", ChangeReason.AddToTeam, "u-1")],
-            ["remaining@example.com"]);
-
-        writer.AppendReconciliationResult(path, remainingPlan, null);
-
-        string csv = File.ReadAllText(path);
-        Assert.Contains("未反映の差分が残っています(追加待ち1件、削除待ち0件)", csv);
-        Assert.Contains("未反映の差分", csv);
-        Assert.Contains("\"追加\",\"未反映 太郎\",\"remaining@example.com\"", csv);
-    }
-
-    [Fact]
-    public void AppendReconciliationResult_照合自体が失敗した場合はエラー内容を記録する()
-    {
-        SyncPlan plan = CreatePlan("営業チーム");
-        SyncResultWriter writer = new(_directory);
-        string path = writer.WriteAutoLog(plan, new SyncOperationsResult([], false), CreateAuditContext());
-
-        writer.AppendReconciliationResult(path, null, new InvalidOperationException("再取得に失敗しました"));
-
-        string csv = File.ReadAllText(path);
-        Assert.Contains("照合に失敗しました: 再取得に失敗しました", csv);
-    }
-
-    [Fact]
-    public void AppendReconciliationResult_既存の同期操作セクションは保持される()
-    {
-        (SyncPlan plan, SyncOperationsResult result) = Build("営業チーム",
-            [new SyncOperationResult(ChangeKind.Add, "user1@example.com", true, null)]);
-        SyncResultWriter writer = new(_directory);
-        string path = writer.WriteAutoLog(plan, result, CreateAuditContext());
-
-        writer.AppendReconciliationResult(path, new SyncPlan(plan.Team, [], []), null);
-
-        string csv = File.ReadAllText(path);
-        Assert.Contains("\"user1@example.com\"", csv);
-        Assert.Contains("最終照合結果", csv);
-    }
 }

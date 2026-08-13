@@ -33,9 +33,9 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
     }
 
     /// <summary>
-    ///     実行日時・操作ユーザー・対象チーム・処理前メンバー一覧・追加削除の結果を持つCSVとして、
-    ///     実行日時・実行ID・対象チーム名を含む一意なファイル名でログフォルダーへ書き出す。
-    ///     最終照合結果は実行後に<see cref="AppendReconciliationResult" />で同じファイルへ追記する
+    ///     実行日時・実行ID・操作ユーザー・対象チーム・同期モードを各行の列として持つ、
+    ///     単一のテーブルのチームメンバー変更一覧CSVとして、実行日時・実行ID・対象チーム名を
+    ///     含む一意なファイル名でログフォルダーへ書き出す
     /// </summary>
     public string WriteAutoLog(SyncPlan plan, SyncOperationsResult result, SyncAuditContext auditContext)
     {
@@ -48,124 +48,69 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
         return path;
     }
 
-    // 監査CSVはセクション単位で構成されるため、AtomicFileWriterによる全文置換を使う。
-    // logPathは実行(ExecuteAsync)ごとに一意なファイル名で、1回の実行につき1度しか呼ばれないため、
-    // read-modify-writeの直列化は不要
-    /// <inheritdoc />
-    public void AppendReconciliationResult(string logPath, SyncPlan? remainingPlan, Exception? reconciliationError)
-    {
-        string existing = File.ReadAllText(logPath, new UTF8Encoding(true));
-        string section = BuildReconciliationSection(remainingPlan, reconciliationError, _timeProvider.GetLocalNow());
-        string updated = existing.TrimEnd('\r', '\n') + Environment.NewLine + Environment.NewLine + section;
-        AtomicFileWriter.Write(logPath, stream =>
-        {
-            using StreamWriter writer = new(stream, new UTF8Encoding(true), leaveOpen: true);
-            writer.Write(updated);
-            writer.Flush();
-        }, true, _identifierGenerator);
-    }
-
     private static void WriteCsv(Stream stream, SyncPlan plan, SyncOperationsResult result,
         SyncAuditContext auditContext, DateTimeOffset executedAt)
     {
         using StreamWriter writer = new(stream, new UTF8Encoding(true), leaveOpen: true);
-        WriteExecutionInfoSection(writer, plan, auditContext, executedAt);
-        writer.WriteLine();
-        WritePreSyncMembersSection(writer, plan);
-        writer.WriteLine();
-        WriteOperationsSection(writer, plan, result);
+        writer.WriteLine(
+            "実行日時,実行ID,操作ユーザー表示名,操作ユーザーオブジェクトID,対象チーム,同期モード,表示名,メールアドレス,状態,詳細,結果,エラー");
+
+        string[] executionColumns =
+        [
+            FormatTimestamp(executedAt), auditContext.ExecutionId.ToString(), auditContext.ActorDisplayName ?? "",
+            auditContext.ActorObjectId ?? "", plan.Team.DisplayName, SyncModeLabel(plan.Mode)
+        ];
+
+        Dictionary<SyncChange, SyncOperationResult> executedResults = new(ReferenceEqualityComparer.Instance);
+        IReadOnlyList<SyncChange> operations = plan.Operations;
+        for (int index = 0; index < operations.Count && index < result.Results.Count; index++)
+        {
+            executedResults[operations[index]] = result.Results[index];
+        }
+
+        foreach (SyncChange change in plan.Changes.OrderBy(DisplayOrder))
+        {
+            (string status, string error) = ResultColumns(change, executedResults, result);
+            IEnumerable<string> row = executionColumns.Concat(
+            [
+                change.DisplayName, change.Email, ChangeKindText.Label(change.Kind),
+                SyncChangeReasonText.Format(change.Reason), status, error
+            ]);
+            writer.WriteLine(string.Join(",", row.Select(Csv)));
+        }
+
         writer.Flush();
     }
 
-    /// <summary>実行日時・操作ユーザー・対象チーム・同期モードを記録するセクションを出力する</summary>
-    private static void WriteExecutionInfoSection(TextWriter writer, SyncPlan plan, SyncAuditContext auditContext,
-        DateTimeOffset executedAt)
+    /// <summary>変更1件の実行結果列(結果・エラー)を組み立てる。追加・削除以外は実行対象外のため空欄にする</summary>
+    private static (string Status, string Error) ResultColumns(SyncChange change,
+        IReadOnlyDictionary<SyncChange, SyncOperationResult> executedResults, SyncOperationsResult result)
     {
-        writer.WriteLine("実行情報");
-        writer.WriteLine("実行日時,実行ID,操作ユーザー表示名,操作ユーザーオブジェクトID,対象チーム,同期モード");
-        writer.WriteLine(string.Join(",",
-            Csv(FormatTimestamp(executedAt)),
-            Csv(auditContext.ExecutionId.ToString()),
-            Csv(auditContext.ActorDisplayName ?? ""),
-            Csv(auditContext.ActorObjectId ?? ""),
-            Csv(plan.Team.DisplayName),
-            Csv(SyncModeLabel(plan.Mode))));
+        if (!change.IsOperation)
+        {
+            return ("", "");
+        }
+
+        if (!executedResults.TryGetValue(change, out SyncOperationResult? executed))
+        {
+            return ("未実行",
+                result.Cancelled ? "同期がキャンセルされたため未実行" : "実行結果が記録されていません");
+        }
+
+        return (StatusLabel(executed), executed.Error ?? "");
     }
 
-    /// <summary>プラン作成(=同期実行直前)の時点でのチーム全メンバーを記録するセクションを出力する</summary>
-    private static void WritePreSyncMembersSection(TextWriter writer, SyncPlan plan)
+    /// <summary>差分一覧画面と同じ並び順(エラー→削除→追加→所有者保護→その他)を返す</summary>
+    private static int DisplayOrder(SyncChange change)
     {
-        writer.WriteLine("処理前メンバー一覧");
-        writer.WriteLine("表示名,メールアドレス,区分");
-        foreach (TeamMember member in plan.CurrentMembersOrEmpty)
+        return change.Kind switch
         {
-            writer.WriteLine(string.Join(",", Csv(member.DisplayName), Csv(member.Email),
-                Csv(member.IsOwner ? "所有者" : "一般")));
-        }
-    }
-
-    /// <summary>チーム名・モード・操作種別・アドレス・成否・エラーの列を持つ同期操作結果セクションを出力する</summary>
-    private static void WriteOperationsSection(TextWriter writer, SyncPlan plan, SyncOperationsResult result)
-    {
-        writer.WriteLine("同期操作");
-        writer.WriteLine("チーム,同期モード,操作,表示名,メールアドレス,結果,エラー");
-        IReadOnlyList<SyncChange> plannedOperations = plan.Operations;
-        for (int index = 0; index < plannedOperations.Count; index++)
-        {
-            SyncChange planned = plannedOperations[index];
-            SyncOperationResult? executed = index < result.Results.Count ? result.Results[index] : null;
-            WriteRow(writer, plan, planned.Kind, planned.DisplayName, planned.Email,
-                executed is null ? "未実行" : StatusLabel(executed),
-                executed is null
-                    ? result.Cancelled ? "同期がキャンセルされたため未実行" : "実行結果が記録されていません"
-                    : executed.Error ?? "");
-        }
-    }
-
-    /// <summary>
-    ///     最終照合(実行後の最新状態取得)の結果セクションを組み立てる。取得自体に失敗した場合はその旨を、
-    ///     成功した場合は未反映の追加・削除が残っていないかを記録する
-    /// </summary>
-    private static string BuildReconciliationSection(SyncPlan? remainingPlan, Exception? reconciliationError,
-        DateTimeOffset checkedAt)
-    {
-        StringBuilder section = new();
-        section.AppendLine("最終照合結果");
-        section.AppendLine("確認日時,結果");
-        section.AppendLine(string.Join(",", Csv(FormatTimestamp(checkedAt)),
-            Csv(ReconciliationStatusLabel(remainingPlan, reconciliationError))));
-
-        if (remainingPlan is { } plan && (plan.AddCount > 0 || plan.RemoveCount > 0))
-        {
-            section.AppendLine();
-            section.AppendLine("未反映の差分");
-            section.AppendLine("操作,表示名,メールアドレス");
-            foreach (SyncChange change in plan.Operations)
-            {
-                section.AppendLine(string.Join(",", Csv(OperationLabel(change.Kind)), Csv(change.DisplayName),
-                    Csv(change.Email)));
-            }
-        }
-
-        return section.ToString().TrimEnd('\r', '\n');
-    }
-
-    /// <summary>最終照合の結果を利用者向けの日本語へ変換する</summary>
-    private static string ReconciliationStatusLabel(SyncPlan? remainingPlan, Exception? reconciliationError)
-    {
-        if (reconciliationError is not null)
-        {
-            return $"照合に失敗しました: {reconciliationError.Message}";
-        }
-
-        if (remainingPlan is null)
-        {
-            return "照合結果が記録されていません";
-        }
-
-        return remainingPlan.AddCount == 0 && remainingPlan.RemoveCount == 0
-            ? "目的の状態に到達しています(未反映の差分なし)"
-            : $"未反映の差分が残っています(追加待ち{remainingPlan.AddCount}件、削除待ち{remainingPlan.RemoveCount}件)";
+            ChangeKind.Error => 0,
+            ChangeKind.Remove => 1,
+            ChangeKind.Add => 2,
+            ChangeKind.Protected => 3,
+            _ => 4
+        };
     }
 
     /// <summary>タイムスタンプを人が読みやすい形式へ変換する</summary>
@@ -180,28 +125,10 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
         return item.Uncertain ? "不明" : item.Succeeded ? "成功" : "失敗";
     }
 
-    /// <summary>同期操作1件をCSVへ出力する</summary>
-    private static void WriteRow(TextWriter writer, SyncPlan plan, ChangeKind kind, string displayName,
-        string email, string status, string error)
-    {
-        writer.WriteLine(string.Join(",", Csv(plan.Team.DisplayName), Csv(SyncModeLabel(plan.Mode)),
-            Csv(OperationLabel(kind)), Csv(displayName), Csv(email), Csv(status), Csv(error)));
-    }
-
     /// <summary>同期モードを利用者向けの日本語へ変換する</summary>
     private static string SyncModeLabel(SyncMode mode)
     {
         return SyncModePolicy.For(mode).ShortLabel;
-    }
-
-    /// <summary>実行した操作を利用者向けの日本語へ変換する</summary>
-    private static string OperationLabel(ChangeKind kind)
-    {
-        return kind switch
-        {
-            ChangeKind.Add or ChangeKind.Remove => ChangeKindText.Label(kind),
-            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "実行結果に未対応の操作種別が含まれています。")
-        };
     }
 
     /// <summary>既存ファイルを上書きせず、衝突時は連番を付けた別名で新規作成する</summary>

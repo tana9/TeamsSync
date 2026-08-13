@@ -1,10 +1,12 @@
-using TeamsSync.Domain.Teams;
+namespace TeamsSync.Domain.Teams;
 
-namespace TeamsSync.Presentation.ViewModels.Support;
-
-/// <summary>同期差分の理由コードを画面表示用の日本語へ変換する</summary>
-internal static class SyncChangeReasonText
+// 差分一覧画面(SyncChangeRowViewModel)に加え、監査CSV(SyncResultWriter)の
+// 「チームメンバー変更一覧」でも同じ日本語化が必要になったため、Presentation層から
+// ChangeKindTextと同じDomain.Teamsへ移した
+/// <summary>同期差分の理由コードを利用者向けの日本語へ変換する</summary>
+public static class SyncChangeReasonText
 {
+    /// <summary>理由コードに対応する日本語の説明文を返す</summary>
     public static string Format(ChangeReason reason)
     {
         return reason switch

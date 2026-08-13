@@ -333,11 +333,6 @@ public partial class SyncWorkspaceViewModel : ObservableObject
                 _notifications.ShowWarning("実行ログを保存できませんでした",
                     $"同期処理自体は完了しています。{Environment.NewLine}{outcome.LogSaveError.Message}");
             }
-            else if (outcome.ReconciliationLogAppendError is not null)
-            {
-                _notifications.ShowWarning("実行ログへの最終照合結果の追記に失敗しました",
-                    $"同期処理自体は完了しており、実行ログも保存済みです。{Environment.NewLine}{outcome.ReconciliationLogAppendError.Message}");
-            }
 
             HandleReconciliation(outcome, _lastResult.Cancelled);
             ExecuteSyncCommand.NotifyCanExecuteChanged();

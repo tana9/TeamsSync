@@ -62,20 +62,8 @@ public sealed class SyncExecutionCoordinator(ISyncPlanService plans, ISyncExecut
             return plans.ReconcileAsync(plan, reconciliationToken);
         });
 
-        // 監査ログ自体が保存できていない場合は追記先がないため試みない。追記はベストエフォートで、
-        // 失敗しても監査CSV自体は保存済みのため、ログ保存エラーとは別の欄で呼び出し元へ通知する。
-        Exception? reconciliationLogAppendError = null;
-        if (!string.IsNullOrEmpty(resultLogPath))
-        {
-            (_, reconciliationLogAppendError) = await TryRunAsync(() =>
-            {
-                resultWriter.AppendReconciliationResult(resultLogPath, remainingPlan, reconciliationError);
-                return Task.FromResult(true);
-            });
-        }
-
         return new SyncExecutionOutcome(plan, execution, resultLogPath ?? "",
-            logSaveError, remainingPlan, reconciliationError, reconciliationLogAppendError);
+            logSaveError, remainingPlan, reconciliationError);
     }
 
     // ログ保存とreconciliationのどちらも「実行して、成功/失敗を戻り値で表す」という同型の
@@ -130,18 +118,13 @@ public sealed class SyncExecutionCoordinator(ISyncPlanService plans, ISyncExecut
 /// <param name="LogSaveError">監査CSVの保存エラー。保存に成功した場合はnull</param>
 /// <param name="RemainingPlan">実行後の最新状態から作成した未反映分の同期プラン</param>
 /// <param name="ReconciliationError">実行後の最新状態取得エラー。取得に成功した場合はnull</param>
-/// <param name="ReconciliationLogAppendError">
-///     監査CSVへの最終照合結果の追記エラー。監査CSV自体は保存済みのままなので<see cref="LogSaveError" />とは区別する。
-///     追記に成功した場合はnull
-/// </param>
 public sealed record SyncExecutionOutcome(
     SyncPlan ExecutedPlan,
     SyncOperationsResult Execution,
     string ResultLogPath,
     Exception? LogSaveError,
     SyncPlan? RemainingPlan,
-    Exception? ReconciliationError,
-    Exception? ReconciliationLogAppendError = null);
+    Exception? ReconciliationError);
 
 // 3段階のラップ構造の最も外側。SyncExecutionOutcome(実行結果+後処理)を内包し、
 // 実行直前の再検証でチーム構成の変化を検出して実行そのものを見送った場合(IsStale)も表現する
