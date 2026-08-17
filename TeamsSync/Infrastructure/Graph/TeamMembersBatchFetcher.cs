@@ -1,9 +1,13 @@
 using System.Globalization;
-using System.Text.Json;
+using System.Net;
 
 using Microsoft.Extensions.Logging;
+using Microsoft.Graph;
+using Microsoft.Graph.Models;
 
 using TeamsSync.Domain.Teams;
+
+using TeamInfo = TeamsSync.Domain.Teams.TeamInfo;
 
 namespace TeamsSync.Infrastructure.Graph;
 
@@ -12,7 +16,7 @@ namespace TeamsSync.Infrastructure.Graph;
 ///     待機のうえ再試行する。バッチ送信とスロットリング再試行のみを担当し、
 ///     再試行上限に達してもなお取得できなかった項目は呼び出し元の個別フォールバックに委ねる
 /// </summary>
-public sealed class TeamMembersBatchFetcher(GraphHttpClient http, ILogger logger)
+public sealed class TeamMembersBatchFetcher(GraphSdkClient sdk, ILogger logger)
 {
     // バッチ内429/503の再試行上限。無限ループを避けつつ、一時的なスロットリングから回復する猶予を与える
     private const int MaxBatchAttempts = 3;
@@ -40,10 +44,9 @@ public sealed class TeamMembersBatchFetcher(GraphHttpClient http, ILogger logger
         for (int attempt = 1; attempt <= MaxBatchAttempts && pending.Count > 0; attempt++)
         {
             bool isLastAttempt = attempt == MaxBatchAttempts;
-            List<(string Id, string Url)> requests = pending.Select(index => (
-                Id: index.ToString(CultureInfo.InvariantCulture),
-                Url: $"/teams/{candidates[index].Id}/members?$top={GraphHttpClient.MaxMembersPageSize}")).ToList();
-            Dictionary<string, JsonElement> responses = await http.SendBatchAsync(requests, cancellationToken);
+            List<(string RequestId, string TeamId)> requests = pending.Select(index =>
+                (RequestId: index.ToString(CultureInfo.InvariantCulture), TeamId: candidates[index].Id)).ToList();
+            BatchResponseContentCollection responses = await sdk.SendTeamMembersBatchAsync(requests, cancellationToken);
 
             (List<int> retryable, TimeSpan? retryAfter) = await ClassifyResponsesAsync(
                 candidates, pending, responses, membersByIndex, isLastAttempt, cancellationToken);
@@ -67,24 +70,27 @@ public sealed class TeamMembersBatchFetcher(GraphHttpClient http, ILogger logger
     ///     再試行対象として集める。それ以外(403/400等)はどちらにも含めず個別フォールバックへ委ねる
     /// </summary>
     private async Task<(List<int> Retryable, TimeSpan? RetryAfter)> ClassifyResponsesAsync(
-        IReadOnlyList<TeamInfo> candidates, IReadOnlyList<int> pending, Dictionary<string, JsonElement> responses,
+        IReadOnlyList<TeamInfo> candidates, IReadOnlyList<int> pending, BatchResponseContentCollection responses,
         Dictionary<int, List<TeamMember>> membersByIndex, bool isLastAttempt, CancellationToken cancellationToken)
     {
         List<int> retryable = [];
         TimeSpan? retryAfter = null;
+        Dictionary<string, HttpStatusCode> statusCodes = await responses.GetResponsesStatusCodesAsync();
+
         foreach (int index in pending)
         {
-            if (!responses.TryGetValue(index.ToString(CultureInfo.InvariantCulture), out JsonElement response))
+            string requestId = index.ToString(CultureInfo.InvariantCulture);
+            if (!statusCodes.TryGetValue(requestId, out HttpStatusCode status))
             {
                 continue; // membersByIndexに残らず、最後に個別フォールバックされる
             }
 
-            int status = response.GetProperty("status").GetInt32();
-            if (status == 200)
+            if (status == HttpStatusCode.OK)
             {
                 try
                 {
-                    membersByIndex[index] = await ParseBatchMemberResponseAsync(response, cancellationToken);
+                    membersByIndex[index] =
+                        await ParseBatchMemberResponseAsync(responses, requestId, cancellationToken);
                 }
                 catch (InvalidDataException ex)
                 {
@@ -96,10 +102,11 @@ public sealed class TeamMembersBatchFetcher(GraphHttpClient http, ILogger logger
                         candidates[index].Id);
                 }
             }
-            else if (!isLastAttempt && status is 429 or 503)
+            else if (!isLastAttempt && status is HttpStatusCode.TooManyRequests or HttpStatusCode.ServiceUnavailable)
             {
                 retryable.Add(index);
-                TimeSpan? itemRetryAfter = ParseRetryAfter(response);
+                using HttpResponseMessage rawResponse = await responses.GetResponseByIdAsync(requestId);
+                TimeSpan? itemRetryAfter = rawResponse.Headers.RetryAfter?.Delta;
                 if (itemRetryAfter is { } value && (retryAfter is null || value > retryAfter))
                 {
                     retryAfter = value;
@@ -113,50 +120,14 @@ public sealed class TeamMembersBatchFetcher(GraphHttpClient http, ILogger logger
     }
 
     /// <summary>バッチ応答1件分のメンバー一覧を解析し、ページングが必要な場合は続きも取得する</summary>
-    private async Task<List<TeamMember>> ParseBatchMemberResponseAsync(JsonElement response,
-        CancellationToken cancellationToken)
+    private async Task<List<TeamMember>> ParseBatchMemberResponseAsync(BatchResponseContentCollection responses,
+        string requestId, CancellationToken cancellationToken)
     {
-        JsonElement body = response.GetProperty("body");
-        List<TeamMember> members = GraphResponseParser.ParseTeamMembers(body.GetProperty("value").EnumerateArray());
-        if (body.TryGetProperty("@odata.nextLink", out JsonElement nextLink) &&
-            nextLink.ValueKind == JsonValueKind.String)
-        {
-            List<JsonElement> extra = await http.GetPagedAsync(nextLink.GetString()!, cancellationToken);
-            members.AddRange(GraphResponseParser.ParseTeamMembers(extra));
-        }
-
-        return members;
-    }
-
-    // Graphの$batchレスポンスは項目ごとに{"headers":{"Retry-After":"10"}}のようにヘッダーを個別に持つ。
-    // 秒数のdelta-seconds形式のみ対応(Graphの429/503はHTTP-date形式を返さないため十分)
-    /// <summary>バッチ応答項目のヘッダーからRetry-After(秒数)を解析する</summary>
-    private static TimeSpan? ParseRetryAfter(JsonElement response)
-    {
-        if (!response.TryGetProperty("headers", out JsonElement headers) || headers.ValueKind != JsonValueKind.Object)
-        {
-            return null;
-        }
-
-        IEnumerable<string?> candidates = headers.EnumerateObject()
-            .Where(header => string.Equals(header.Name, "Retry-After", StringComparison.OrdinalIgnoreCase))
-            .Select(header => header.Value.ValueKind switch
-            {
-                JsonValueKind.String => header.Value.GetString(),
-                JsonValueKind.Number => header.Value.GetRawText(),
-                _ => null
-            });
-        foreach (string? text in candidates)
-        {
-            if (text is not null &&
-                int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int seconds) &&
-                seconds >= 0)
-            {
-                return TimeSpan.FromSeconds(seconds);
-            }
-        }
-
-        return null;
+        ConversationMemberCollectionResponse? firstPage =
+            await responses.GetResponseByIdAsync<ConversationMemberCollectionResponse>(requestId);
+        IReadOnlyList<ConversationMember> members =
+            await sdk.CollectTeamMembersPagesAsync(firstPage, cancellationToken);
+        return GraphResponseParser.ParseTeamMembers(members);
     }
 
     /// <summary>再試行の集中を避けるための、0～500msのランダムなジッター遅延</summary>

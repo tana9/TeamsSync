@@ -4,9 +4,8 @@ using Microsoft.Extensions.Logging;
 
 namespace TeamsSync.Infrastructure.Graph;
 
-// GraphHttpClient(生HTTP経路)とGraphSdkTransportHandler(SDK経由の転送経路)は、どちらも
-// Graphからの失敗応答を同じ規約(診断ログ・GraphExceptionへの変換)で扱う必要があるため、
-// この処理をここへ集約して2箇所での実装ドリフトを防ぐ
+// GraphSdkTransportHandlerがGraphからの失敗応答を診断ログ・GraphExceptionへの変換という
+// 共通規約で扱えるよう、この処理を独立したヘルパーへ切り出している
 /// <summary>Graph API呼び出しの失敗応答を、診断ログの記録と<see cref="GraphException" />への変換で共通に扱う</summary>
 internal static partial class GraphErrorHandler
 {

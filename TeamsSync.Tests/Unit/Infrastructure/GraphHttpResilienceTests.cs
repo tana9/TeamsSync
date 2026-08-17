@@ -3,26 +3,19 @@ using System.Net;
 using System.Net.Http.Headers;
 
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
 
-using TeamsSync.Application.Abstractions;
 using TeamsSync.Infrastructure;
 using TeamsSync.Infrastructure.Graph;
-
-using Xunit.Sdk;
 
 namespace TeamsSync.Tests.Unit.Infrastructure;
 
 public sealed class GraphHttpResilienceTests
 {
     [Fact]
-    public async Task GraphHttpClient_公式Graph以外の絶対URLを拒否する()
+    public void GraphEndpointValidator_公式Graph以外の絶対URLを拒否する()
     {
-        GraphHttpClient client = new(new StubHttpClientFactory(), new StubAuthenticationService(),
-            NullLogger<GraphHttpClient>.Instance);
-
-        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(() => client.GetAsync(
-            "https://example.test/steal", cancellationToken: TestContext.Current.CancellationToken));
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(
+            () => GraphEndpointValidator.Validate(new Uri("https://example.test/steal")));
 
         Assert.Contains("許可されていないURL", exception.Message);
     }
@@ -31,13 +24,9 @@ public sealed class GraphHttpResilienceTests
     [InlineData("https://graph.microsoft.com:444/v1.0/me")]
     [InlineData("https://user@graph.microsoft.com/v1.0/me")]
     [InlineData("http://graph.microsoft.com/v1.0/me")]
-    public async Task GraphHttpClient_安全でないGraph絶対URLをトークン取得前に拒否する(string url)
+    public void GraphEndpointValidator_安全でないGraph絶対URLを拒否する(string url)
     {
-        GraphHttpClient client = new(new StubHttpClientFactory(), new StubAuthenticationService(),
-            NullLogger<GraphHttpClient>.Instance);
-
-        await Assert.ThrowsAsync<InvalidDataException>(() =>
-            client.GetAsync(url, cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Throws<InvalidDataException>(() => GraphEndpointValidator.Validate(new Uri(url)));
     }
 
     [Fact]
@@ -66,12 +55,12 @@ public sealed class GraphHttpResilienceTests
         ServiceCollection services = new();
         services.AddLogging();
         services.AddGraphHttpClients();
-        services.AddHttpClient(GraphHttpClient.ReadHttpClientName)
+        services.AddHttpClient(GraphEndpoints.ReadHttpClientName)
             .ConfigurePrimaryHttpMessageHandler(() => handler);
         using ServiceProvider provider = services.BuildServiceProvider();
         IHttpClientFactory factory = provider.GetRequiredService<IHttpClientFactory>();
 
-        using HttpResponseMessage response = await factory.CreateClient(GraphHttpClient.ReadHttpClientName)
+        using HttpResponseMessage response = await factory.CreateClient(GraphEndpoints.ReadHttpClientName)
             .GetAsync("me", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -96,12 +85,12 @@ public sealed class GraphHttpResilienceTests
         ServiceCollection services = new();
         services.AddLogging();
         services.AddGraphHttpClients();
-        services.AddHttpClient(GraphHttpClient.WriteHttpClientName)
+        services.AddHttpClient(GraphEndpoints.WriteHttpClientName)
             .ConfigurePrimaryHttpMessageHandler(() => handler);
         using ServiceProvider provider = services.BuildServiceProvider();
         IHttpClientFactory factory = provider.GetRequiredService<IHttpClientFactory>();
 
-        using HttpResponseMessage response = await factory.CreateClient(GraphHttpClient.WriteHttpClientName)
+        using HttpResponseMessage response = await factory.CreateClient(GraphEndpoints.WriteHttpClientName)
             .PostAsync("teams/team-1/members", new StringContent("{}"),
                 TestContext.Current.CancellationToken);
 
@@ -136,12 +125,12 @@ public sealed class GraphHttpResilienceTests
         ServiceCollection services = new();
         services.AddLogging();
         services.AddGraphHttpClients();
-        services.AddHttpClient(GraphHttpClient.WriteHttpClientName)
+        services.AddHttpClient(GraphEndpoints.WriteHttpClientName)
             .ConfigurePrimaryHttpMessageHandler(() => handler);
         using ServiceProvider provider = services.BuildServiceProvider();
         IHttpClientFactory factory = provider.GetRequiredService<IHttpClientFactory>();
 
-        using HttpResponseMessage response = await factory.CreateClient(GraphHttpClient.WriteHttpClientName)
+        using HttpResponseMessage response = await factory.CreateClient(GraphEndpoints.WriteHttpClientName)
             .PostAsync("teams/team-1/members", new StringContent("{}"),
                 TestContext.Current.CancellationToken);
 
@@ -170,12 +159,12 @@ public sealed class GraphHttpResilienceTests
         ServiceCollection services = new();
         services.AddLogging();
         services.AddGraphHttpClients();
-        services.AddHttpClient(GraphHttpClient.WriteHttpClientName)
+        services.AddHttpClient(GraphEndpoints.WriteHttpClientName)
             .ConfigurePrimaryHttpMessageHandler(() => handler);
         using ServiceProvider provider = services.BuildServiceProvider();
         IHttpClientFactory factory = provider.GetRequiredService<IHttpClientFactory>();
 
-        using HttpResponseMessage response = await factory.CreateClient(GraphHttpClient.WriteHttpClientName)
+        using HttpResponseMessage response = await factory.CreateClient(GraphEndpoints.WriteHttpClientName)
             .DeleteAsync("teams/team-1/members/member-1", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -190,12 +179,12 @@ public sealed class GraphHttpResilienceTests
         ServiceCollection services = new();
         services.AddLogging();
         services.AddGraphHttpClients();
-        services.AddHttpClient(GraphHttpClient.WriteHttpClientName)
+        services.AddHttpClient(GraphEndpoints.WriteHttpClientName)
             .ConfigurePrimaryHttpMessageHandler(() => handler);
         using ServiceProvider provider = services.BuildServiceProvider();
         IHttpClientFactory factory = provider.GetRequiredService<IHttpClientFactory>();
 
-        using HttpResponseMessage response = await factory.CreateClient(GraphHttpClient.WriteHttpClientName)
+        using HttpResponseMessage response = await factory.CreateClient(GraphEndpoints.WriteHttpClientName)
             .DeleteAsync("teams/team-1/members/member-1", TestContext.Current.CancellationToken);
 
         // 503はサーバー側で実際に処理済みだった可能性を否定できないため、429と異なり
@@ -212,12 +201,12 @@ public sealed class GraphHttpResilienceTests
         ServiceCollection services = new();
         services.AddLogging();
         services.AddGraphHttpClients();
-        services.AddHttpClient(GraphHttpClient.WriteHttpClientName)
+        services.AddHttpClient(GraphEndpoints.WriteHttpClientName)
             .ConfigurePrimaryHttpMessageHandler(() => handler);
         using ServiceProvider provider = services.BuildServiceProvider();
         IHttpClientFactory factory = provider.GetRequiredService<IHttpClientFactory>();
 
-        using HttpResponseMessage response = await factory.CreateClient(GraphHttpClient.WriteHttpClientName)
+        using HttpResponseMessage response = await factory.CreateClient(GraphEndpoints.WriteHttpClientName)
             .PostAsync("teams/team-1/members", new StringContent("{}"),
                 TestContext.Current.CancellationToken);
 
@@ -238,27 +227,4 @@ public sealed class GraphHttpResilienceTests
         }
     }
 
-    private sealed class StubHttpClientFactory : IHttpClientFactory
-    {
-        public HttpClient CreateClient(string name)
-        {
-            throw new XunitException("HTTP送信されました");
-        }
-    }
-
-    private sealed class StubAuthenticationService : IAuthenticationService
-    {
-        public string? UserName => null;
-        public string? TenantId => null;
-
-        public Task<string> GetTokenAsync(bool interactive = false, CancellationToken cancellationToken = default)
-        {
-            throw new XunitException("トークンが取得されました");
-        }
-
-        public Task SignOutAsync(CancellationToken cancellationToken = default)
-        {
-            return Task.CompletedTask;
-        }
-    }
 }

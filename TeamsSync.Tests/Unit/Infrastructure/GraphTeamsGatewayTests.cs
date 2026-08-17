@@ -730,7 +730,7 @@ public sealed class GraphTeamsGatewayTests
                     Content = new StringContent("{\"error\":{\"message\":\"not found\"}}")
                 });
         });
-        RecordingLogger<GraphHttpClient> logger = new();
+        RecordingLogger<GraphSdkTransportHandler> logger = new();
         GraphTeamsGateway gateway = CreateGateway(handler, out _, logger);
 
         IReadOnlyList<DirectoryUser> users =
@@ -747,7 +747,7 @@ public sealed class GraphTeamsGatewayTests
     {
         DelegateHandler handler = new((_, _) => Task.FromResult(
             new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new StringContent("not found") }));
-        RecordingLogger<GraphHttpClient> logger = new();
+        RecordingLogger<GraphSdkTransportHandler> logger = new();
         GraphTeamsGateway gateway = CreateGateway(handler, out _, logger);
 
         await Assert.ThrowsAsync<GraphException>(() =>
@@ -766,16 +766,14 @@ public sealed class GraphTeamsGatewayTests
     }
 
     private static GraphTeamsGateway CreateGateway(HttpMessageHandler handler, out FakeAuthentication authentication,
-        ILogger<GraphHttpClient>? httpLogger = null, ILogger<GraphTeamsGateway>? gatewayLogger = null)
+        ILogger<GraphSdkTransportHandler>? httpLogger = null, ILogger<GraphTeamsGateway>? gatewayLogger = null)
     {
         authentication = new FakeAuthentication();
         HttpClient client = new(handler);
-        GraphHttpClient http = new(new FakeHttpClientFactory(client), authentication,
-            httpLogger ?? NullLogger<GraphHttpClient>.Instance);
         GraphSdkClient sdk = new(new FakeHttpClientFactory(client), authentication,
-            httpLogger ?? NullLogger<GraphHttpClient>.Instance);
+            httpLogger ?? NullLogger<GraphSdkTransportHandler>.Instance);
         ILogger<GraphTeamsGateway> logger = gatewayLogger ?? NullLogger<GraphTeamsGateway>.Instance;
-        return new GraphTeamsGateway(sdk, logger, new TeamMembersBatchFetcher(http, logger),
+        return new GraphTeamsGateway(sdk, logger, new TeamMembersBatchFetcher(sdk, logger),
             new GraphUserSearchService(sdk));
     }
 

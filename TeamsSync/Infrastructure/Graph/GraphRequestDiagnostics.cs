@@ -2,9 +2,8 @@ using TeamsSync.Application.Abstractions;
 
 namespace TeamsSync.Infrastructure.Graph;
 
-// GraphHttpClient(生のHTTP経路)とGraphSdkTransportHandler(SDK経路)の両方が、Graphの
-// 診断用ヘッダー(client-request-id/return-client-request-id)を個別に付与しており重複していたため
-// 1箇所へ集約する
+// GraphSdkTransportHandlerがGraphの診断用ヘッダー(client-request-id/return-client-request-id)を
+// 付与する処理を独立したヘルパーへ切り出している
 /// <summary>Graphへのリクエストに診断用ヘッダー(client-request-id)を付与する</summary>
 internal static class GraphRequestDiagnostics
 {

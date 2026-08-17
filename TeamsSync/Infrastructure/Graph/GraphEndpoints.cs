@@ -11,4 +11,13 @@ internal static class GraphEndpoints
 
     /// <summary>Graph API v1.0のベースURI</summary>
     public static readonly Uri BaseUri = new($"https://{Host}/v1.0/");
+
+    /// <summary>Graph APIの読み取り要求に使用する名前付きHTTPクライアントの名前</summary>
+    public const string ReadHttpClientName = "MicrosoftGraph.Read";
+
+    /// <summary>Graph APIの更新要求に使用する名前付きHTTPクライアントの名前</summary>
+    public const string WriteHttpClientName = "MicrosoftGraph.Write";
+
+    /// <summary>チームメンバー一覧取得で指定する最大ページサイズ($top)。Graphが許容する上限値</summary>
+    public const int MaxMembersPageSize = 999;
 }

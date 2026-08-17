@@ -15,18 +15,18 @@ namespace TeamsSync.Infrastructure.Graph;
 /// <param name="logger">Graph通信の診断情報を記録するロガー</param>
 /// <param name="identifierGenerator">リクエストIDの生成に使うID生成器。省略時は既定の実装を使う</param>
 public sealed class GraphSdkClient(IHttpClientFactory factory, IAuthenticationService authentication,
-    ILogger<GraphHttpClient> logger, IIdentifierGenerator? identifierGenerator = null)
+    ILogger<GraphSdkTransportHandler> logger, IIdentifierGenerator? identifierGenerator = null)
 {
     private readonly GraphServiceClient _read =
-        Create(factory.CreateClient(GraphHttpClient.ReadHttpClientName), authentication, logger, identifierGenerator);
+        Create(factory.CreateClient(GraphEndpoints.ReadHttpClientName), authentication, logger, identifierGenerator);
 
     private readonly GraphServiceClient _write =
-        Create(factory.CreateClient(GraphHttpClient.WriteHttpClientName), authentication, logger, identifierGenerator);
+        Create(factory.CreateClient(GraphEndpoints.WriteHttpClientName), authentication, logger, identifierGenerator);
 
     // フィールド初期化子は他の非staticフィールドを参照できないため、認証プロバイダーは
     // 呼び出しごとに構成する(状態を持たない薄いラッパーのため、共有しなくても実害はない)
     private static GraphServiceClient Create(HttpClient transport, IAuthenticationService authentication,
-        ILogger<GraphHttpClient> logger, IIdentifierGenerator? identifierGenerator)
+        ILogger<GraphSdkTransportHandler> logger, IIdentifierGenerator? identifierGenerator)
     {
         BaseBearerTokenAuthenticationProvider auth = new(new MsalAccessTokenProvider(authentication));
         HttpClient client = new(new GraphSdkTransportHandler(transport, logger, identifierGenerator))
@@ -63,7 +63,7 @@ public sealed class GraphSdkClient(IHttpClientFactory factory, IAuthenticationSe
         CancellationToken cancellationToken)
     {
         ConversationMemberCollectionResponse? response = await _read.Teams[teamId].Members.GetAsync(
-            config => config.QueryParameters.Top = GraphHttpClient.MaxMembersPageSize,
+            config => config.QueryParameters.Top = GraphEndpoints.MaxMembersPageSize,
             cancellationToken);
         return await CollectAllPagesAsync<ConversationMember, ConversationMemberCollectionResponse>(
             response, cancellationToken);
@@ -137,6 +137,37 @@ public sealed class GraphSdkClient(IHttpClientFactory factory, IAuthenticationSe
             }, requestConfigurator);
         await iterator.IterateAsync(cancellationToken);
         return result;
+    }
+
+    /// <summary>複数チームのメンバー取得要求を<c>$batch</c>でまとめて送信する</summary>
+    /// <param name="teamIdsByRequestId">呼び出し元が採番した要求IDと、取得対象チームIDの組の一覧</param>
+    /// <param name="cancellationToken">処理のキャンセルを通知するトークン</param>
+    /// <returns>要求IDをキーとした<c>$batch</c>応答</returns>
+    public async Task<BatchResponseContentCollection> SendTeamMembersBatchAsync(
+        IReadOnlyList<(string RequestId, string TeamId)> teamIdsByRequestId, CancellationToken cancellationToken)
+    {
+        BatchRequestContentCollection batch = new(_read);
+        foreach ((string requestId, string teamId) in teamIdsByRequestId)
+        {
+            RequestInformation request = _read.Teams[teamId].Members.ToGetRequestInformation(
+                config => config.QueryParameters.Top = GraphEndpoints.MaxMembersPageSize);
+            await batch.AddBatchRequestStepAsync(request, requestId);
+        }
+
+        return await _read.Batch.PostAsync(batch, cancellationToken);
+    }
+
+    /// <summary>
+    ///     <c>$batch</c>応答から得た1ページ目を起点に、残りのページも含めたチームメンバー一覧を取得する
+    /// </summary>
+    /// <param name="firstPage">バッチ応答から解析した1ページ目</param>
+    /// <param name="cancellationToken">処理のキャンセルを通知するトークン</param>
+    /// <returns>チームに所属するメンバーの一覧</returns>
+    public Task<IReadOnlyList<ConversationMember>> CollectTeamMembersPagesAsync(
+        ConversationMemberCollectionResponse? firstPage, CancellationToken cancellationToken)
+    {
+        return CollectAllPagesAsync<ConversationMember, ConversationMemberCollectionResponse>(
+            firstPage, cancellationToken);
     }
 
     /// <summary>指定したユーザーをチームの一般メンバーとして追加する</summary>

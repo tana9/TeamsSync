@@ -32,13 +32,12 @@ public static class DependencyInjection
         services.AddSingleton<IIdentifierGenerator, IdentifierGenerator>();
         services.AddSingleton<IAuthenticationService, MsalAuthenticationService>();
         services.AddGraphHttpClients();
-        services.AddSingleton<GraphHttpClient>();
         services.AddSingleton<GraphSdkClient>();
         // TeamMembersBatchFetcherは非ジェネリックのILoggerを受け取る構成のため、GraphTeamsGateway自身の
         // ロガーカテゴリ(ILogger<GraphTeamsGateway>)を明示的に渡すファクトリー登録にし、
         // 所有チーム判定に関するログが従来どおり同じカテゴリへまとまるようにする
         services.AddSingleton(provider => new TeamMembersBatchFetcher(
-            provider.GetRequiredService<GraphHttpClient>(),
+            provider.GetRequiredService<GraphSdkClient>(),
             provider.GetRequiredService<ILogger<GraphTeamsGateway>>()));
         services.AddSingleton<GraphUserSearchService>();
         services.AddSingleton<ITeamsGateway, GraphTeamsGateway>();
@@ -55,11 +54,11 @@ public static class DependencyInjection
     /// </summary>
     public static IServiceCollection AddGraphHttpClients(this IServiceCollection services)
     {
-        services.AddHttpClient(GraphHttpClient.ReadHttpClientName, Configure)
+        services.AddHttpClient(GraphEndpoints.ReadHttpClientName, Configure)
             .ConfigurePrimaryHttpMessageHandler(CreateGraphPrimaryHandler)
             .AddStandardResilienceHandler(options =>
                 options.Retry.ShouldRetryAfterHeader = true);
-        services.AddHttpClient(GraphHttpClient.WriteHttpClientName, Configure)
+        services.AddHttpClient(GraphEndpoints.WriteHttpClientName, Configure)
             .ConfigurePrimaryHttpMessageHandler(CreateGraphPrimaryHandler)
             .AddStandardResilienceHandler(options =>
             {

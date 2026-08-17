@@ -14,19 +14,6 @@ namespace TeamsSync.Infrastructure.Graph;
 /// </summary>
 internal static class GraphResponseParser
 {
-    /// <summary>Graph応答($batch等の生JSON)のメンバー配列を<see cref="TeamMember" />一覧へ変換する</summary>
-    public static List<TeamMember> ParseTeamMembers(IEnumerable<JsonElement> values)
-    {
-        return values.Select(x => new TeamMember(
-                Required(x, "id"),
-                Required(x, "userId"),
-                Optional(x, "displayName") ?? "",
-                Optional(x, "email") ?? "",
-                x.TryGetProperty("roles", out JsonElement roles) &&
-                HasOwnerRole(roles.EnumerateArray().Select(r => r.GetString()))))
-            .ToList();
-    }
-
     /// <summary>公式SDKのメンバーモデル配列を<see cref="TeamMember" />一覧へ変換する</summary>
     public static List<TeamMember> ParseTeamMembers(IEnumerable<GraphConversationMember> values)
     {
