@@ -17,6 +17,7 @@
     <Color x:Key="AccentFillColorSecondary">#E50067C0</Color>
     <Color x:Key="AccentFillColorTertiary">#CC0067C0</Color>
     <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+    <converters:BooleanToHiddenVisibilityConverter x:Key="BooleanToHiddenVisibilityConverter" />
     <converters:HeightMinusOffsetConverter x:Key="HeightMinusOffsetConverter" />
     <converters:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
     <GridLength x:Key="SectionLabelColumnWidth">Auto</GridLength>
