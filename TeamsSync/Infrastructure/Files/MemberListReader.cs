@@ -13,7 +13,7 @@ namespace TeamsSync.Infrastructure.Files;
 
 /// <summary>
 ///     CSV(.csv)またはExcel(.xlsx)のメンバーリストファイルを読み込み、アドレス一覧へ変換する。
-///     サイズ・行数・列数上限やZip展開後サイズなどの安全性検証は<see cref="MemberFileSecurityValidator" />へ、
+///     ファイルサイズ上限の検証は<see cref="MemberFileSecurityValidator" />へ、
 ///     文字コード判定は<see cref="CsvEncodingDetector" />へ委譲する
 /// </summary>
 public sealed class MemberListReader : IMemberListReader
@@ -28,7 +28,7 @@ public sealed class MemberListReader : IMemberListReader
         ["name", "displayname", "氏名", "姓名", "名前"];
 
     // ヘッダー行も1行目のデータとして自前で扱う(ExtractColumn参照)ためHasHeaderRecord=false。
-    // 行数上限の判定を物理行単位で行うため空行もスキップせずIgnoreBlankLines=false。
+    // エラーメッセージの行番号を実ファイルの物理行と一致させるため空行もスキップせずIgnoreBlankLines=false。
     // 引用符崩れなどの不正データは、誤った列を同期対象として採用しないよう行番号付きで拒否する。
     // 引用符内の改行は正規のCSVとして許可するためLineBreakInQuotedFieldIsBadDataはfalseのままにする
     private static readonly CsvConfiguration CsvReaderConfiguration = new(CultureInfo.InvariantCulture)
@@ -40,10 +40,7 @@ public sealed class MemberListReader : IMemberListReader
             $"{Math.Max(1, args.Context.Parser?.Row ?? 1)}行目のCSV形式が正しくありません。引用符の対応を確認してください。")
     };
 
-    /// <summary>
-    ///     指定したパスのファイルを拡張子に応じてCSV/Excelとして読み込み、アドレス列を抽出する。
-    ///     読込前後でファイル内容のハッシュを比較し、読込中の変更を検知する
-    /// </summary>
+    /// <summary>指定したパスのファイルを拡張子に応じてCSV/Excelとして読み込み、アドレス列を抽出する</summary>
     public MemberListDocument Read(string path, CancellationToken cancellationToken)
     {
         try
@@ -52,7 +49,6 @@ public sealed class MemberListReader : IMemberListReader
             FileInfo info = new(path);
             MemberFileSecurityValidator.EnsureFileSizeWithinLimit(info.Length);
 
-            string initialHash = ComputeSha256(path);
             string extension = Path.GetExtension(path).ToLowerInvariant();
             ParsedMemberSource parsed = extension switch
             {
@@ -71,30 +67,14 @@ public sealed class MemberListReader : IMemberListReader
                 throw new InvalidDataException("メンバーのメールアドレスがありません。");
             }
 
-            string finalHash = EnsureNotModifiedDuringRead(path, initialHash);
-
             return new MemberListDocument(addresses, info.Name, info.FullName, info.LastWriteTime,
-                parsed.SourceName, parsed.Column, finalHash, parsed.IsNameColumn);
+                parsed.SourceName, parsed.Column, ComputeSha256(path), parsed.IsNameColumn);
         }
         catch (IOException ex) when (ex.HResult == SharingViolationHResult)
         {
             throw new InvalidDataException(
                 "ファイルが他のプログラム（Excelなど）で開かれているため読み込めません。閉じてから再度お試しください。", ex);
         }
-    }
-
-    /// <summary>
-    ///     読込前後のファイル内容ハッシュを比較し、読込中にファイルが変更されていないか検証する
-    /// </summary>
-    private static string EnsureNotModifiedDuringRead(string path, string initialHash)
-    {
-        string finalHash = ComputeSha256(path);
-        if (!string.Equals(initialHash, finalHash, StringComparison.Ordinal))
-        {
-            throw new InvalidDataException("読込中にファイルが変更されました。もう一度選択してください。");
-        }
-
-        return finalHash;
     }
 
     /// <summary>CSVファイルを解析し、アドレス候補列を抽出する</summary>
@@ -112,15 +92,12 @@ public sealed class MemberListReader : IMemberListReader
                 cancellationToken.ThrowIfCancellationRequested();
                 string[] fields = csv.Parser.Record ?? [];
                 int physicalRow = csv.Parser.RawRow;
-                MemberFileSecurityValidator.EnsureCsvColumnCountWithinLimit(fields.Length, physicalRow);
                 if (rows.Count > 0 && fields.Length != rows[0].Length)
                 {
                     throw ColumnCountMismatchError(rows[0].Length, fields.Length, physicalRow);
                 }
 
                 rows.Add(fields);
-                // 全行をListへ溜め込む前に件数超過を検知し、巨大CSVを最後まで読み切ってからメモリを使い切ることを防ぐ
-                MemberFileSecurityValidator.EnsureCsvRowCountWithinLimit(rows.Count);
             }
         }
         catch (CsvHelperException ex)
@@ -139,13 +116,6 @@ public sealed class MemberListReader : IMemberListReader
         using FileStream stream = SharedFileAccess.Open(path);
         using XLWorkbook book = new(stream);
         IXLWorksheet sheet = book.Worksheets.FirstOrDefault() ?? throw new InvalidDataException("Excelにワークシートがありません。");
-
-        // RowsUsed()で全使用セルを展開する前に使用範囲の行数・列数を確認し、
-        // 極端に大きい／横長なシートを実際の展開処理に入る前に拒否する
-        int rowCount = sheet.LastRowUsed()?.RowNumber() ?? 0;
-        int columnCount = sheet.LastColumnUsed()?.ColumnNumber() ?? 0;
-        MemberFileSecurityValidator.EnsureExcelRowCountWithinLimit(rowCount);
-        MemberFileSecurityValidator.EnsureExcelColumnCountWithinLimit(columnCount);
 
         List<string[]> rows = [];
         ColumnSelection? selection = null;

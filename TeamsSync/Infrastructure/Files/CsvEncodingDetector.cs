@@ -2,50 +2,29 @@ using System.Text;
 
 namespace TeamsSync.Infrastructure.Files;
 
-/// <summary>CSVファイルの文字コードをBOMまたは内容から判定する</summary>
+/// <summary>CSVファイルの文字コード(UTF-8 / UTF-8 BOM付き / Shift-JIS)をBOMまたは内容から判定する</summary>
 internal static class CsvEncodingDetector
 {
     // StreamReaderでUTF-8として妥当かを検証する際の読み取りバッファサイズ
     private const int DetectionBufferSize = 8192;
 
     /// <summary>
-    ///     BOMからCSVファイルの文字コードを判定する。BOMがない場合はUTF-8として妥当かを検証し、
+    ///     UTF-8のBOMがあればUTF-8として扱う。BOMがない場合はUTF-8として妥当かを検証し、
     ///     妥当でなければShift-JIS(コードページ932)にフォールバックする
     /// </summary>
     public static Encoding Detect(string path)
     {
         // BOMの判定は先頭数バイトだけで足りるため、File.ReadAllBytesでファイル全体を読み込まない
-        Span<byte> preamble = stackalloc byte[4];
+        Span<byte> preamble = stackalloc byte[3];
         int read;
         using (FileStream stream = SharedFileAccess.Open(path))
         {
             read = stream.Read(preamble);
         }
 
-        Span<byte> header = preamble[..read];
-        if (header.StartsWith(Encoding.UTF8.Preamble))
+        if (preamble[..read].StartsWith(Encoding.UTF8.Preamble))
         {
             return new UTF8Encoding(true, true);
-        }
-
-        if (header.StartsWith(Encoding.UTF32.Preamble))
-        {
-            return new UTF32Encoding(false, true, true);
-        }
-
-        if (header.StartsWith(new byte[] { 0x00, 0x00, 0xFE, 0xFF }))
-        {
-            return new UTF32Encoding(true, true, true);
-        }
-
-        if (header.StartsWith(Encoding.Unicode.Preamble))
-        {
-            return new UnicodeEncoding(false, true, true);
-        }
-
-        if (header.StartsWith(Encoding.BigEndianUnicode.Preamble))
-        {
-            return new UnicodeEncoding(true, true, true);
         }
 
         // BOMがない場合はUTF-8として妥当かをStreamReaderでチャンク単位に検証する。

@@ -87,19 +87,6 @@ public sealed class MemberTextParserTests
         Assert.Throws<InvalidDataException>(() => _parser.Parse(text, TestContext.Current.CancellationToken));
     }
 
-    // U+2028(LINE SEPARATOR)・U+2029(PARAGRAPH SEPARATOR)はUnicode分類上「制御文字」ではなく
-    // 「区切り文字」のため、char.IsControlだけでは検出できない回帰を防ぐためのテスト。
-    // (char)キャストで生成し、ソースファイルへ生の区切り文字を含めない
-    [Theory]
-    [InlineData(0x2028)]
-    [InlineData(0x2029)]
-    public void Parse_Unicode行区切りや段落区切りも拒否する(int codePoint)
-    {
-        string text = "user@example.com" + (char)codePoint + "other@example.com";
-
-        Assert.Throws<InvalidDataException>(() => _parser.Parse(text, TestContext.Current.CancellationToken));
-    }
-
     [Fact]
     public void Parse_長すぎる行を拒否する()
     {

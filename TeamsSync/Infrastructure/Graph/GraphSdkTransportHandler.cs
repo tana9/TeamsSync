@@ -13,7 +13,6 @@ internal sealed class GraphSdkTransportHandler(HttpClient transport, ILogger<Gra
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
-        GraphEndpointValidator.Validate(request.RequestUri);
         bool expectedNotFound = request.Headers.Remove("x-teams-sync-expected-not-found");
         string clientRequestId = GraphRequestDiagnostics.ApplyClientRequestId(request, _identifierGenerator);
         using HttpRequestMessage forwarded = await CloneAsync(request, cancellationToken);

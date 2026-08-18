@@ -176,13 +176,6 @@ public sealed class GraphSdkClient(IHttpClientFactory factory, IAuthenticationSe
     /// <param name="cancellationToken">処理のキャンセルを通知するトークン</param>
     public Task AddMemberAsync(string teamId, string userId, CancellationToken cancellationToken)
     {
-        // Graphのユーザーオブジェクトidは必ずGUID形式である。OData束縛文字列(user@odata.bind)へ
-        // そのまま埋め込む前に検証し、将来GUID以外の値が渡された場合の文字列注入を防ぐ
-        if (!Guid.TryParse(userId, out _))
-        {
-            throw new ArgumentException("userIdはGUID形式である必要があります。", nameof(userId));
-        }
-
         AadUserConversationMember member = new()
         {
             Roles = [],

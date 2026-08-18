@@ -709,18 +709,6 @@ public sealed class GraphTeamsGatewayTests
     }
 
     [Fact]
-    public async Task AddMember_GUID形式でないuserIdは通信せず拒否する()
-    {
-        DelegateHandler handler = new((_, _) => throw new InvalidOperationException("通信してはならない"));
-        GraphTeamsGateway gateway = CreateGateway(handler, out _);
-
-        await Assert.ThrowsAsync<ArgumentException>(() =>
-            gateway.AddMemberAsync("team-1", "not-a-guid", TestContext.Current.CancellationToken));
-
-        Assert.Equal(0, handler.CallCount);
-    }
-
-    [Fact]
     public async Task FindUsers_SearchesDisplayNameWithConsistencyHeader()
     {
         int searchHeaderCount = 0;

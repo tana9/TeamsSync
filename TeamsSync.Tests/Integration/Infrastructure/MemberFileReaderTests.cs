@@ -255,18 +255,6 @@ public sealed class MemberFileReaderTests : IDisposable
     }
 
     [Fact]
-    public void ReadCsv_DetectsUtf16LittleEndian()
-    {
-        string path = Path.Combine(_directory, "utf16.csv");
-        File.WriteAllText(path, "メールアドレス,氏名\nuser@example.com,山田太郎\n", Encoding.Unicode);
-
-        MemberListDocument result = new MemberListReader().Read(path, CancellationToken.None);
-
-        Assert.Equal(["user@example.com"], result.Addresses);
-        Assert.Equal("メールアドレス", result.DetectedColumn);
-    }
-
-    [Fact]
     public void ReadCsv_DetectsWindows31J()
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -340,47 +328,6 @@ public sealed class MemberFileReaderTests : IDisposable
     }
 
     [Fact]
-    public void ReadCsv_行数が上限ちょうどなら成功する()
-    {
-        string path = Path.Combine(_directory, "rows-at-limit.csv");
-        // ヘッダー1行 + データ(MaximumRows-1)行 = 合計MaximumRows行で上限ちょうど
-        IEnumerable<string> lines = Enumerable.Range(0, MemberFileSecurityValidator.MaximumRows - 1)
-            .Select(i => $"user{i}@example.com");
-        File.WriteAllText(path, "email\n" + string.Join('\n', lines) + "\n");
-
-        MemberListDocument result = new MemberListReader().Read(path, CancellationToken.None);
-
-        Assert.Equal(MemberFileSecurityValidator.MaximumRows - 1, result.Addresses.Count);
-    }
-
-    [Fact]
-    public void ReadCsv_行数が上限を超えると例外()
-    {
-        string path = Path.Combine(_directory, "rows-over-limit.csv");
-        // ヘッダー1行 + データMaximumRows行 = 合計MaximumRows+1行で上限超過
-        IEnumerable<string> lines = Enumerable.Range(0, MemberFileSecurityValidator.MaximumRows)
-            .Select(i => $"user{i}@example.com");
-        File.WriteAllText(path, "email\n" + string.Join('\n', lines) + "\n");
-
-        InvalidDataException ex =
-            Assert.Throws<InvalidDataException>(() => new MemberListReader().Read(path, CancellationToken.None));
-        Assert.Contains("行数", ex.Message);
-    }
-
-    [Fact]
-    public void ReadCsv_列数が上限を超えると例外()
-    {
-        string path = Path.Combine(_directory, "columns-over-limit.csv");
-        string wideRow =
-            string.Join(',', Enumerable.Range(0, MemberFileSecurityValidator.MaximumColumns + 1).Select(i => $"v{i}"));
-        File.WriteAllText(path, wideRow + "\n");
-
-        InvalidDataException ex =
-            Assert.Throws<InvalidDataException>(() => new MemberListReader().Read(path, CancellationToken.None));
-        Assert.Contains("列数", ex.Message);
-    }
-
-    [Fact]
     public void Read_ファイルサイズが上限を超えると例外()
     {
         string path = Path.Combine(_directory, "huge.csv");
@@ -390,47 +337,6 @@ public sealed class MemberFileReaderTests : IDisposable
         InvalidDataException ex =
             Assert.Throws<InvalidDataException>(() => new MemberListReader().Read(path, CancellationToken.None));
         Assert.Contains("サイズ", ex.Message);
-    }
-
-    [Fact]
-    public void ReadExcel_行数が上限を超えると例外()
-    {
-        string path = Path.Combine(_directory, "rows-over-limit.xlsx");
-        using (XLWorkbook book = new())
-        {
-            IXLWorksheet sheet = book.AddWorksheet("Members");
-            sheet.Cell(1, 1).Value = "email";
-            for (int row = 0; row < MemberFileSecurityValidator.MaximumRows; row++)
-            {
-                sheet.Cell(row + 2, 1).Value = $"user{row}@example.com";
-            }
-
-            book.SaveAs(path);
-        }
-
-        InvalidDataException ex =
-            Assert.Throws<InvalidDataException>(() => new MemberListReader().Read(path, CancellationToken.None));
-        Assert.Contains("行数", ex.Message);
-    }
-
-    [Fact]
-    public void ReadExcel_極端に横長な場合は例外()
-    {
-        string path = Path.Combine(_directory, "wide.xlsx");
-        using (XLWorkbook book = new())
-        {
-            IXLWorksheet sheet = book.AddWorksheet("Members");
-            for (int column = 1; column <= MemberFileSecurityValidator.MaximumColumns + 1; column++)
-            {
-                sheet.Cell(1, column).Value = $"col{column}";
-            }
-
-            book.SaveAs(path);
-        }
-
-        InvalidDataException ex =
-            Assert.Throws<InvalidDataException>(() => new MemberListReader().Read(path, CancellationToken.None));
-        Assert.Contains("列数", ex.Message);
     }
 
     [Fact]

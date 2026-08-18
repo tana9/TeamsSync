@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 
 using TeamsSync.Application.Abstractions;
@@ -79,12 +78,7 @@ public sealed class MemberTextParser(TimeProvider? timeProvider = null) : IMembe
 
         foreach (char c in line)
         {
-            // U+2028(LINE SEPARATOR)・U+2029(PARAGRAPH SEPARATOR)はUnicode分類上
-            // 制御文字(Control)ではなく区切り文字(Separator)のため、char.IsControlだけでは
-            // すり抜ける。上のLineSeparatorsによる分割対象にも含めていないため、
-            // 値の途中に紛れ込んだまま残り検出できない
-            if (char.IsControl(c) ||
-                char.GetUnicodeCategory(c) is UnicodeCategory.LineSeparator or UnicodeCategory.ParagraphSeparator)
+            if (char.IsControl(c))
             {
                 throw new InvalidDataException($"{lineNumber}行目に使用できない制御文字が含まれています。");
             }
