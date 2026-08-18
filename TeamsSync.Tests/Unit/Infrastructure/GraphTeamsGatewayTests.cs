@@ -236,6 +236,65 @@ public sealed class GraphTeamsGatewayTests
     }
 
     [Fact]
+    public async Task GetOwnedTeams_バッチ内の200応答に本文がない場合は個別取得へフォールバックする()
+    {
+        int individualCallCount = 0;
+        DelegateHandler handler = new(async (request, cancellationToken) =>
+        {
+            string path = request.RequestUri!.AbsolutePath;
+            if (path.EndsWith("/me/joinedTeams", StringComparison.OrdinalIgnoreCase))
+            {
+                return JsonResponse("""
+                                    {"value":[
+                                      {"id":"team-1","displayName":"Alpha"},
+                                      {"id":"team-2","displayName":"Bravo"}
+                                    ]}
+                                    """);
+            }
+
+            if (path.EndsWith("/$batch", StringComparison.OrdinalIgnoreCase))
+            {
+                string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
+                using JsonDocument doc = JsonDocument.Parse(requestBody);
+                // team-1は200応答なのに本文(body)がない異常な形状を返す。SDKのGetResponseByIdAsync<T>が
+                // nullを返す状況を再現し、これが「所有者ではない」と静かに誤判定されず個別取得へ
+                // 回ることを確認する(修正前は空メンバー一覧として扱われisOwner=falseがキャッシュされていた)
+                var responses = doc.RootElement.GetProperty("requests").EnumerateArray().Select(req =>
+                {
+                    string? id = req.GetProperty("id").GetString();
+                    string url = req.GetProperty("url").GetString()!;
+                    string teamId = url.Split('/')[2];
+                    if (teamId == "team-1")
+                    {
+                        return (object) new { id, status = 200 };
+                    }
+
+                    return new
+                    {
+                        id,
+                        status = 200,
+                        body = JsonDocument.Parse(
+                                """{"value":[{"id":"membership","userId":"current-user","displayName":"Me","email":"me@example.com","roles":["owner"]}]}""")
+                            .RootElement
+                    };
+                }).ToList();
+                return JsonResponse(JsonSerializer.Serialize(new { responses }));
+            }
+
+            Interlocked.Increment(ref individualCallCount);
+            return JsonResponse(
+                """{"value":[{"id":"membership","userId":"current-user","displayName":"Me","email":"me@example.com","roles":["owner"]}]}""");
+        });
+        GraphTeamsGateway gateway = CreateGateway(handler, out _);
+
+        IReadOnlyList<TeamInfo> owned =
+            await gateway.GetOwnedTeamsAsync("current-user", TestContext.Current.CancellationToken);
+
+        Assert.Equal(["Alpha", "Bravo"], owned.Select(team => team.DisplayName));
+        Assert.Equal(1, individualCallCount);
+    }
+
+    [Fact]
     public async Task GetOwnedTeams_バッチと個別取得の両方が失敗したチームは除外し他のチームの判定を継続する()
     {
         DelegateHandler handler = new(async (request, cancellationToken) =>
@@ -730,7 +789,7 @@ public sealed class GraphTeamsGatewayTests
                     Content = new StringContent("{\"error\":{\"message\":\"not found\"}}")
                 });
         });
-        RecordingLogger<GraphSdkTransportHandler> logger = new();
+        RecordingLogger<GraphSdkLogCategory> logger = new();
         GraphTeamsGateway gateway = CreateGateway(handler, out _, logger);
 
         IReadOnlyList<DirectoryUser> users =
@@ -747,7 +806,7 @@ public sealed class GraphTeamsGatewayTests
     {
         DelegateHandler handler = new((_, _) => Task.FromResult(
             new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new StringContent("not found") }));
-        RecordingLogger<GraphSdkTransportHandler> logger = new();
+        RecordingLogger<GraphSdkLogCategory> logger = new();
         GraphTeamsGateway gateway = CreateGateway(handler, out _, logger);
 
         await Assert.ThrowsAsync<GraphException>(() =>
@@ -766,12 +825,12 @@ public sealed class GraphTeamsGatewayTests
     }
 
     private static GraphTeamsGateway CreateGateway(HttpMessageHandler handler, out FakeAuthentication authentication,
-        ILogger<GraphSdkTransportHandler>? httpLogger = null, ILogger<GraphTeamsGateway>? gatewayLogger = null)
+        ILogger<GraphSdkLogCategory>? httpLogger = null, ILogger<GraphTeamsGateway>? gatewayLogger = null)
     {
         authentication = new FakeAuthentication();
         HttpClient client = new(handler);
         GraphSdkClient sdk = new(new FakeHttpClientFactory(client), authentication,
-            httpLogger ?? NullLogger<GraphSdkTransportHandler>.Instance);
+            httpLogger ?? NullLogger<GraphSdkLogCategory>.Instance);
         ILogger<GraphTeamsGateway> logger = gatewayLogger ?? NullLogger<GraphTeamsGateway>.Instance;
         return new GraphTeamsGateway(sdk, logger, new TeamMembersBatchFetcher(sdk, logger),
             new GraphUserSearchService(sdk));

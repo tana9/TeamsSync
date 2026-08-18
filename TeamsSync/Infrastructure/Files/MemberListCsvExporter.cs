@@ -16,6 +16,12 @@ public sealed class MemberListCsvExporter : IMemberListExporter
         AtomicFileWriter.Write(path, stream => WriteCsv(stream, members), true);
     }
 
+    /// <inheritdoc />
+    public string SanitizeForFileName(string value)
+    {
+        return FileNameSanitizer.Sanitize(value, "チーム");
+    }
+
     private static void WriteCsv(Stream stream, IReadOnlyList<TeamMember> members)
     {
         using StreamWriter writer = new(stream, new UTF8Encoding(true), leaveOpen: true);
@@ -24,15 +30,9 @@ public sealed class MemberListCsvExporter : IMemberListExporter
         {
             string role = member.IsOwner ? "所有者" : "メンバー";
             string[] fields = [member.DisplayName, member.Email, role];
-            writer.WriteLine(string.Join(",", fields.Select(Csv)));
+            writer.WriteLine(string.Join(",", fields.Select(CsvField.Escape)));
         }
 
         writer.Flush();
-    }
-
-    /// <summary>値をダブルクォートで囲み、内部のダブルクォートをエスケープしてCSVフィールド化する</summary>
-    private static string Csv(string value)
-    {
-        return $"\"{value.Replace("\"", "\"\"")}\"";
     }
 }

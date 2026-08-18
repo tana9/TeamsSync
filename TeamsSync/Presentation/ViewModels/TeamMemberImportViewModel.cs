@@ -78,12 +78,7 @@ public partial class TeamMemberImportViewModel : ObservableObject
     /// <summary>現在選択されているチームを設定する。チームが変わった場合は進行中の取り込みをキャンセルする</summary>
     public void SetSelectedTeam(TeamInfo? team)
     {
-        if (_selectedTeam?.Id != team?.Id)
-        {
-            _importCancellation.Cancel();
-        }
-
-        _selectedTeam = team;
+        SelectedTeamTracker.Update(ref _selectedTeam, team, _importCancellation);
         NotifyCanExecuteChanged();
     }
 

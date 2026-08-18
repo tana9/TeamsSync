@@ -49,6 +49,7 @@ public partial class MainWindowViewModel : ObservableObject
         MemberFile.DocumentChanged += UpdateSyncContext;
         MemberFile.StatusChanged += SetStatus;
         MemberFile.Import.WhenChanged(nameof(TeamMemberImportViewModel.IsImportingMembers), UpdateAvailability);
+        MemberFile.Export.WhenChanged(nameof(TeamMemberExportViewModel.IsExporting), UpdateAvailability);
         SyncWorkspace.StatusChanged += SetStatus;
         SyncWorkspace.Preview.WhenChanged(nameof(SyncPreviewDisplayState.IsBusy), UpdateAvailability);
         SyncWorkspace.Execution.WhenChanged(nameof(SyncExecutionDisplayState.IsBusy), UpdateAvailability);
@@ -114,12 +115,16 @@ public partial class MainWindowViewModel : ObservableObject
     private void UpdateAvailability()
     {
         bool memberImportActive = MemberFile.Import.IsImportingMembers;
+        // メンバー一覧のCSV出力中も、Importと同様にサインアウト・チーム切替・同期実行開始を
+        // ブロックする。以前はIsExportingがどこにも波及せず、出力中でもこれらの操作が
+        // 無調整のまま実行できてしまっていた
+        bool memberExportActive = MemberFile.Export.IsExporting;
         bool syncActive = SyncWorkspace.Preview.IsBusy || SyncWorkspace.Execution.IsBusy;
         InputsEnabled = SignIn is { IsSignedIn: true, IsBusy: false } && !TeamSelection.IsBusy && !syncActive;
         InputsEnabled &= !memberImportActive;
-        TeamSelection.SetExternalBusy(SignIn.IsBusy || syncActive || memberImportActive);
+        TeamSelection.SetExternalBusy(SignIn.IsBusy || syncActive || memberImportActive || memberExportActive);
         MemberFile.SetEnabled(InputsEnabled);
-        SyncWorkspace.SetExternalBusy(SignIn.IsBusy || TeamSelection.IsBusy || memberImportActive);
-        SignIn.SetExternalBusy(SyncWorkspace.Execution.IsBusy || memberImportActive);
+        SyncWorkspace.SetExternalBusy(SignIn.IsBusy || TeamSelection.IsBusy || memberImportActive || memberExportActive);
+        SignIn.SetExternalBusy(SyncWorkspace.Execution.IsBusy || memberImportActive || memberExportActive);
     }
 }

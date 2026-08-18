@@ -92,11 +92,12 @@ public sealed class TeamMembersBatchFetcher(GraphSdkClient sdk, ILogger logger)
                     membersByIndex[index] =
                         await ParseBatchMemberResponseAsync(responses, requestId, cancellationToken);
                 }
-                catch (InvalidDataException ex)
+                // OperationCanceledExceptionだけは呼び出し元のキャンセル処理に届くよう素通しする。
+                // それ以外(userId欠落等のInvalidDataException、本文欠落、SDKのデシリアライズ失敗など
+                // Graphが返すメンバー情報が想定外の形状だった場合)は、このチームだけmembersByIndexに
+                // 残さず個別フォールバックへ委ね、バッチ全体・他チームの判定を継続する(403/400等と同じ扱い)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    // Graphが返すメンバー情報が想定外の形状(userId欠落等)の場合、このチームだけ
-                    // membersByIndexに残さず個別フォールバックへ委ね、バッチ全体・他チームの
-                    // 判定を継続する(403/400等と同じ扱い)
                     logger.LogWarning(ex,
                         "バッチ応答のメンバー情報を解析できませんでした。個別に再取得します。TeamId={TeamId}",
                         candidates[index].Id);
@@ -125,6 +126,14 @@ public sealed class TeamMembersBatchFetcher(GraphSdkClient sdk, ILogger logger)
     {
         ConversationMemberCollectionResponse? firstPage =
             await responses.GetResponseByIdAsync<ConversationMemberCollectionResponse>(requestId);
+        // 200応答なのに本文がない、という異常な形状の場合はここで明示的に失敗させる。素通しすると
+        // 空のメンバー一覧として扱われ、実際は所有者であるユーザーが「所有者でない」と静かに
+        // キャッシュされてしまう(呼び出し元のcatchで個別フォールバックへ委ねられるようにする)
+        if (firstPage is null)
+        {
+            throw new InvalidDataException("バッチ応答にメンバー一覧の本文がありません。");
+        }
+
         IReadOnlyList<ConversationMember> members =
             await sdk.CollectTeamMembersPagesAsync(firstPage, cancellationToken);
         return GraphResponseParser.ParseTeamMembers(members);

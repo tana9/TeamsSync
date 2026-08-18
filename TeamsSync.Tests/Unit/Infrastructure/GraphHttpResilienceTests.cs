@@ -17,7 +17,7 @@ public sealed class GraphHttpResilienceTests
         InvalidDataException exception = Assert.Throws<InvalidDataException>(
             () => GraphEndpointValidator.Validate(new Uri("https://example.test/steal")));
 
-        Assert.Contains("許可されていないURL", exception.Message);
+        Assert.Contains("許可されていない", exception.Message);
     }
 
     [Theory]

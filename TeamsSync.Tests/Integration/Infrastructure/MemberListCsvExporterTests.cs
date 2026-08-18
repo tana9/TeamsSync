@@ -86,4 +86,30 @@ public sealed class MemberListCsvExporterTests : IDisposable
         Assert.DoesNotContain("古い内容", content);
         Assert.Contains("山田 太郎", content);
     }
+
+    [Fact]
+    public void SanitizeForFileName_禁止文字を置換し極端に長い値は切り詰める()
+    {
+        MemberListCsvExporter exporter = new();
+
+        string sanitized = exporter.SanitizeForFileName(new string('あ', 300));
+
+        Assert.Equal(100, sanitized.Length);
+    }
+
+    [Fact]
+    public void SanitizeForFileName_禁止文字を置換する()
+    {
+        MemberListCsvExporter exporter = new();
+
+        Assert.Equal("開発_総務", exporter.SanitizeForFileName("開発/総務"));
+    }
+
+    [Fact]
+    public void SanitizeForFileName_空文字になる場合はフォールバックを返す()
+    {
+        MemberListCsvExporter exporter = new();
+
+        Assert.Equal("チーム", exporter.SanitizeForFileName("   "));
+    }
 }

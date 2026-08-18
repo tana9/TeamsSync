@@ -41,7 +41,8 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
     {
         Directory.CreateDirectory(_logDirectory);
         DateTimeOffset executedAt = _timeProvider.GetLocalNow();
-        string stem = $"{executedAt:yyyyMMdd_HHmmss_fff}_{auditContext.ExecutionId:N}_{SanitizeFileName(plan.Team.DisplayName)}";
+        string sanitizedTeamName = FileNameSanitizer.Sanitize(plan.Team.DisplayName, "team");
+        string stem = $"{executedAt:yyyyMMdd_HHmmss_fff}_{auditContext.ExecutionId:N}_{sanitizedTeamName}";
         string path = CreateUniquePath(stem);
         AtomicFileWriter.Write(path, stream => WriteCsv(stream, plan, result, auditContext, executedAt), false,
             _identifierGenerator);
@@ -76,7 +77,7 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
                 change.DisplayName, change.Email, ChangeKindText.Label(change.Kind),
                 SyncChangeReasonText.Format(change.Reason), status, error
             ]);
-            writer.WriteLine(string.Join(",", row.Select(Csv)));
+            writer.WriteLine(string.Join(",", row.Select(CsvField.Escape)));
         }
 
         writer.Flush();
@@ -145,26 +146,4 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
         }
     }
 
-    // タイムスタンプ・実行ID(GUID)・拡張子・CreateUniquePathの連番接尾辞と合わせても
-    // 255文字のファイル名コンポーネント上限に余裕を持って収まる長さ
-    private const int MaximumSanitizedFileNameLength = 100;
-
-    /// <summary>ファイル名として使えない文字を"_"へ置き換え、極端に長いチーム名は切り詰める</summary>
-    private static string SanitizeFileName(string value)
-    {
-        char[] invalidChars = Path.GetInvalidFileNameChars();
-        string sanitized = string.Concat(value.Select(c => invalidChars.Contains(c) ? '_' : c)).Trim();
-        if (sanitized.Length > MaximumSanitizedFileNameLength)
-        {
-            sanitized = sanitized[..MaximumSanitizedFileNameLength].TrimEnd();
-        }
-
-        return sanitized.Length == 0 ? "team" : sanitized;
-    }
-
-    /// <summary>値をダブルクォートで囲み、内部のダブルクォートをエスケープしてCSVフィールド化する</summary>
-    private static string Csv(string value)
-    {
-        return $"\"{value.Replace("\"", "\"\"")}\"";
-    }
 }

@@ -403,6 +403,11 @@ internal sealed class FakeDialogs : IFilePickerService, ISyncConfirmationService
     public void Export(IReadOnlyList<TeamMember> members, string path)
     {
     }
+
+    public string SanitizeForFileName(string value)
+    {
+        return value;
+    }
 }
 
 internal sealed class RecordingMemberListExporter : IMemberListExporter
@@ -416,6 +421,11 @@ internal sealed class RecordingMemberListExporter : IMemberListExporter
         ExportCount++;
         ExportedMembers = members;
         ExportedPath = path;
+    }
+
+    public string SanitizeForFileName(string value)
+    {
+        return value;
     }
 }
 

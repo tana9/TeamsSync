@@ -86,6 +86,12 @@ public interface IMemberListExporter
 {
     /// <summary>指定したパスへ、メンバー一覧(表示名・メールアドレス・役割)をCSV形式で書き出す</summary>
     void Export(IReadOnlyList<TeamMember> members, string path);
+
+    /// <summary>
+    ///     文字列をファイル名として安全な形式(禁止文字の置換・長さの切り詰め)へ変換する。
+    ///     保存先ファイル名の提案(チーム名部分)を組み立てる呼び出し元が使う
+    /// </summary>
+    string SanitizeForFileName(string value);
 }
 
 /// <summary>ユーザーごとの永続設定(最終利用フォルダーなど)を扱う</summary>

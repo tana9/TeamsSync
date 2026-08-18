@@ -33,6 +33,44 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public async Task MainWindow_メンバー一覧出力中はチーム選択と同期実行がブロックされる()
+    {
+        TaskCompletionSource started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        FakeTeamsGateway gateway = new()
+        {
+            OnGetMembers = async (_, cancellationToken) =>
+            {
+                started.TrySetResult();
+                await release.Task.WaitAsync(cancellationToken);
+                return [];
+            }
+        };
+        FakeDialogs dialogs = new();
+        TeamSelectionViewModel teamSelection = new(gateway, dialogs);
+        MemberFileViewModel memberFile = new(new FakeMemberListReader(null!), new MemberTextParser(),
+            new FakePreferences(), dialogs, dialogs, gateway, dialogs, dialogs);
+        SyncWorkspaceViewModel syncWorkspace = SyncWorkspaceViewModelFactory.Create(new SyncPlanService(gateway), new SyncExecutor(gateway),
+            new FakeResultWriter(), dialogs, dialogs);
+        MainWindowViewModel viewModel = new(new FakeAuthenticationService(), gateway, dialogs,
+            new FakePreferences(), teamSelection, memberFile, syncWorkspace,
+            new ManualViewModel(new FakeManualService(), dialogs));
+        viewModel.SignIn.IsSignedIn = true;
+        teamSelection.SelectedTeam = new TeamInfo("team-1", "開発", null);
+
+        Task exporting = memberFile.Export.ExportCommand.ExecuteAsync(null);
+        await started.Task;
+
+        Assert.False(teamSelection.IsSelectionEnabled);
+        Assert.False(viewModel.SignIn.SignOutCommand.CanExecute(null));
+
+        release.TrySetResult();
+        await exporting;
+
+        Assert.True(teamSelection.IsSelectionEnabled);
+    }
+
+    [Fact]
     public void MainWindow_OpenManual_成功時はエラーダイアログを表示しない()
     {
         FakeTeamsGateway gateway = new();

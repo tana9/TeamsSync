@@ -42,12 +42,7 @@ public partial class TeamMemberExportViewModel : ObservableObject
     /// <summary>現在選択されているチームを設定する。チームが変わった場合は進行中の出力をキャンセルする</summary>
     public void SetSelectedTeam(TeamInfo? team)
     {
-        if (_selectedTeam?.Id != team?.Id)
-        {
-            _exportCancellation.Cancel();
-        }
-
-        _selectedTeam = team;
+        SelectedTeamTracker.Update(ref _selectedTeam, team, _exportCancellation);
         ExportCommand.NotifyCanExecuteChanged();
     }
 
@@ -87,7 +82,9 @@ public partial class TeamMemberExportViewModel : ObservableObject
                 return;
             }
 
-            _exporter.Export(members, path);
+            // CSV書き込みはファイルへの同期I/O(fsync含む)のため、UIスレッドをブロックしないよう
+            // ファイル読込(MemberFileInputCoordinator)と同様にTask.Runでオフロードする
+            await Task.Run(() => _exporter.Export(members, path), cts.Token);
             _notifications.ShowSuccess("メンバー一覧を出力しました",
                 $"{members.Count}件を書き出しました: {Path.GetFileName(path)}");
         }
@@ -115,15 +112,7 @@ public partial class TeamMemberExportViewModel : ObservableObject
     /// <summary>保存ダイアログへ提案するファイル名を、チーム名と日付から組み立てる</summary>
     private string BuildSuggestedFileName(string teamDisplayName)
     {
-        string sanitizedTeamName = SanitizeFileNamePart(teamDisplayName);
+        string sanitizedTeamName = _exporter.SanitizeForFileName(teamDisplayName);
         return $"メンバー一覧_{sanitizedTeamName}_{_timeProvider.GetLocalNow():yyyyMMdd}.csv";
-    }
-
-    /// <summary>ファイル名として使えない文字を"_"へ置き換える</summary>
-    private static string SanitizeFileNamePart(string value)
-    {
-        char[] invalidChars = Path.GetInvalidFileNameChars();
-        string sanitized = string.Concat(value.Select(c => invalidChars.Contains(c) ? '_' : c)).Trim();
-        return sanitized.Length == 0 ? "チーム" : sanitized;
     }
 }

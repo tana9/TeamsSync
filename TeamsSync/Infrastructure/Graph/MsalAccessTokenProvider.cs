@@ -11,7 +11,12 @@ internal sealed class MsalAccessTokenProvider(IAuthenticationService authenticat
     /// <summary>トークンの送信を許可するホスト(Microsoft Graphのみ)</summary>
     public AllowedHostsValidator AllowedHostsValidator { get; } = new([GraphEndpoints.Host]);
 
-    /// <summary>リクエスト先が許可されたホストであることを確認したうえで、アクセストークンを取得する</summary>
+    // KiotaのHttpClientRequestAdapterは、このメソッドをトランスポート層(GraphSdkTransportHandler)より
+    // 先に呼び出す。そのためGraphSdkTransportHandler.Validateだけに検証を委ねると、不正なURLに対しても
+    // トークン取得(MSALの対話サインインを誘発しうる処理)が先に走ってしまう。AllowedHostsValidatorは
+    // ホスト名しか見ずポート・スキーム・ユーザー情報を検証しないため、ここでは同じ許可基準を持つ
+    // GraphEndpointValidatorをトークン取得より前に呼び、不正なURLの場合はトークンを取得せず即座に拒否する
+    /// <summary>リクエスト先が許可されたエンドポイントであることを確認したうえで、アクセストークンを取得する</summary>
     /// <param name="uri">トークンを送信するリクエスト先のURI</param>
     /// <param name="additionalAuthenticationContext">Kiotaから渡される追加の認証コンテキスト(未使用)</param>
     /// <param name="cancellationToken">処理のキャンセルを通知するトークン</param>
@@ -20,8 +25,7 @@ internal sealed class MsalAccessTokenProvider(IAuthenticationService authenticat
         Dictionary<string, object>? additionalAuthenticationContext = null,
         CancellationToken cancellationToken = default)
     {
-        return !AllowedHostsValidator.IsUrlHostValid(uri)
-            ? throw new InvalidOperationException("Microsoft Graph以外のホストへトークンを送信できません。")
-            : authentication.GetTokenAsync(cancellationToken: cancellationToken);
+        GraphEndpointValidator.Validate(uri);
+        return authentication.GetTokenAsync(cancellationToken: cancellationToken);
     }
 }

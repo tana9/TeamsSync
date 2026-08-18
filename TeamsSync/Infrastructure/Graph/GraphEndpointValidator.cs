@@ -13,7 +13,7 @@ internal static class GraphEndpointValidator
             !string.Equals(uri.Host, GraphEndpoints.Host, StringComparison.OrdinalIgnoreCase) ||
             !string.IsNullOrEmpty(uri.UserInfo))
         {
-            throw new InvalidDataException("Graph APIの応答に許可されていないURLが含まれています。");
+            throw new InvalidDataException("許可されていないMicrosoft Graphエンドポイントです。");
         }
     }
 }

@@ -4,10 +4,8 @@ using TeamsSync.Application.Abstractions;
 
 namespace TeamsSync.Infrastructure.Graph;
 
-// GraphSdkClientの公開コンストラクターがログカテゴリとしてILogger<GraphSdkTransportHandler>を
-// 受け取るため、このクラス自体もpublicである必要がある(internalのままだとCS0051)
 /// <summary>SDK要求を既存の名前付きHttpClientへ転送し、診断情報と例外形式を維持する</summary>
-public sealed class GraphSdkTransportHandler(HttpClient transport, ILogger<GraphSdkTransportHandler> logger,
+internal sealed class GraphSdkTransportHandler(HttpClient transport, ILogger<GraphSdkLogCategory> logger,
     IIdentifierGenerator? identifierGenerator = null)
     : HttpMessageHandler
 {

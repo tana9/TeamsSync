@@ -15,7 +15,7 @@ namespace TeamsSync.Infrastructure.Graph;
 /// <param name="logger">Graph通信の診断情報を記録するロガー</param>
 /// <param name="identifierGenerator">リクエストIDの生成に使うID生成器。省略時は既定の実装を使う</param>
 public sealed class GraphSdkClient(IHttpClientFactory factory, IAuthenticationService authentication,
-    ILogger<GraphSdkTransportHandler> logger, IIdentifierGenerator? identifierGenerator = null)
+    ILogger<GraphSdkLogCategory> logger, IIdentifierGenerator? identifierGenerator = null)
 {
     private readonly GraphServiceClient _read =
         Create(factory.CreateClient(GraphEndpoints.ReadHttpClientName), authentication, logger, identifierGenerator);
@@ -26,7 +26,7 @@ public sealed class GraphSdkClient(IHttpClientFactory factory, IAuthenticationSe
     // フィールド初期化子は他の非staticフィールドを参照できないため、認証プロバイダーは
     // 呼び出しごとに構成する(状態を持たない薄いラッパーのため、共有しなくても実害はない)
     private static GraphServiceClient Create(HttpClient transport, IAuthenticationService authentication,
-        ILogger<GraphSdkTransportHandler> logger, IIdentifierGenerator? identifierGenerator)
+        ILogger<GraphSdkLogCategory> logger, IIdentifierGenerator? identifierGenerator)
     {
         BaseBearerTokenAuthenticationProvider auth = new(new MsalAccessTokenProvider(authentication));
         HttpClient client = new(new GraphSdkTransportHandler(transport, logger, identifierGenerator))
