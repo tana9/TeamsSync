@@ -26,7 +26,7 @@ public sealed class GraphTeamsGateway(GraphSdkClient sdk, ILogger<GraphTeamsGate
     // (https://learn.microsoft.com/en-us/graph/throttling)、並列3 × バッチ20件 = 最大60件の
     // メンバー取得サブリクエストが短時間に発行され得るこの構成は、既にテナント上限のすぐ下を
     // 突いている。安易に増やすと429が増える可能性が高いため、上げる場合は実テナントでの
-    // 429発生率の計測が必須(TODO.md「所有チーム検索を高速化する」参照)。
+    // 429発生率の計測が必須。
     // https://github.com/microsoftgraph/microsoft-graph-docs-contrib/blob/main/includes/throttling-teams.md
     private const int OwnedTeamLookupConcurrency = 3;
     private const int OwnedTeamBatchSize = 20;
