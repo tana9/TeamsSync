@@ -50,11 +50,30 @@ public partial class MemberFileViewModel : ObservableObject, IMemberInputAvailab
             {
                 NotifyCommandStates();
             }
+
+            if (args.PropertyName == nameof(TeamMemberImportViewModel.IsFetchingMembers))
+            {
+                OnPropertyChanged(nameof(IsProcessing));
+            }
+        };
+        Export.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(TeamMemberExportViewModel.IsExporting))
+            {
+                OnPropertyChanged(nameof(IsProcessing));
+            }
         };
         // FileLoad/PasteInputはSyncWorkspaceViewModelのPreview/Executionと同様、XAMLから
         // 直接バインドされる公開の子状態。ここではコマンドの実行可否を再評価する必要があるため購読する
         FileLoad.PropertyChanged += (_, _) => NotifyCommandStates();
-        PasteInput.PropertyChanged += (_, _) => NotifyCommandStates();
+        PasteInput.PropertyChanged += (_, args) =>
+        {
+            NotifyCommandStates();
+            if (args.PropertyName == nameof(MemberPasteInputState.IsParsing))
+            {
+                OnPropertyChanged(nameof(IsProcessing));
+            }
+        };
         DocumentChanged += () => OnPropertyChanged(nameof(HasUnappliedPastedText));
         DocumentChanged += () => OnPropertyChanged(nameof(ShowCollapsedSummary));
         DocumentChanged += () => OnPropertyChanged(nameof(ShowFullInput));
@@ -130,6 +149,13 @@ public partial class MemberFileViewModel : ObservableObject, IMemberInputAvailab
 
     /// <summary>現在有効なメンバーリスト文書(未確定の場合はnull)</summary>
     public MemberListDocument? Document { get; private set; }
+
+    // 取得中・出力中・解析中はいずれもこの入力欄に対する非同期処理で、同時に複数が進行しても
+    // 利用者にとっては等しく「何か処理中」であればよいため、個別のProgressRingではなく
+    // 1つの共通インジケーターにまとめている(WrapPanel内で表示/非表示を切り替えるたびに
+    // 占有幅が変わり、後続ボタンの折り返し位置がずれるのを避ける狙いもある)
+    /// <summary>現在のメンバー取得・CSV出力・貼り付けテキスト解析のいずれかが進行中かどうか</summary>
+    public bool IsProcessing => Import.IsFetchingMembers || Export.IsExporting || PasteInput.IsParsing;
 
     /// <summary>テキスト貼り付け入力に、まだ「入力を反映」していない変更があるかどうか</summary>
     public bool HasUnappliedPastedText =>
