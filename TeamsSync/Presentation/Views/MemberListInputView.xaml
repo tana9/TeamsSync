@@ -123,7 +123,7 @@
                                              Visibility="{Binding Export.IsExporting, Converter={StaticResource BooleanToVisibilityConverter}}"
                                              AutomationProperties.Name="メンバー一覧を出力中" />
                             <ui:Button Content="CSVへ出力" Command="{Binding Export.ExportCommand}"
-                                       Icon="{ui:SymbolIcon Symbol=ArrowExportUp24}" Appearance="Secondary"
+                                       Icon="{ui:SymbolIcon Symbol=ArrowCircleDown24}" Appearance="Secondary"
                                        Margin="8,4,0,4"
                                        ToolTip="選択中チームの現在の全メンバー(所有者を含む)をCSVファイルへ出力します"
                                        AutomationProperties.Name="選択中チームのメンバー一覧をCSVへ出力" />
