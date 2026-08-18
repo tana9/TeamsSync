@@ -17,21 +17,25 @@ public sealed class MemberListCsvExporterTests : IDisposable
     }
 
     [Fact]
-    public void Export_表示名昇順で表示名メールアドレス役割の列を書き出す()
+    public void Export_所有者を上にまとめそれぞれ表示名昇順で書き出す()
     {
         string path = Path.Combine(_directory, "members.csv");
+        // 表示名だけで昇順に並べるとB→Y→Zの順になるが、所有者(Yamada)を先頭にまとめる
+        // 仕様のため、実際の出力順はYamada→Bob→Zoeになるはずである
         TeamMember[] members =
         [
-            new TeamMember("membership-2", "user-2", "佐藤 花子", "sato@example.com", true),
-            new TeamMember("membership-1", "user-1", "山田 太郎", "yamada@example.com", false)
+            new TeamMember("membership-1", "user-1", "Zoe", "zoe@example.com", false),
+            new TeamMember("membership-2", "user-2", "Yamada Taro", "yamada@example.com", true),
+            new TeamMember("membership-3", "user-3", "Bob", "bob@example.com", false)
         ];
 
         new MemberListCsvExporter().Export(members, path);
 
         string[] lines = File.ReadAllLines(path);
         Assert.Equal("表示名,メールアドレス,役割", lines[0]);
-        Assert.Equal("\"佐藤 花子\",\"sato@example.com\",\"所有者\"", lines[1]);
-        Assert.Equal("\"山田 太郎\",\"yamada@example.com\",\"メンバー\"", lines[2]);
+        Assert.Equal("\"Yamada Taro\",\"yamada@example.com\",\"所有者\"", lines[1]);
+        Assert.Equal("\"Bob\",\"bob@example.com\",\"メンバー\"", lines[2]);
+        Assert.Equal("\"Zoe\",\"zoe@example.com\",\"メンバー\"", lines[3]);
     }
 
     [Fact]

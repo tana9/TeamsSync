@@ -33,7 +33,10 @@ public sealed class MemberListCsvExporter : IMemberListExporter
         using CsvWriter csv = new(writer, CultureInfo.InvariantCulture, leaveOpen: true);
 
         CsvRowWriter.WriteRow(csv, HeaderColumns, quoted: false);
-        foreach (TeamMember member in members.OrderBy(m => m.DisplayName, StringComparer.CurrentCultureIgnoreCase))
+        IEnumerable<TeamMember> ordered = members
+            .OrderByDescending(m => m.IsOwner)
+            .ThenBy(m => m.DisplayName, StringComparer.CurrentCultureIgnoreCase);
+        foreach (TeamMember member in ordered)
         {
             string role = member.IsOwner ? "所有者" : "メンバー";
             CsvRowWriter.WriteRow(csv, [member.DisplayName, member.Email, role], quoted: true);
