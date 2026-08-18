@@ -1,7 +1,12 @@
 <UserControl x:Class="TeamsSync.Presentation.Views.SyncActionBarView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:vm="clr-namespace:TeamsSync.Presentation.ViewModels"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:MainWindowViewModel, IsDesignTimeCreatable=False}">
     <!-- 実行結果(特に失敗一覧)が伸びてMainWindow.xamlで設定するMaxHeightを超えた場合に、
          ウィンドウ外へはみ出して操作不能になる代わりに、ここで内部スクロールさせる -->
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">

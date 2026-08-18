@@ -4,6 +4,11 @@
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:views="clr-namespace:TeamsSync.Presentation.Views"
              xmlns:domain="clr-namespace:TeamsSync.Domain.Teams"
+             xmlns:vm="clr-namespace:TeamsSync.Presentation.ViewModels"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:SyncWorkspaceViewModel, IsDesignTimeCreatable=False}"
              AutomationProperties.Name="同期モード">
     <Grid>
         <Grid.ColumnDefinitions>
