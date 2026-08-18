@@ -354,6 +354,68 @@ public sealed class GraphTeamsGatewayTests
     }
 
     [Fact]
+    public async Task GetOwnedTeams_取得不能だったチームはfalseをキャッシュせず次回取得で再試行する()
+    {
+        int batchCallCount = 0;
+        int individualCallCount = 0;
+        DelegateHandler handler = new(async (request, cancellationToken) =>
+        {
+            string path = request.RequestUri!.AbsolutePath;
+            if (path.EndsWith("/me/joinedTeams", StringComparison.OrdinalIgnoreCase))
+            {
+                return JsonResponse("""
+                                    {"value":[
+                                      {"id":"team-1","displayName":"Alpha"},
+                                      {"id":"team-2","displayName":"Bravo"}
+                                    ]}
+                                    """);
+            }
+
+            if (path.EndsWith("/$batch", StringComparison.OrdinalIgnoreCase))
+            {
+                int call = Interlocked.Increment(ref batchCallCount);
+                string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
+                using JsonDocument doc = JsonDocument.Parse(requestBody);
+                var responses = doc.RootElement.GetProperty("requests").EnumerateArray().Select(req =>
+                {
+                    string? id = req.GetProperty("id").GetString();
+                    string url = req.GetProperty("url").GetString()!;
+                    string teamId = url.Split('/')[2];
+                    bool failTemporarily = call == 1 && teamId == "team-1";
+                    return failTemporarily
+                        ? new { id, status = 403, body = JsonDocument.Parse("{}").RootElement }
+                        : new
+                        {
+                            id,
+                            status = 200,
+                            body = JsonDocument.Parse(
+                                    """{"value":[{"id":"membership","userId":"current-user","displayName":"Me","email":"me@example.com","roles":["owner"]}]}""")
+                                .RootElement
+                        };
+                }).ToList();
+                return JsonResponse(JsonSerializer.Serialize(new { responses }));
+            }
+
+            Interlocked.Increment(ref individualCallCount);
+            return new HttpResponseMessage(HttpStatusCode.Forbidden)
+            {
+                Content = new StringContent("{\"error\":{\"message\":\"temporary failure\"}}")
+            };
+        });
+        GraphTeamsGateway gateway = CreateGateway(handler, out _);
+
+        IReadOnlyList<TeamInfo> first = await gateway.GetOwnedTeamsAsync(
+            "current-user", TestContext.Current.CancellationToken);
+        IReadOnlyList<TeamInfo> second = await gateway.GetOwnedTeamsAsync(
+            "current-user", TestContext.Current.CancellationToken);
+
+        Assert.Equal(["Bravo"], first.Select(team => team.DisplayName));
+        Assert.Equal(["Alpha", "Bravo"], second.Select(team => team.DisplayName));
+        Assert.Equal(2, batchCallCount);
+        Assert.Equal(1, individualCallCount);
+    }
+
+    [Fact]
     public async Task GetOwnedTeams_バッチ内の429はRetryAfter待機後に同じ項目だけ再試行し個別取得へ回さない()
     {
         int batchCallCount = 0;

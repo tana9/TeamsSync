@@ -18,9 +18,21 @@ public sealed class AppHostShutdownTests
         Assert.True(host.Disposed);
     }
 
+    [Fact]
+    public void StopAndDispose_非同期停止とHost破棄の完了まで戻らない()
+    {
+        RecordingHost host = new() { StopDelay = TimeSpan.FromMilliseconds(10) };
+
+        AppHostShutdown.StopAndDispose(host, NullLogger.Instance, TimeSpan.FromSeconds(1));
+
+        Assert.True(host.StopCalled);
+        Assert.True(host.Disposed);
+    }
+
     private sealed class RecordingHost : IHost
     {
         public Exception? StopException { get; init; }
+        public TimeSpan StopDelay { get; init; }
         public bool StopCalled { get; private set; }
         public bool Disposed { get; private set; }
         public IServiceProvider Services { get; } = new EmptyServiceProvider();
@@ -30,10 +42,18 @@ public sealed class AppHostShutdownTests
             return Task.CompletedTask;
         }
 
-        public Task StopAsync(CancellationToken cancellationToken = default)
+        public async Task StopAsync(CancellationToken cancellationToken = default)
         {
             StopCalled = true;
-            return StopException is null ? Task.CompletedTask : Task.FromException(StopException);
+            if (StopDelay > TimeSpan.Zero)
+            {
+                await Task.Delay(StopDelay, cancellationToken);
+            }
+
+            if (StopException is not null)
+            {
+                throw StopException;
+            }
         }
 
         public void Dispose()

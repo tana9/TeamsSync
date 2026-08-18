@@ -161,18 +161,15 @@ public partial class App : System.Windows.Application
     /// <summary>
     ///     終了時にホストを停止・破棄し、リソースを解放する
     /// </summary>
-    protected override async void OnExit(ExitEventArgs e)
-    {
-        await OnExitAsync(e);
-    }
-
-    private async Task OnExitAsync(ExitEventArgs e)
+    protected override void OnExit(ExitEventArgs e)
     {
         if (_host is not null)
         {
             IHost host = _host;
             _host = null;
-            await AppHostShutdown.StopAndDisposeAsync(host, host.Services.GetService<ILogger<App>>());
+            // WPFのOnExitは非同期処理を待たないため、async voidにはせず、ホストの停止と
+            // ログを含むリソースの破棄が終わるまでここで待ってから終了する
+            AppHostShutdown.StopAndDispose(host, host.Services.GetService<ILogger<App>>());
         }
 
         base.OnExit(e);

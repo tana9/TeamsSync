@@ -160,11 +160,18 @@ public sealed class GraphTeamsGateway(GraphSdkClient sdk, ILogger<GraphTeamsGate
                 ? resolved
                 : await TryFetchMembersIndividuallyAsync(team, cancellationToken);
 
-            // 個別取得も失敗した場合(members=null)は、そのチームだけ所有者判定を諦めて
-            // false扱いにする(一覧から除外)。動的Microsoft 365グループなどメンバーを
-            // 直接取得できないチームが1件あっても、他の正常なチームの判定を継続できるようにする
-            bool isOwner = members is not null &&
-                           (new TeamRoster(members).FindByUserId(currentUserId)?.IsOwner ?? false);
+            // 個別取得も失敗した場合(members=null)は、そのチームだけ今回の所有者判定を諦めて
+            // 一覧から除外する。動的Microsoft 365グループなどメンバーを直接取得できないチームが
+            // 1件あっても、他の正常なチームの判定を継続できるようにする
+            if (members is null)
+            {
+                // 取得不能と「所有者ではない」は別状態。一時的なGraph障害をfalseとして
+                // キャッシュすると、手動更新するまで所有チームが一覧から消え続けてしまう。
+                // 今回の一覧では除外するが、次回取得では再試行できるよう未キャッシュのままにする
+                continue;
+            }
+
+            bool isOwner = new TeamRoster(members).FindByUserId(currentUserId)?.IsOwner ?? false;
             _ownershipCache.Set(currentUserId, team.Id, isOwner);
             ownership[index] = isOwner;
         }
