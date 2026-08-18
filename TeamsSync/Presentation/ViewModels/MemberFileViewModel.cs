@@ -33,7 +33,7 @@ public partial class MemberFileViewModel : ObservableObject, IMemberInputAvailab
     public MemberFileViewModel(IMemberListReader reader, IMemberTextParser textParser,
         IUserPreferences preferences, IFilePickerService filePicker, INotificationService notifications,
         TeamsAccessService teamsAccess, IMemberInputConfirmationService inputConfirmation,
-        IMemberListExporter exporter)
+        IMemberListExporter exporter, ISavedFileLauncher? savedFileLauncher = null)
     {
         _inputCoordinator = new MemberFileInputCoordinator(reader, textParser);
         _preferences = preferences;
@@ -41,7 +41,8 @@ public partial class MemberFileViewModel : ObservableObject, IMemberInputAvailab
         _notifications = notifications;
         _inputConfirmation = inputConfirmation;
         Import = new TeamMemberImportViewModel(teamsAccess, _inputCoordinator, notifications, inputConfirmation, this);
-        Export = new TeamMemberExportViewModel(teamsAccess, filePicker, exporter, notifications, preferences);
+        Export = new TeamMemberExportViewModel(teamsAccess, filePicker, exporter, notifications, preferences,
+            savedFileLauncher ?? NoOpSavedFileLauncher.Instance);
         Import.Imported += OnMembersImported;
         Import.StatusChanged += (message, isError) => _uiEvents.Status(message, isError);
         Import.PropertyChanged += (_, args) =>
@@ -487,6 +488,17 @@ public partial class MemberFileViewModel : ObservableObject, IMemberInputAvailab
         if (Document is not null)
         {
             _uiEvents.Status($"{Document.Addresses.Count}件の一意な氏名／メールアドレスを読み込みました", false);
+        }
+    }
+
+    // DIでは常にISavedFileLauncherの実装が登録されるため使われない。savedFileLauncherを
+    // 省略できるようにして、この機能を検証しない既存テストの呼び出し箇所を変更せずに済ませるための既定値
+    private sealed class NoOpSavedFileLauncher : ISavedFileLauncher
+    {
+        public static readonly NoOpSavedFileLauncher Instance = new();
+
+        public void Open(string path)
+        {
         }
     }
 }

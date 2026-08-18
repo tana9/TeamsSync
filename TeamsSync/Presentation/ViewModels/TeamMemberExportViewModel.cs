@@ -17,6 +17,7 @@ public partial class TeamMemberExportViewModel : ObservableObject
     private readonly IFilePickerService _filePicker;
     private readonly INotificationService _notifications;
     private readonly IUserPreferences _preferences;
+    private readonly ISavedFileLauncher _savedFileLauncher;
     private readonly TeamsAccessService _teamsAccess;
     private readonly TimeProvider _timeProvider;
     private bool _enabled = true;
@@ -25,13 +26,14 @@ public partial class TeamMemberExportViewModel : ObservableObject
     /// <summary>コンストラクター</summary>
     public TeamMemberExportViewModel(TeamsAccessService teamsAccess, IFilePickerService filePicker,
         IMemberListExporter exporter, INotificationService notifications, IUserPreferences preferences,
-        TimeProvider? timeProvider = null)
+        ISavedFileLauncher savedFileLauncher, TimeProvider? timeProvider = null)
     {
         _teamsAccess = teamsAccess;
         _filePicker = filePicker;
         _exporter = exporter;
         _notifications = notifications;
         _preferences = preferences;
+        _savedFileLauncher = savedFileLauncher;
         _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
@@ -85,8 +87,9 @@ public partial class TeamMemberExportViewModel : ObservableObject
             // CSV書き込みはファイルへの同期I/O(fsync含む)のため、UIスレッドをブロックしないよう
             // ファイル読込(MemberFileInputCoordinator)と同様にTask.Runでオフロードする
             await Task.Run(() => _exporter.Export(members, path), cts.Token);
-            _notifications.ShowSuccess("メンバー一覧を出力しました",
-                $"{members.Count}件を書き出しました: {Path.GetFileName(path)}");
+            _notifications.ShowSuccessWithAction("メンバー一覧を出力しました",
+                $"{members.Count}件を書き出しました: {Path.GetFileName(path)}",
+                "ファイルを開く", () => _savedFileLauncher.Open(path));
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {

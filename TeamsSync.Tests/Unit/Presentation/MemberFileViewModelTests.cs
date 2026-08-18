@@ -617,6 +617,27 @@ public sealed class MemberFileViewModelTests
     }
 
     [Fact]
+    public async Task MemberFile_出力成功後に開くアクションで出力先ファイルを開く()
+    {
+        FakeTeamsGateway gateway = new()
+        {
+            Members = [new TeamMember("a", "a-id", "A", "a@example.com", false)]
+        };
+        FakeFilePickerService filePicker = new() { SaveResultPath = @"C:\out\members.csv" };
+        RecordingNotificationService notifications = new();
+        RecordingSavedFileLauncher launcher = new();
+        RecordingMemberListExporter exporter = new();
+        MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
+            new FakePreferences(), filePicker, notifications, gateway, new FakeDialogs(), exporter, launcher);
+        viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発チーム", null));
+
+        await viewModel.Export.ExportCommand.ExecuteAsync(null);
+        notifications.Action?.Invoke();
+
+        Assert.Equal(@"C:\out\members.csv", launcher.OpenedPath);
+    }
+
+    [Fact]
     public void MemberFile_出力対象のチームが未選択なら出力を実行できない()
     {
         FakeDialogs dialogs = new();
