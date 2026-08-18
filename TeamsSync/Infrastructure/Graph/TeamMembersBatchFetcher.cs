@@ -39,7 +39,7 @@ public sealed class TeamMembersBatchFetcher(GraphSdkClient sdk, ILogger logger)
         IReadOnlyList<int> batch, CancellationToken cancellationToken)
     {
         Dictionary<int, List<TeamMember>> membersByIndex = new();
-        List<int> pending = batch.ToList();
+        List<int> pending = [.. batch];
 
         for (int attempt = 1; attempt <= MaxBatchAttempts && pending.Count > 0; attempt++)
         {

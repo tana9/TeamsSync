@@ -23,7 +23,8 @@ public sealed class MemberListCsvExporter : IMemberListExporter
         foreach (TeamMember member in members.OrderBy(m => m.DisplayName, StringComparer.CurrentCultureIgnoreCase))
         {
             string role = member.IsOwner ? "所有者" : "メンバー";
-            writer.WriteLine(string.Join(",", new[] { member.DisplayName, member.Email, role }.Select(Csv)));
+            string[] fields = [member.DisplayName, member.Email, role];
+            writer.WriteLine(string.Join(",", fields.Select(Csv)));
         }
 
         writer.Flush();
