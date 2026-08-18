@@ -105,6 +105,10 @@ public sealed class MemberListReader : IMemberListReader
             int physicalRow = Math.Max(1, csv.Parser.RawRow);
             throw new InvalidDataException($"{physicalRow}行目のCSV形式が正しくありません。引用符と列数を確認してください。", ex);
         }
+        catch (DecoderFallbackException ex)
+        {
+            throw new InvalidDataException("文字コードを判別できませんでした。UTF-8またはShift-JISで保存してください。", ex);
+        }
 
         ExtractedColumn extracted = ExtractColumn(rows);
         return new ParsedMemberSource(extracted.Values, "CSV", extracted.Column, extracted.IsNameColumn);

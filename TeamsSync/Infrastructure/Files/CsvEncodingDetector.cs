@@ -10,7 +10,10 @@ internal static class CsvEncodingDetector
 
     /// <summary>
     ///     UTF-8のBOMがあればUTF-8として扱う。BOMがない場合はUTF-8として妥当かを検証し、
-    ///     妥当でなければShift-JIS(コードページ932)にフォールバックする
+    ///     妥当でなければShift-JIS(コードページ932)にフォールバックする。UTF-16/UTF-32は
+    ///     判定対象外だが、BOM付きファイルは呼び出し元のStreamReaderが自身のBOM自動判定
+    ///     (detectEncodingFromByteOrderMarks既定true)でこの戻り値より優先して解決するため
+    ///     結果的に読める。BOMなしのUTF-16/UTF-32は文字コードエラーになる
     /// </summary>
     public static Encoding Detect(string path)
     {

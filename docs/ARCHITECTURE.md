@@ -123,7 +123,7 @@ GraphTeamsGateway (ITeamsGateway実装。ドメインロジックの窓口)
 
 横断的な補助クラス:
   GraphEndpoints ………… ホスト名/BaseURI/名前付きHttpClient名/メンバー取得ページサイズ上限の一元管理
-  GraphEndpointValidator … 応答URL・トークン送信先の許可ホスト検証
+  GraphEndpointValidator … トークン送信先の許可エンドポイント検証
   GraphRequestDiagnostics … client-request-idヘッダー付与
   GraphErrorHandler/Formatter … 失敗応答→ログ記録→GraphException変換の共通化
   GraphException ………… Graph API呼び出し失敗を表す例外
@@ -150,7 +150,7 @@ Graph通信は現在すべて`GraphSdkClient`(Graph SDK経由)に一本化され
 | `GraphRequestDiagnostics.cs` | `client-request-id`ヘッダー付与の共通処理 |
 | `GraphEndpoints.cs` | Graphのホスト名/BaseURI/名前付きHttpClient名(`ReadHttpClientName`/`WriteHttpClientName`)/メンバー取得ページサイズ上限の定数を一元管理 |
 | `GraphEndpointValidator.cs` | URLがGraphの想定エンドポイント(https/443/ホスト一致/認証情報なし)かを検証 |
-| `MsalAccessTokenProvider.cs` | SDK(Kiota)向け認証プロバイダー。トークン送信先ホストを検証してから発行 |
+| `MsalAccessTokenProvider.cs` | SDK(Kiota)向け認証プロバイダー。`GraphEndpointValidator`でトークン送信先を検証してから発行 |
 
 ### リクエストの流れの具体例(`GetOwnedTeamsAsync`)
 
@@ -186,11 +186,11 @@ Graph通信は現在すべて`GraphSdkClient`(Graph SDK経由)に一本化され
 Graph通信は`GraphSdkClient`(SDK)経由に一本化されているが、最終的な送信は名前付き`HttpClient`
 (`MicrosoftGraph.Read`/`.Write`、DIでリトライポリシー付き登録)を通す必要がある。
 `GraphSdkTransportHandler`はSDK(`GraphServiceClient`)が内部で生成するHTTPリクエストを横取りし、
-URL検証(`GraphEndpointValidator`)・診断ヘッダー付与(`GraphRequestDiagnostics`)を行ったうえで
-クローンしてその`HttpClient`へ転送する`HttpMessageHandler`。失敗応答は`GraphErrorHandler`が
-共通の規約で`GraphException`へ変換する。呼び出し元は`GraphSdkTransportHandler`1箇所だけだが、
-本体を肥大化させずテストしやすくするため、URL検証・診断ヘッダー付与・エラー変換はそれぞれ
-独立したヘルパークラスに切り出されている。
+診断ヘッダー付与(`GraphRequestDiagnostics`)を行ったうえでクローンしてその`HttpClient`へ転送する
+`HttpMessageHandler`。失敗応答は`GraphErrorHandler`が共通の規約で`GraphException`へ変換する。
+URL検証(`GraphEndpointValidator`)はここでは行わず、`MsalAccessTokenProvider`がトークン取得前に
+行う(後述)。呼び出し元は`GraphSdkTransportHandler`1箇所だけだが、本体を肥大化させずテストしやすく
+するため、診断ヘッダー付与・エラー変換はそれぞれ独立したヘルパークラスに切り出されている。
 
 ### `TeamMembersBatchFetcher`の三段構えの失敗処理
 
@@ -223,13 +223,13 @@ Graphの`GET /teams/{id}/members`スロットリング上限が「テナント�
 
 ### セキュリティ上の作り込み
 
-- `GraphEndpointValidator.Validate` — https/ポート443/ホスト一致/認証情報なし、を全てのリクエスト
-  URL・応答内`@odata.nextLink`に対して検証。Graph応答に含まれるリンクを無条件に辿るとオープン
-  リダイレクト等のリスクがあるための防御。
-- `MsalAccessTokenProvider.AllowedHostsValidator` — SDKがトークンを送ろうとするホストがGraph以外
-  なら例外。Bearerトークンの誤送信を防ぐ。
-- `AddMemberAsync`のGUID検証 — `user@odata.bind`にユーザーIDを文字列展開する前にGUID形式を検証
-  し、OData文字列注入を防止。
+- `GraphEndpointValidator.Validate` — https/ポート443/ホスト一致/認証情報なし、を検証。
+  `MsalAccessTokenProvider.GetAuthorizationTokenAsync`がトークン取得前に呼ぶ。Kiotaの
+  `RequestAdapter`はトークン取得をHTTP送信より先に実行するため、送信直前(`GraphSdkTransportHandler`)
+  だけで検証すると不正なURL(応答内`@odata.nextLink`の改ざん等)でも先にトークン取得(MSALの
+  対話サインインを誘発しうる)が走ってしまう。それを避けるため検証をトークン取得の前段に置いている。
+  `MsalAccessTokenProvider.AllowedHostsValidator`プロパティは`IAccessTokenProvider`実装のために
+  保持しているのみで、実際の検証には使っていない。
 
 ---
 
@@ -243,7 +243,7 @@ Graphの`GET /teams/{id}/members`スロットリング上限が「テナント�
 | `MemberListReader.cs` | CSV/Excelのメンバーリスト読み込み |
 | `MemberTextParser.cs` | 貼り付けテキストのパース |
 | `CsvEncodingDetector.cs` | CSVの文字コード判定 |
-| `MemberFileSecurityValidator.cs` | 信頼できない入力ファイルへのサイズ/行数/列数上限とハッシュ計算 |
+| `MemberFileSecurityValidator.cs` | 入力ファイルのサイズ上限チェックと監査ログ用ハッシュ計算 |
 | `SharedFileAccess.cs` | Excelなどで開いたままのファイルも読めるよう共有モードで開く |
 | `SyncResultWriter.cs` | 同期結果CSVの監査ログ出力 |
 | `AuditLogging.cs` | Serilogによる技術ログ設定、ログ出力先の一元管理 |
@@ -258,14 +258,15 @@ Graphの`GET /teams/{id}/members`スロットリング上限が「テナント�
   `FileMode.CreateNew`で書き込み、`Flush(true)`後に`File.Move`でリネームする古典的な手法。
   書き込み途中のクラッシュで壊れたファイルが最終パスに残らないことを保証する。監査ログCSVと
   ユーザー設定JSONの両方がこれを使う。
-- **読み込み中の改ざん検知**(`MemberListReader`) — ファイルサイズを先にチェックしてから読み込み
-  (メモリ枯渇対策)、読み込み前後でSHA-256ハッシュを比較して外部からの同時変更を検知。
-  `SharedFileAccess`で共有モード読み込みを許容している分の安全網になっている。
-- **文字コード判定**(`CsvEncodingDetector`) — BOM確認→UTF-8として妥当かをストリーミング検証→
-  ダメならShift-JIS(cp932)にフォールバック。日本語Excel出力CSVを想定した実務的なデフォルト。
+- **ファイルサイズ上限**(`MemberListReader`/`MemberFileSecurityValidator`) — `File.ReadAllBytes`等で
+  全体を読み込む前に`FileInfo.Length`だけで超過を判定し即座に拒否する。社内限定ツールのため、
+  読込中の改ざん検知や行数・列数上限といった厳密な検証は行わない。
+- **文字コード判定**(`CsvEncodingDetector`) — UTF-8 BOM確認→UTF-8として妥当かをストリーミング
+  検証→ダメならShift-JIS(cp932)にフォールバック。判定対象はUTF-8/UTF-8 BOM付き/Shift-JISのみ
+  だが、UTF-16/UTF-32もBOM付きファイルなら`StreamReader`自身のBOM自動判定が優先されるため
+  結果的に読める。BOMなしのUTF-16/UTF-32は文字コードエラー(`InvalidDataException`)になる。
 - **改行コードの扱い**(`MemberTextParser`) — `ReadOnlySpan<char>.EnumerateLines()`を使わず
-  `\r\n|\n|\r`で手動分割している。標準APIはU+2028/U+2029等でも分割してしまい、制御文字拒否
-  ロジックをすり抜けてしまうため。
+  `\r\n|\n|\r`で手動分割している。標準APIはU+2028/U+2029等でも分割してしまうため。
 - **設定ファイル破損時の復旧**(`JsonUserPreferences`) — 読み込み失敗時は壊れたファイルを
   タイムスタンプ付きでバックアップし、既定値で継続。ログにはファイル名のみを出力し、フルパス
   (Windowsユーザー名を含む)は書かない。

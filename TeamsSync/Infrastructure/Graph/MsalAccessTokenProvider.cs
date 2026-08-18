@@ -12,10 +12,11 @@ internal sealed class MsalAccessTokenProvider(IAuthenticationService authenticat
     public AllowedHostsValidator AllowedHostsValidator { get; } = new([GraphEndpoints.Host]);
 
     // KiotaのHttpClientRequestAdapterは、このメソッドをトランスポート層(GraphSdkTransportHandler)より
-    // 先に呼び出す。そのためGraphSdkTransportHandler.Validateだけに検証を委ねると、不正なURLに対しても
+    // 先に呼び出す。送信直前(GraphSdkTransportHandler)だけで検証すると、不正なURLに対しても
     // トークン取得(MSALの対話サインインを誘発しうる処理)が先に走ってしまう。AllowedHostsValidatorは
     // ホスト名しか見ずポート・スキーム・ユーザー情報を検証しないため、ここでは同じ許可基準を持つ
-    // GraphEndpointValidatorをトークン取得より前に呼び、不正なURLの場合はトークンを取得せず即座に拒否する
+    // GraphEndpointValidatorをトークン取得より前に呼び、不正なURLの場合はトークンを取得せず即座に拒否する。
+    // URL検証はこのメソッドだけで行い、GraphSdkTransportHandler側では重複させていない
     /// <summary>リクエスト先が許可されたエンドポイントであることを確認したうえで、アクセストークンを取得する</summary>
     /// <param name="uri">トークンを送信するリクエスト先のURI</param>
     /// <param name="additionalAuthenticationContext">Kiotaから渡される追加の認証コンテキスト(未使用)</param>

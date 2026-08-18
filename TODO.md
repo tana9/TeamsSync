@@ -168,8 +168,8 @@ TeamsSync の今後の改善項目。メンバー削除を伴うアプリケー�
 
 ### コードレビューで見つかった残りの防御的修正
 
-- [x] `GraphSdkClient.AddMemberAsync`が受け取る`userId`をエスケープまたは検証し、将来GUID以外の値が渡された場合のOData束縛文字列注入を防ぐ（`Guid.TryParse`で検証し、GUID形式でなければ通信前に`ArgumentException`を投げるよう変更）
-- [x] 貼り付けテキストの制御文字フィルタがUnicode行区切り・段落区切り(U+2028/U+2029)を素通りさせる問題を修正する（`char.IsControl`に加えて`char.GetUnicodeCategory`が`LineSeparator`/`ParagraphSeparator`を返す文字も拒否するよう変更）
+- [ ] ~~`GraphSdkClient.AddMemberAsync`が受け取る`userId`をエスケープまたは検証し、将来GUID以外の値が渡された場合のOData束縛文字列注入を防ぐ~~（`Guid.TryParse`検証を一度追加したが、`userId`は常にGraph自身が返した値であり到達しない防御だったため、社内限定ツール向けの簡略化として撤去済み）
+- [ ] ~~貼り付けテキストの制御文字フィルタがUnicode行区切り・段落区切り(U+2028/U+2029)を素通りさせる問題を修正する~~（`char.GetUnicodeCategory`による個別判定を一度追加したが、過剰と判断し`char.IsControl`のみへ簡略化済み）
 - [x] Excel読込で列数不一致の行が無警告で除外される挙動をCSVと揃え、除外・欠落をエラーまたは警告として明示する（`ReadExcel`にCSVの`ReadCsv`と同じ「1行目と列数が異なれば行番号付きで例外」チェックを追加。`ExtractColumn`の`.Where(r => r.Length > column)`による無警告の除外に頼らないようにした）
 - [x] 同期中にウィンドウを閉じる際のガード(`_closeAfterCancellation`)を`await`前に設定し、待機中の再クローズ操作で二重キャンセル・未処理例外が起きないようにする（`_cancellingBeforeClose`を追加し、キャンセル待機中の再クローズ操作は`CancelAndWaitAsync`・`Close()`を再実行せず保留するよう`DecideCloseAction`として切り出し。`DecideEscapeAction`と同様の形でテスト可能にした）
 - [x] 「テキストとして編集」確認ダイアログ後のフォーカス復元が、直後のタブ切替でボタンがビジュアルツリーから外れて失敗する問題を修正する（`ShowRestoringFocusAsync`の汎用復元(旧フォーカス先への復元)には頼らず、`CopyFileContentToTextAsync`でタブ切替後に既存の`InputFocusRequested`を発行し、切替後に有効な貼り付けテキスト欄へ明示的にフォーカスするよう変更）

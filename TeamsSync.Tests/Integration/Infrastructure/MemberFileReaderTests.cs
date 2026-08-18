@@ -243,6 +243,34 @@ public sealed class MemberFileReaderTests : IDisposable
     }
 
     [Fact]
+    public void ReadCsv_BOM付きUTF16はStreamReaderの自動判定で読み込める()
+    {
+        // CsvEncodingDetectorはUTF-8/UTF-8 BOM付き/Shift-JISしか判定せずUTF-16はShift-JISの
+        // Encodingを返すが、StreamReaderのdetectEncodingFromByteOrderMarks(既定true)がBOMを見て
+        // 実際のデコードでは指定したEncodingより優先されるため、BOM付きファイルは結果的に読める
+        string path = Path.Combine(_directory, "utf16-bom.csv");
+        File.WriteAllText(path, "メールアドレス,氏名\nuser@example.com,山田太郎\n", Encoding.Unicode);
+
+        MemberListDocument result = new MemberListReader().Read(path, CancellationToken.None);
+
+        Assert.Equal(["user@example.com"], result.Addresses);
+        Assert.Equal("メールアドレス", result.DetectedColumn);
+    }
+
+    [Fact]
+    public void ReadCsv_BOMなしUTF16は文字コードエラーになる()
+    {
+        // BOMがない場合はStreamReaderの自動判定が働かないため、Shift-JISとして誤って
+        // デコードされ、無効なバイト列として文字コードエラーになる
+        string path = Path.Combine(_directory, "utf16-nobom.csv");
+        File.WriteAllBytes(path, Encoding.Unicode.GetBytes("メールアドレス,氏名\nuser@example.com,山田太郎\n"));
+
+        InvalidDataException ex =
+            Assert.Throws<InvalidDataException>(() => new MemberListReader().Read(path, CancellationToken.None));
+        Assert.Contains("文字コード", ex.Message);
+    }
+
+    [Fact]
     public void ReadCsv_DetectsUtf8WithBom()
     {
         string path = Path.Combine(_directory, "utf8-bom.csv");
