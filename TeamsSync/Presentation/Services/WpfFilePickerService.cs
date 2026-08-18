@@ -17,4 +17,20 @@ public sealed class WpfFilePickerService : IFilePickerService
         };
         return dialog.ShowDialog() == true ? dialog.FileName : null;
     }
+
+    /// <inheritdoc />
+    public string? PickSaveLocation(string suggestedFileName, string? initialDirectory)
+    {
+        SaveFileDialog dialog = new()
+        {
+            Title = "CSVファイルの保存先を選択",
+            Filter = "CSV (*.csv)|*.csv",
+            DefaultExt = ".csv",
+            AddExtension = true,
+            OverwritePrompt = true,
+            FileName = suggestedFileName,
+            InitialDirectory = Directory.Exists(initialDirectory) ? initialDirectory : null
+        };
+        return dialog.ShowDialog() == true ? dialog.FileName : null;
+    }
 }

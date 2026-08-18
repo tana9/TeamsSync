@@ -18,7 +18,7 @@ public sealed class MainWindowViewModelTests
         FakePreferences preferences = new();
         TeamSelectionViewModel teamSelection = new(gateway, dialogs);
         MemberFileViewModel memberFile = new(new FakeMemberListReader(null!), new MemberTextParser(),
-            preferences, dialogs, dialogs, gateway, dialogs);
+            preferences, dialogs, dialogs, gateway, dialogs, dialogs);
         SyncWorkspaceViewModel syncWorkspace = SyncWorkspaceViewModelFactory.Create(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), dialogs, dialogs);
         MainWindowViewModel viewModel = new(new FakeAuthenticationService(), gateway, dialogs,
@@ -40,7 +40,7 @@ public sealed class MainWindowViewModelTests
         FakePreferences preferences = new();
         TeamSelectionViewModel teamSelection = new(gateway, dialogs);
         MemberFileViewModel memberFile = new(new FakeMemberListReader(null!), new MemberTextParser(),
-            preferences, dialogs, dialogs, gateway, dialogs);
+            preferences, dialogs, dialogs, gateway, dialogs, dialogs);
         SyncWorkspaceViewModel syncWorkspace = SyncWorkspaceViewModelFactory.Create(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), dialogs, dialogs);
         MainWindowViewModel viewModel = new(new FakeAuthenticationService(), gateway, dialogs,
@@ -59,7 +59,7 @@ public sealed class MainWindowViewModelTests
         FakePreferences preferences = new();
         TeamSelectionViewModel teamSelection = new(gateway, dialogs);
         MemberFileViewModel memberFile = new(new FakeMemberListReader(null!), new MemberTextParser(),
-            preferences, dialogs, dialogs, gateway, dialogs);
+            preferences, dialogs, dialogs, gateway, dialogs, dialogs);
         SyncWorkspaceViewModel syncWorkspace = SyncWorkspaceViewModelFactory.Create(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), dialogs, dialogs);
         MainWindowViewModel viewModel = new(new FakeAuthenticationService(), gateway, notifications,
@@ -80,7 +80,7 @@ public sealed class MainWindowViewModelTests
         FakePreferences preferences = new();
         TeamSelectionViewModel teamSelection = new(gateway, dialogs);
         MemberFileViewModel memberFile = new(new FakeMemberListReader(null!), new MemberTextParser(),
-            preferences, dialogs, dialogs, gateway, dialogs);
+            preferences, dialogs, dialogs, gateway, dialogs, dialogs);
         SyncWorkspaceViewModel syncWorkspace = SyncWorkspaceViewModelFactory.Create(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), dialogs, dialogs);
         MainWindowViewModel viewModel = new(new FakeAuthenticationService(), gateway, dialogs,
@@ -110,7 +110,7 @@ public sealed class MainWindowViewModelTests
         FakePreferences preferences = new();
         TeamSelectionViewModel teamSelection = new(gateway, dialogs);
         MemberFileViewModel memberFile = new(new FakeMemberListReader(null!), new MemberTextParser(),
-            preferences, dialogs, dialogs, gateway, dialogs);
+            preferences, dialogs, dialogs, gateway, dialogs, dialogs);
         SyncWorkspaceViewModel syncWorkspace = SyncWorkspaceViewModelFactory.Create(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), dialogs, dialogs);
         FakeAuthenticationService auth = new()
@@ -144,7 +144,7 @@ public sealed class MainWindowViewModelTests
         FakePreferences preferences = new();
         TeamSelectionViewModel teamSelection = new(gateway, dialogs);
         MemberFileViewModel memberFile = new(new FakeMemberListReader(null!), new MemberTextParser(),
-            preferences, dialogs, dialogs, gateway, dialogs);
+            preferences, dialogs, dialogs, gateway, dialogs, dialogs);
         SyncWorkspaceViewModel syncWorkspace = SyncWorkspaceViewModelFactory.Create(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), dialogs, dialogs);
         FakeAuthenticationService auth = new() { SignOutException = new TaskCanceledException("request timeout") };
@@ -181,7 +181,7 @@ public sealed class MainWindowViewModelTests
         FakeMemberListReader reader = new(new MemberListDocument(["new@example.com"], "members.csv",
             "C:\\members.csv", new DateTime(2026, 7, 28), "CSV", "email"));
         MemberFileViewModel memberFile = new(reader, new MemberTextParser(), preferences, dialogs, dialogs,
-            gateway, dialogs);
+            gateway, dialogs, dialogs);
         SyncWorkspaceViewModel syncWorkspace = SyncWorkspaceViewModelFactory.Create(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), dialogs, dialogs);
         MainWindowViewModel viewModel = new(new FakeAuthenticationService(), gateway, dialogs,
@@ -239,7 +239,7 @@ public sealed class MainWindowViewModelTests
         FakePreferences preferences = new();
         TeamSelectionViewModel teamSelection = new(gateway, dialogs);
         MemberFileViewModel memberFile = new(new FakeMemberListReader(null!), new MemberTextParser(),
-            preferences, dialogs, dialogs, gateway, dialogs);
+            preferences, dialogs, dialogs, gateway, dialogs, dialogs);
         SyncWorkspaceViewModel syncWorkspace = SyncWorkspaceViewModelFactory.Create(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), dialogs, dialogs);
         MainWindowViewModel viewModel = new(new FakeAuthenticationService(), gateway, dialogs,

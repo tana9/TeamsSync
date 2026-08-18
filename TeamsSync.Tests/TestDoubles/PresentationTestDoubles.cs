@@ -262,11 +262,21 @@ internal sealed class FakeFilePickerService : IFilePickerService
 {
     public string? InitialDirectory { get; private set; }
     public string? ResultPath { get; set; }
+    public string? SuggestedFileName { get; private set; }
+    public string? SaveInitialDirectory { get; private set; }
+    public string? SaveResultPath { get; set; }
 
     public string? PickMemberFile(string? initialDirectory)
     {
         InitialDirectory = initialDirectory;
         return ResultPath;
+    }
+
+    public string? PickSaveLocation(string suggestedFileName, string? initialDirectory)
+    {
+        SuggestedFileName = suggestedFileName;
+        SaveInitialDirectory = initialDirectory;
+        return SaveResultPath;
     }
 }
 
@@ -322,7 +332,7 @@ internal sealed class FakeMemberInputConfirmationService : IMemberInputConfirmat
 // 複数の対話サービスを同じ状態で検証する既存の統合的ViewModelテスト向けアダプター。
 // 個々の振る舞いは責務別テストダブルへ委譲し、新規テストでは各サービスを直接使用する
 internal sealed class FakeDialogs : IFilePickerService, ISyncConfirmationService,
-    IMemberInputConfirmationService, INotificationService
+    IMemberInputConfirmationService, INotificationService, IMemberListExporter
 {
     private readonly FakeFilePickerService _filePicker;
     private readonly FakeMemberInputConfirmationService _inputConfirmation;
@@ -351,6 +361,11 @@ internal sealed class FakeDialogs : IFilePickerService, ISyncConfirmationService
     public string? PickMemberFile(string? initialDirectory)
     {
         return _filePicker.PickMemberFile(initialDirectory);
+    }
+
+    public string? PickSaveLocation(string suggestedFileName, string? initialDirectory)
+    {
+        return _filePicker.PickSaveLocation(suggestedFileName, initialDirectory);
     }
 
     public Task<bool> ConfirmReplaceMemberInputAsync(string teamName, int memberCount,
@@ -383,6 +398,24 @@ internal sealed class FakeDialogs : IFilePickerService, ISyncConfirmationService
     public Task<bool> ConfirmSyncAsync(SyncConfirmation confirmation, CancellationToken cancellationToken = default)
     {
         return _syncConfirmation.ConfirmSyncAsync(confirmation, cancellationToken);
+    }
+
+    public void Export(IReadOnlyList<TeamMember> members, string path)
+    {
+    }
+}
+
+internal sealed class RecordingMemberListExporter : IMemberListExporter
+{
+    public int ExportCount { get; private set; }
+    public IReadOnlyList<TeamMember>? ExportedMembers { get; private set; }
+    public string? ExportedPath { get; private set; }
+
+    public void Export(IReadOnlyList<TeamMember> members, string path)
+    {
+        ExportCount++;
+        ExportedMembers = members;
+        ExportedPath = path;
     }
 }
 

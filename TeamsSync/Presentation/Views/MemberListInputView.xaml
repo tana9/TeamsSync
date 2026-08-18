@@ -116,6 +116,14 @@
                                        Visibility="{Binding Import.IsImportingMembers, Converter={StaticResource BooleanToVisibilityConverter}}"
                                        AutomationProperties.Name="現在のメンバーの取り込みをキャンセル" />
                             <ui:ProgressRing Width="16" Height="16" Margin="8,0" IsIndeterminate="True"
+                                             Visibility="{Binding Export.IsExporting, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                             AutomationProperties.Name="メンバー一覧を出力中" />
+                            <ui:Button Content="CSVへ出力" Command="{Binding Export.ExportCommand}"
+                                       Icon="{ui:SymbolIcon Symbol=ArrowExportUp24}" Appearance="Secondary"
+                                       Margin="8,4,0,4"
+                                       ToolTip="選択中チームの現在の全メンバー(所有者を含む)をCSVファイルへ出力します"
+                                       AutomationProperties.Name="選択中チームのメンバー一覧をCSVへ出力" />
+                            <ui:ProgressRing Width="16" Height="16" Margin="8,0" IsIndeterminate="True"
                                              Visibility="{Binding PasteInput.IsParsing, Converter={StaticResource BooleanToVisibilityConverter}}"
                                              AutomationProperties.Name="貼り付け入力を解析中" />
                             <ui:Button Content="解析をキャンセル" Command="{Binding CancelParsingCommand}"

@@ -13,7 +13,8 @@ namespace TeamsSync.Presentation.ViewModels;
 /// <summary>
 ///     メンバーリストの入力(ファイル選択・ドラッグ&amp;ドロップ・テキスト貼り付け)を管理し、
 ///     解析結果の<see cref="MemberListDocument" />を保持する。Teamsからの現在メンバー取り込みは
-///     <see cref="Import" />(<see cref="TeamMemberImportViewModel" />)へ委譲する
+///     <see cref="Import" />(<see cref="TeamMemberImportViewModel" />)へ、現在メンバーのCSV出力は
+///     <see cref="Export" />(<see cref="TeamMemberExportViewModel" />)へそれぞれ委譲する
 /// </summary>
 public partial class MemberFileViewModel : ObservableObject, IMemberInputAvailability
 {
@@ -31,7 +32,8 @@ public partial class MemberFileViewModel : ObservableObject, IMemberInputAvailab
     /// <summary>コンストラクター</summary>
     public MemberFileViewModel(IMemberListReader reader, IMemberTextParser textParser,
         IUserPreferences preferences, IFilePickerService filePicker, INotificationService notifications,
-        TeamsAccessService teamsAccess, IMemberInputConfirmationService inputConfirmation)
+        TeamsAccessService teamsAccess, IMemberInputConfirmationService inputConfirmation,
+        IMemberListExporter exporter)
     {
         _inputCoordinator = new MemberFileInputCoordinator(reader, textParser);
         _preferences = preferences;
@@ -39,6 +41,7 @@ public partial class MemberFileViewModel : ObservableObject, IMemberInputAvailab
         _notifications = notifications;
         _inputConfirmation = inputConfirmation;
         Import = new TeamMemberImportViewModel(teamsAccess, _inputCoordinator, notifications, inputConfirmation, this);
+        Export = new TeamMemberExportViewModel(teamsAccess, filePicker, exporter, notifications, preferences);
         Import.Imported += OnMembersImported;
         Import.StatusChanged += (message, isError) => _uiEvents.Status(message, isError);
         Import.PropertyChanged += (_, args) =>
@@ -122,6 +125,9 @@ public partial class MemberFileViewModel : ObservableObject, IMemberInputAvailab
     /// <summary>Teamsからの現在メンバー取り込みを管理するViewModel</summary>
     public TeamMemberImportViewModel Import { get; }
 
+    /// <summary>選択中チームの現在メンバーのCSV出力を管理するViewModel</summary>
+    public TeamMemberExportViewModel Export { get; }
+
     /// <summary>現在有効なメンバーリスト文書(未確定の場合はnull)</summary>
     public MemberListDocument? Document { get; private set; }
 
@@ -155,12 +161,14 @@ public partial class MemberFileViewModel : ObservableObject, IMemberInputAvailab
     {
         _enabled = value;
         NotifyCommandStates();
+        Export.SetEnabled(value);
     }
 
-    /// <summary>現在選択されているチームを設定し、メンバー取り込みコマンドの状態を更新する</summary>
+    /// <summary>現在選択されているチームを設定し、メンバー取り込み・出力コマンドの状態を更新する</summary>
     public void SetSelectedTeam(TeamInfo? team)
     {
         Import.SetSelectedTeam(team);
+        Export.SetSelectedTeam(team);
     }
 
     // IMemberInputAvailabilityはTeamMemberImportViewModel専用の内部依存であり、XAMLバインディング等の

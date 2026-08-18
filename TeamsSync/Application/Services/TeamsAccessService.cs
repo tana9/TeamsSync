@@ -40,6 +40,16 @@ public sealed class TeamsAccessService(ITeamsGateway teamsGateway)
         teamsGateway.ClearOwnedTeamsCache(currentUserId);
     }
 
+    /// <summary>指定したチームの現在のメンバー一覧(所有者を含む)を取得する</summary>
+    /// <param name="team">メンバーを取得するチーム</param>
+    /// <param name="cancellationToken">処理のキャンセルを通知するトークン</param>
+    /// <returns>チームに所属するメンバーの一覧</returns>
+    public Task<IReadOnlyList<TeamMember>> GetTeamMembersAsync(TeamInfo team,
+        CancellationToken cancellationToken = default)
+    {
+        return teamsGateway.GetTeamMembersAsync(team.Id, cancellationToken);
+    }
+
     /// <summary>指定したチームの現在の一般メンバーを入力用テキストとして取り込む</summary>
     /// <param name="team">メンバーを取り込むチーム</param>
     /// <param name="cancellationToken">処理のキャンセルを通知するトークン</param>

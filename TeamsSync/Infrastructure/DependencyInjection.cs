@@ -44,6 +44,7 @@ public static class DependencyInjection
         services.AddSingleton<IMemberListReader, MemberListReader>();
         services.AddSingleton<IMemberTextParser, MemberTextParser>();
         services.AddSingleton<ISyncResultWriter, SyncResultWriter>();
+        services.AddSingleton<IMemberListExporter, MemberListCsvExporter>();
         services.AddSingleton<IUserPreferences, JsonUserPreferences>();
         return services;
     }

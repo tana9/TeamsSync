@@ -81,6 +81,13 @@ public interface ISyncResultWriter
     }
 }
 
+/// <summary>チームメンバー一覧をCSVファイルへ書き出す</summary>
+public interface IMemberListExporter
+{
+    /// <summary>指定したパスへ、メンバー一覧(表示名・メールアドレス・役割)をCSV形式で書き出す</summary>
+    void Export(IReadOnlyList<TeamMember> members, string path);
+}
+
 /// <summary>ユーザーごとの永続設定(最終利用フォルダーなど)を扱う</summary>
 public interface IUserPreferences
 {

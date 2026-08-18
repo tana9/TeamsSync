@@ -17,7 +17,7 @@ public sealed class MemberFileViewModelTests
             new DateTime(2026, 8, 2), "CSV", "メールアドレス");
         FakeDialogs dialogs = new();
         MemberFileViewModel viewModel = new(new FakeMemberListReader(fileDocument), new MemberTextParser(),
-            new FakePreferences(), dialogs, dialogs, new FakeTeamsGateway(), dialogs);
+            new FakePreferences(), dialogs, dialogs, new FakeTeamsGateway(), dialogs, dialogs);
         await viewModel.LoadDroppedFileCommand.ExecuteAsync("C:\\members.csv");
         Assert.True(viewModel.CopyFileContentToTextCommand.CanExecute(null));
         bool focusRequested = false;
@@ -44,7 +44,7 @@ public sealed class MemberFileViewModelTests
             new DateTime(2026, 8, 2), "CSV", "メールアドレス");
         FakeDialogs dialogs = new() { OnConfirmReplaceTextWithFileContent = (_, _) => false };
         MemberFileViewModel viewModel = new(new FakeMemberListReader(fileDocument), new MemberTextParser(),
-            new FakePreferences(), dialogs, dialogs, new FakeTeamsGateway(), dialogs)
+            new FakePreferences(), dialogs, dialogs, new FakeTeamsGateway(), dialogs, dialogs)
         {
             PastedText = "old@example.com"
         };
@@ -65,7 +65,7 @@ public sealed class MemberFileViewModelTests
             new DateTime(2026, 8, 2), "CSV", "メールアドレス");
         FakeDialogs dialogs = new();
         MemberFileViewModel viewModel = new(new FakeMemberListReader(fileDocument), new MemberTextParser(),
-            new FakePreferences(), dialogs, dialogs, new FakeTeamsGateway(), dialogs);
+            new FakePreferences(), dialogs, dialogs, new FakeTeamsGateway(), dialogs, dialogs);
         await viewModel.LoadDroppedFileCommand.ExecuteAsync("C:\\members.csv");
         await viewModel.CopyFileContentToTextCommand.ExecuteAsync(null);
         viewModel.PastedText += $"{Environment.NewLine}b@example.com";
@@ -85,7 +85,7 @@ public sealed class MemberFileViewModelTests
         FakeFilePickerService picker = new();
         RecordingNotificationService notifications = new();
         MemberFileViewModel viewModel = new(new FakeMemberListReader(document), new MemberTextParser(),
-            preferences, picker, notifications, new FakeTeamsGateway(), new FakeDialogs());
+            preferences, picker, notifications, new FakeTeamsGateway(), new FakeDialogs(), new FakeDialogs());
 
         await viewModel.LoadDroppedFileCommand.ExecuteAsync(document.FullPath);
 
@@ -106,7 +106,7 @@ public sealed class MemberFileViewModelTests
             new DateTime(2026, 7, 28), "CSV", "email");
         FakeMemberListReader reader = new(document);
         MemberFileViewModel viewModel = new(reader, new MemberTextParser(), new FakePreferences(),
-            new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs());
+            new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs(), new FakeDialogs());
         bool changed = false;
         viewModel.DocumentChanged += () => changed = true;
 
@@ -126,7 +126,7 @@ public sealed class MemberFileViewModelTests
         MemberListDocument document = new(["user@example.com"], "members.csv", "C:\\members.csv",
             new DateTime(2026, 7, 28), "CSV", "email");
         MemberFileViewModel viewModel = new(new FakeMemberListReader(document), new MemberTextParser(),
-            new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs());
+            new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs(), new FakeDialogs());
         Assert.False(viewModel.ShowCollapsedSummary);
         Assert.True(viewModel.ShowFullInput);
 
@@ -155,7 +155,7 @@ public sealed class MemberFileViewModelTests
         SwitchingMemberListReader reader = new(first);
         RecordingNotificationService notifications = new();
         MemberFileViewModel viewModel = new(reader, new MemberTextParser(), new FakePreferences(),
-            new FakeDialogs(), notifications, new FakeTeamsGateway(), new FakeDialogs());
+            new FakeDialogs(), notifications, new FakeTeamsGateway(), new FakeDialogs(), new FakeDialogs());
         int changedCount = 0;
         viewModel.DocumentChanged += () => changedCount++;
 
@@ -188,7 +188,7 @@ public sealed class MemberFileViewModelTests
             SelectedTeam = new TeamInfo("team-1", "開発", null)
         };
         MemberFileViewModel memberFile = new(reader, new MemberTextParser(), preferences,
-            new FakeDialogs(), notifications, gateway, new FakeDialogs());
+            new FakeDialogs(), notifications, gateway, new FakeDialogs(), new FakeDialogs());
         SyncWorkspaceViewModel workspace = SyncWorkspaceViewModelFactory.Create(new SyncPlanService(gateway), new SyncExecutor(gateway),
             new FakeResultWriter(), new FakeDialogs(), notifications);
         MainWindowViewModel main = new(new FakeAuthenticationService(), gateway, notifications,
@@ -228,7 +228,7 @@ public sealed class MemberFileViewModelTests
     {
         BlockingTextParser parser = new();
         MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), parser,
-            new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs())
+            new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs(), new FakeDialogs())
         {
             SelectedInputIndex = 1,
             PastedText = "user@example.com"
@@ -252,7 +252,7 @@ public sealed class MemberFileViewModelTests
     {
         BlockingTextParser parser = new();
         MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), parser,
-            new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs())
+            new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs(), new FakeDialogs())
         {
             SelectedInputIndex = 1,
             PastedText = "user@example.com"
@@ -275,7 +275,7 @@ public sealed class MemberFileViewModelTests
             new DateTime(2026, 7, 28), "CSV", "email");
         BlockingMemberListReader reader = new(document);
         MemberFileViewModel viewModel = new(reader, new MemberTextParser(),
-            new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs());
+            new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs(), new FakeDialogs());
 
         Task execution = viewModel.LoadDroppedFileCommand.ExecuteAsync(document.FullPath);
         await reader.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
@@ -299,7 +299,7 @@ public sealed class MemberFileViewModelTests
             new DateTime(2026, 7, 28), "CSV", "email");
         BlockingMemberListReader reader = new(next);
         MemberFileViewModel viewModel = new(reader, new MemberTextParser(),
-            new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs());
+            new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs(), new FakeDialogs());
 
         // キャンセルされた読込ではDocumentを変更しないため、読込前の状態(未選択)が維持されることを確認する
         Task execution = viewModel.LoadDroppedFileCommand.ExecuteAsync(next.FullPath);
@@ -320,7 +320,7 @@ public sealed class MemberFileViewModelTests
     public async Task MemberFile_貼り付けエラーの行番号を表示してステータスへ通知する()
     {
         MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
-            new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs())
+            new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs(), new FakeDialogs())
         {
             SelectedInputIndex = 1,
             PastedText = "user@example.com\ninvalid\tvalue"
@@ -341,7 +341,7 @@ public sealed class MemberFileViewModelTests
     {
         MemberFileViewModel viewModel = new(
             new FakeMemberListReader(null!), new MemberTextParser(),
-            new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs());
+            new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs(), new FakeDialogs());
         int changedCount = 0;
         viewModel.DocumentChanged += () => changedCount++;
         viewModel.SelectedInputIndex = 1;
@@ -369,7 +369,7 @@ public sealed class MemberFileViewModelTests
                 new DateTime(2026, 7, 28), "CSV", "email"))
         { Exception = new InvalidDataException("壊れたファイルです") };
         MemberFileViewModel viewModel = new(reader, new MemberTextParser(), new FakePreferences(),
-            new FakeDialogs(), new RecordingNotificationService(), new FakeTeamsGateway(), new FakeDialogs());
+            new FakeDialogs(), new RecordingNotificationService(), new FakeTeamsGateway(), new FakeDialogs(), new FakeDialogs());
         bool focusRequested = false;
         viewModel.InputFocusRequested += () => focusRequested = true;
 
@@ -383,7 +383,7 @@ public sealed class MemberFileViewModelTests
     public async Task MemberFile_貼り付け解析失敗時にInputFocusRequestedを通知する()
     {
         MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
-            new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs())
+            new FakePreferences(), new FakeDialogs(), new FakeDialogs(), new FakeTeamsGateway(), new FakeDialogs(), new FakeDialogs())
         {
             SelectedInputIndex = 1,
             PastedText = "user@example.com\ninvalid\tvalue"
@@ -411,7 +411,7 @@ public sealed class MemberFileViewModelTests
         };
         FakeDialogs dialogs = new();
         MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
-            new FakePreferences(), dialogs, dialogs, gateway, dialogs);
+            new FakePreferences(), dialogs, dialogs, gateway, dialogs, dialogs);
         viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発", null));
         viewModel.SelectedInputIndex = 1;
 
@@ -434,7 +434,7 @@ public sealed class MemberFileViewModelTests
         };
         FakeDialogs dialogs = new() { OnConfirmReplaceMemberInput = (_, _) => false };
         MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
-            new FakePreferences(), dialogs, dialogs, gateway, dialogs)
+            new FakePreferences(), dialogs, dialogs, gateway, dialogs, dialogs)
         {
             SelectedInputIndex = 1,
             PastedText = "old@example.com"
@@ -459,7 +459,7 @@ public sealed class MemberFileViewModelTests
         };
         FakeDialogs dialogs = new();
         MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
-            new FakePreferences(), dialogs, dialogs, gateway, dialogs)
+            new FakePreferences(), dialogs, dialogs, gateway, dialogs, dialogs)
         {
             SelectedInputIndex = 1,
             PastedText = "old@example.com"
@@ -490,7 +490,7 @@ public sealed class MemberFileViewModelTests
         };
         FakeDialogs dialogs = new();
         MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
-            new FakePreferences(), dialogs, dialogs, gateway, dialogs)
+            new FakePreferences(), dialogs, dialogs, gateway, dialogs, dialogs)
         {
             SelectedInputIndex = 1,
             PastedText = "old@example.com"
@@ -520,7 +520,7 @@ public sealed class MemberFileViewModelTests
         FakeDialogs dialogs = new();
         RecordingNotificationService notifications = new();
         MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
-            new FakePreferences(), dialogs, notifications, gateway, dialogs)
+            new FakePreferences(), dialogs, notifications, gateway, dialogs, dialogs)
         {
             SelectedInputIndex = 1,
             PastedText = "old@example.com"
@@ -542,7 +542,7 @@ public sealed class MemberFileViewModelTests
         FakeTeamsGateway gateway = new();
         FakeDialogs dialogs = new();
         MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
-            new FakePreferences(), dialogs, dialogs, gateway, dialogs);
+            new FakePreferences(), dialogs, dialogs, gateway, dialogs, dialogs);
 
         Assert.False(viewModel.Import.ImportCurrentMembersCommand.CanExecute(null));
         viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発", null));
@@ -568,7 +568,7 @@ public sealed class MemberFileViewModelTests
         };
         FakeDialogs dialogs = new();
         MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
-            new FakePreferences(), dialogs, dialogs, gateway, dialogs)
+            new FakePreferences(), dialogs, dialogs, gateway, dialogs, dialogs)
         {
             SelectedInputIndex = 1,
             PastedText = "old@example.com"
@@ -585,5 +585,107 @@ public sealed class MemberFileViewModelTests
         Assert.Equal("old@example.com", viewModel.PastedText);
         Assert.Same(originalDocument, viewModel.Document);
         Assert.False(viewModel.Import.IsImportingMembers);
+    }
+
+    [Fact]
+    public async Task MemberFile_選択中チームの全メンバーを所有者含めてCSVへ出力する()
+    {
+        FakeTeamsGateway gateway = new()
+        {
+            Members =
+            [
+                new TeamMember("owner", "owner-id", "Owner", "owner@example.com", true),
+                new TeamMember("b", "b-id", "B", "b@example.com", false)
+            ]
+        };
+        FakeDialogs dialogs = new();
+        FakeFilePickerService filePicker = new() { SaveResultPath = @"C:\out\members.csv" };
+        RecordingMemberListExporter exporter = new();
+        MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
+            new FakePreferences(), filePicker, dialogs, gateway, dialogs, exporter);
+        viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発チーム", null));
+
+        await viewModel.Export.ExportCommand.ExecuteAsync(null);
+
+        Assert.Equal(1, exporter.ExportCount);
+        Assert.Equal(2, exporter.ExportedMembers!.Count);
+        Assert.Contains(exporter.ExportedMembers, m => m.IsOwner);
+        Assert.Equal(@"C:\out\members.csv", exporter.ExportedPath);
+        Assert.Contains("開発チーム", filePicker.SuggestedFileName);
+        Assert.EndsWith(".csv", filePicker.SuggestedFileName);
+        Assert.False(viewModel.Export.IsExporting);
+    }
+
+    [Fact]
+    public void MemberFile_出力対象のチームが未選択なら出力を実行できない()
+    {
+        FakeDialogs dialogs = new();
+        MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
+            new FakePreferences(), dialogs, dialogs, new FakeTeamsGateway(), dialogs, dialogs);
+
+        Assert.False(viewModel.Export.ExportCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task MemberFile_メンバーが0人なら出力せず警告を表示する()
+    {
+        FakeTeamsGateway gateway = new();
+        FakeDialogs dialogs = new();
+        RecordingMemberListExporter exporter = new();
+        MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
+            new FakePreferences(), dialogs, dialogs, gateway, dialogs, exporter);
+        viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発チーム", null));
+
+        await viewModel.Export.ExportCommand.ExecuteAsync(null);
+
+        Assert.Equal(0, exporter.ExportCount);
+        Assert.Contains("メンバー", dialogs.WarningTitle);
+    }
+
+    [Fact]
+    public async Task MemberFile_保存先の選択をキャンセルすると出力しない()
+    {
+        FakeTeamsGateway gateway = new()
+        {
+            Members = [new TeamMember("a", "a-id", "A", "a@example.com", false)]
+        };
+        FakeDialogs dialogs = new();
+        FakeFilePickerService filePicker = new() { SaveResultPath = null };
+        RecordingMemberListExporter exporter = new();
+        MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
+            new FakePreferences(), filePicker, dialogs, gateway, dialogs, exporter);
+        viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発チーム", null));
+
+        await viewModel.Export.ExportCommand.ExecuteAsync(null);
+
+        Assert.Equal(0, exporter.ExportCount);
+    }
+
+    [Fact]
+    public async Task MemberFile_出力中にチームが変わると取得をキャンセルする()
+    {
+        TaskCompletionSource started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        FakeTeamsGateway gateway = new()
+        {
+            OnGetMembers = async (_, cancellationToken) =>
+            {
+                started.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                return [];
+            }
+        };
+        FakeDialogs dialogs = new();
+        RecordingMemberListExporter exporter = new();
+        MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
+            new FakePreferences(), dialogs, dialogs, gateway, dialogs, exporter);
+        viewModel.SetSelectedTeam(new TeamInfo("team-a", "チームA", null));
+
+        Task exporting = viewModel.Export.ExportCommand.ExecuteAsync(null);
+        await started.Task;
+        viewModel.SetSelectedTeam(new TeamInfo("team-b", "チームB", null));
+        await exporting;
+
+        Assert.Equal(0, exporter.ExportCount);
+        Assert.False(viewModel.Export.IsExporting);
     }
 }
