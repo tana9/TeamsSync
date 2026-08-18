@@ -1,4 +1,7 @@
+using System.Globalization;
 using System.Text;
+
+using CsvHelper;
 
 using TeamsSync.Application.Abstractions;
 using TeamsSync.Application.Models;
@@ -22,6 +25,13 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
     private readonly string _logDirectory = logDirectory ?? AuditLogging.SyncResultLogDirectory;
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     private readonly IIdentifierGenerator _identifierGenerator = identifierGenerator ?? new IdentifierGenerator();
+
+    // ヘッダー行は既存の監査ログ形式に合わせ引用符なしで出力する(データ行だけ全フィールドを引用符で囲む)
+    private static readonly string[] HeaderColumns =
+    [
+        "実行日時", "実行ID", "操作ユーザー表示名", "操作ユーザーオブジェクトID", "対象チーム", "同期モード",
+        "表示名", "メールアドレス", "状態", "詳細", "結果", "エラー"
+    ];
 
     /// <inheritdoc />
     public void VerifyWriteAccess()
@@ -53,8 +63,9 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
         SyncAuditContext auditContext, DateTimeOffset executedAt)
     {
         using StreamWriter writer = new(stream, new UTF8Encoding(true), leaveOpen: true);
-        writer.WriteLine(
-            "実行日時,実行ID,操作ユーザー表示名,操作ユーザーオブジェクトID,対象チーム,同期モード,表示名,メールアドレス,状態,詳細,結果,エラー");
+        using CsvWriter csv = new(writer, CultureInfo.InvariantCulture, leaveOpen: true);
+
+        CsvRowWriter.WriteRow(csv, HeaderColumns, quoted: false);
 
         string[] executionColumns =
         [
@@ -77,10 +88,10 @@ public sealed class SyncResultWriter(string? logDirectory = null, TimeProvider? 
                 change.DisplayName, change.Email, ChangeKindText.Label(change.Kind),
                 SyncChangeReasonText.Format(change.Reason), status, error
             ]);
-            writer.WriteLine(string.Join(",", row.Select(CsvField.Escape)));
+            CsvRowWriter.WriteRow(csv, row, quoted: true);
         }
 
-        writer.Flush();
+        csv.Flush();
     }
 
     /// <summary>変更1件の実行結果列(結果・エラー)を組み立てる。追加・削除以外は実行対象外のため空欄にする</summary>
