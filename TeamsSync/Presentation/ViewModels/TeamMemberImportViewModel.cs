@@ -86,7 +86,6 @@ public partial class TeamMemberImportViewModel : ObservableObject
     public void NotifyCanExecuteChanged()
     {
         ImportCurrentMembersCommand.NotifyCanExecuteChanged();
-        CancelImportCurrentMembersCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>選択中チームの一般メンバーを取得し、テキスト入力として反映する</summary>
@@ -183,17 +182,5 @@ public partial class TeamMemberImportViewModel : ObservableObject
     private bool CanImportCurrentMembers()
     {
         return !IsImportingMembers && _selectedTeam is not null && _availability.CanImportCurrentMembers;
-    }
-
-    /// <summary>実行中の現在メンバー取り込みをキャンセルする</summary>
-    [RelayCommand(CanExecute = nameof(CanCancelImportCurrentMembers))]
-    private void CancelImportCurrentMembers()
-    {
-        _importCancellation.Cancel();
-    }
-
-    private bool CanCancelImportCurrentMembers()
-    {
-        return IsImportingMembers && _importCancellation.IsActive;
     }
 }

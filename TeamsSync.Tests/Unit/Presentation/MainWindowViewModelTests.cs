@@ -298,7 +298,7 @@ public sealed class MainWindowViewModelTests
         Assert.False(memberFile.ApplyPastedTextInputCommand.CanExecute(null));
         Assert.False(memberFile.LoadDroppedFileCommand.CanExecute("C:\\members.csv"));
 
-        memberFile.Import.CancelImportCurrentMembersCommand.Execute(null);
+        teamSelection.SelectedTeam = new TeamInfo("team-2", "別チーム", null);
         await importing;
 
         Assert.True(viewModel.InputsEnabled);

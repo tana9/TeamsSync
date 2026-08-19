@@ -476,40 +476,6 @@ public sealed class MemberFileViewModelTests
     }
 
     [Fact]
-    public async Task MemberFile_現在メンバー取得のキャンセル時は既存入力を維持する()
-    {
-        TaskCompletionSource started = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        FakeTeamsGateway gateway = new()
-        {
-            OnGetMembers = async (_, cancellationToken) =>
-            {
-                started.TrySetResult();
-                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
-                return [];
-            }
-        };
-        FakeDialogs dialogs = new();
-        MemberFileViewModel viewModel = new(new FakeMemberListReader(null!), new MemberTextParser(),
-            new FakePreferences(), dialogs, dialogs, gateway, dialogs, dialogs)
-        {
-            SelectedInputIndex = 1,
-            PastedText = "old@example.com"
-        };
-        await viewModel.ApplyPastedTextInputCommand.ExecuteAsync(null);
-        MemberListDocument? originalDocument = viewModel.Document;
-        viewModel.SetSelectedTeam(new TeamInfo("team-1", "開発", null));
-
-        Task importing = viewModel.Import.ImportCurrentMembersCommand.ExecuteAsync(null);
-        await started.Task;
-        viewModel.Import.CancelImportCurrentMembersCommand.Execute(null);
-        await importing;
-
-        Assert.Equal("old@example.com", viewModel.PastedText);
-        Assert.Same(originalDocument, viewModel.Document);
-        Assert.False(viewModel.Import.IsImportingMembers);
-    }
-
-    [Fact]
     public async Task MemberFile_現在メンバー取得失敗時は既存入力を維持する()
     {
         FakeTeamsGateway gateway = new()

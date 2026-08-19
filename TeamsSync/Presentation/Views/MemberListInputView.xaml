@@ -118,10 +118,6 @@
                                        Margin="0,4"
                                        ToolTip="選択中チームの一般メンバーをテキスト入力へ取り込みます"
                                        AutomationProperties.Name="現在の一般メンバーを入力リストへ取り込む" />
-                            <ui:Button Content="キャンセル" Command="{Binding Import.CancelImportCurrentMembersCommand}"
-                                       Margin="8,4,0,4" Appearance="Secondary"
-                                       Visibility="{Binding Import.IsImportingMembers, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                       AutomationProperties.Name="現在のメンバーの取り込みをキャンセル" />
                             <ui:Button Content="CSVへ出力" Command="{Binding Export.ExportCommand}"
                                        Icon="{ui:SymbolIcon Symbol=ArrowCircleDown24}" Appearance="Secondary"
                                        Margin="8,4,0,4"
