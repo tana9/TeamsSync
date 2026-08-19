@@ -30,13 +30,17 @@ internal static class GraphResponseParser
     }
 
     // /me/ownedObjectsは所有するディレクトリオブジェクト全般(グループ・アプリ・サービスプリンシパル等)を
-    // 返すため、Teams化済みグループ(resourceProvisioningOptionsに"Team"を含むGroup)だけへ絞り込む
-    /// <summary>所有オブジェクト一覧から、Teams化済みグループ(チーム)のIDだけを抽出する</summary>
+    // 返すため、Group型のIDだけへ絞り込む。呼び出し元でjoinedTeams(実際に参加しているチーム)との
+    // 積集合を取るため、Teams化済みかどうかをここで判定する必要はない。
+    // 実際、resourceProvisioningOptionsで絞り込もうとすると、このアプリのスコープ(User.Read等)では
+    // Group型オブジェクトの詳細プロパティを読む権限がなく、Graphが「制限された情報」(@odata.typeと
+    // idのみ、他プロパティはnull)として返すため、resourceProvisioningOptionsが常にnullになり
+    // 所有チームを1件も検出できなくなる。idは制限モードでも必ず返るためこちらだけに依拠する
+    /// <summary>所有オブジェクト一覧から、グループ型オブジェクトのIDだけを抽出する</summary>
     public static HashSet<string> ParseOwnedTeamIds(IEnumerable<GraphDirectoryObject> ownedObjects)
     {
         return ownedObjects
             .OfType<GraphGroup>()
-            .Where(group => group.ResourceProvisioningOptions?.Contains("Team") == true)
             .Select(group => Required(group.Id, "id"))
             .ToHashSet();
     }

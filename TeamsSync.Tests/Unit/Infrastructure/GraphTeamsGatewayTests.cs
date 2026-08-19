@@ -119,8 +119,12 @@ public sealed class GraphTeamsGatewayTests
     }
 
     [Fact]
-    public async Task GetOwnedTeams_Team化されていないグループやグループ以外の所有オブジェクトは除外する()
+    public async Task GetOwnedTeams_権限不足でresourceProvisioningOptionsがnullでもjoinedTeamsとの一致で所有チームと判定する()
     {
+        // このアプリのスコープ(User.Read等)ではGroup型オブジェクトの詳細プロパティを読む権限がなく、
+        // GraphはownedObjects応答を「制限された情報」(@odata.typeとidのみ、他プロパティはnull)として
+        // 返す。resourceProvisioningOptionsで絞り込むとこの状態で所有チームを1件も検出できなくなる
+        // 退行を再現し、joinedTeamsとの一致だけで判定できることを確認する
         DelegateHandler handler = new((request, _) =>
         {
             string path = request.RequestUri!.AbsolutePath;
@@ -128,8 +132,8 @@ public sealed class GraphTeamsGatewayTests
             {
                 return Task.FromResult(JsonResponse("""
                                     {"value":[
-                                      {"id":"group-5","displayName":"PlainGroup"},
-                                      {"id":"app-1","displayName":"NotAGroup"}
+                                      {"id":"group-5","displayName":"LimitedInfoTeam"},
+                                      {"id":"group-9","displayName":"NotOwned"}
                                     ]}
                                     """));
             }
@@ -137,7 +141,7 @@ public sealed class GraphTeamsGatewayTests
             Assert.EndsWith("/me/ownedObjects", path, StringComparison.OrdinalIgnoreCase);
             return Task.FromResult(JsonResponse("""
                                 {"value":[
-                                  {"@odata.type":"#microsoft.graph.group","id":"group-5","resourceProvisioningOptions":[]},
+                                  {"@odata.type":"#microsoft.graph.group","id":"group-5"},
                                   {"@odata.type":"#microsoft.graph.application","id":"app-1"}
                                 ]}
                                 """));
@@ -147,7 +151,7 @@ public sealed class GraphTeamsGatewayTests
         IReadOnlyList<TeamInfo> owned =
             await gateway.GetOwnedTeamsAsync("current-user", TestContext.Current.CancellationToken);
 
-        Assert.Empty(owned);
+        Assert.Equal(["LimitedInfoTeam"], owned.Select(team => team.DisplayName));
     }
 
     [Fact]
