@@ -9,7 +9,7 @@
     <Version>0.0.1</Version>
     <Product>TeamsSync</Product>
     <Description>Microsoft Graph APIを使い、CSVまたはExcelの一覧とMicrosoft Teamsの一般メンバーを同期するWPFデスクトップアプリ</Description>
-    <AssemblyTitle>$(Description)</AssemblyTitle>
+    <AssemblyTitle>$(Product)</AssemblyTitle>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.105.1"/>
