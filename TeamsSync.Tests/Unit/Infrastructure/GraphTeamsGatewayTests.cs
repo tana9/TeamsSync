@@ -86,145 +86,29 @@ public sealed class GraphTeamsGatewayTests
     }
 
     [Fact]
-    public async Task GetOwnedTeams_バッチリクエストで所有判定しセッション内で再利用する()
+    public async Task GetOwnedTeams_ownedObjectsとjoinedTeamsの積集合を表示名昇順で返す()
     {
-        int batchCalls = 0;
-        DelegateHandler handler = new(async (request, cancellationToken) =>
+        DelegateHandler handler = new((request, _) =>
         {
             string path = request.RequestUri!.AbsolutePath;
             if (path.EndsWith("/me/joinedTeams", StringComparison.OrdinalIgnoreCase))
             {
-                return JsonResponse("""
+                return Task.FromResult(JsonResponse("""
                                     {"value":[
-                                      {"id":"team-1","displayName":"Zulu"},
-                                      {"id":"team-2","displayName":"Alpha"},
-                                      {"id":"team-3","displayName":"Charlie"},
-                                      {"id":"team-4","displayName":"Bravo"},
-                                      {"id":"team-5","displayName":"Echo"},
-                                      {"id":"team-6","displayName":"Delta"}
+                                      {"id":"group-2","displayName":"Bravo"},
+                                      {"id":"group-4","displayName":"Alpha"},
+                                      {"id":"group-9","displayName":"NotOwned"}
                                     ]}
-                                    """);
+                                    """));
             }
 
-            Assert.EndsWith("/$batch", path, StringComparison.OrdinalIgnoreCase);
-            Interlocked.Increment(ref batchCalls);
-            string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
-            using JsonDocument doc = JsonDocument.Parse(requestBody);
-            var responses = doc.RootElement.GetProperty("requests").EnumerateArray().Select(req =>
-            {
-                string? id = req.GetProperty("id").GetString();
-                string url = req.GetProperty("url").GetString()!;
-                string teamId = url.Split('/')[2];
-                bool isOwned = teamId is "team-2" or "team-4";
-                string memberBody = isOwned
-                    ? """{"value":[{"id":"membership","userId":"current-user","displayName":"Me","email":"me@example.com","roles":["owner"]}]}"""
-                    : """{"value":[]}""";
-                return new { id, status = 200, body = JsonDocument.Parse(memberBody).RootElement };
-            }).ToList();
-            return JsonResponse(JsonSerializer.Serialize(new { responses }));
-        });
-        GraphTeamsGateway gateway = CreateGateway(handler, out _);
-
-        IReadOnlyList<TeamInfo> first = await gateway.GetOwnedTeamsAsync(
-            "current-user", TestContext.Current.CancellationToken);
-        IReadOnlyList<TeamInfo> second = await gateway.GetOwnedTeamsAsync(
-            "current-user", TestContext.Current.CancellationToken);
-
-        Assert.Equal(["Alpha", "Bravo"], first.Select(team => team.DisplayName));
-        Assert.Equal(first, second);
-        Assert.Equal(1, batchCalls);
-
-        gateway.ClearOwnedTeamsCache("current-user");
-        await gateway.GetOwnedTeamsAsync(
-            "current-user", TestContext.Current.CancellationToken);
-
-        Assert.Equal(2, batchCalls);
-    }
-
-    [Fact]
-    public async Task GetOwnedTeams_20件を超える候補は複数バッチへ分割する()
-    {
-        const int teamCount = 25;
-        List<int> batchSizes = new();
-        DelegateHandler handler = new(async (request, cancellationToken) =>
-        {
-            string path = request.RequestUri!.AbsolutePath;
-            if (path.EndsWith("/me/joinedTeams", StringComparison.OrdinalIgnoreCase))
-            {
-                string teams = string.Join(',', Enumerable.Range(1, teamCount)
-                    .Select(i => $$"""{"id":"team-{{i}}","displayName":"Team {{i}}"}"""));
-                return JsonResponse($$"""{"value":[{{teams}}]}""");
-            }
-
-            string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
-            using JsonDocument doc = JsonDocument.Parse(requestBody);
-            List<JsonElement> requestList = doc.RootElement.GetProperty("requests").EnumerateArray().ToList();
-            lock (batchSizes)
-            {
-                batchSizes.Add(requestList.Count);
-            }
-
-            var responses = requestList.Select(req => new
-            {
-                id = req.GetProperty("id").GetString(),
-                status = 200,
-                body = JsonDocument.Parse("""{"value":[]}""").RootElement
-            }).ToList();
-            return JsonResponse(JsonSerializer.Serialize(new { responses }));
-        });
-        GraphTeamsGateway gateway = CreateGateway(handler, out _);
-
-        await gateway.GetOwnedTeamsAsync("current-user", TestContext.Current.CancellationToken);
-
-        Assert.Equal(2, batchSizes.Count);
-        Assert.Equal(teamCount, batchSizes.Sum());
-        Assert.Contains(20, batchSizes);
-    }
-
-    [Fact]
-    public async Task GetOwnedTeams_バッチ内の403は待機せず個別取得へフォールバックする()
-    {
-        int individualCallCount = 0;
-        DelegateHandler handler = new(async (request, cancellationToken) =>
-        {
-            string path = request.RequestUri!.AbsolutePath;
-            if (path.EndsWith("/me/joinedTeams", StringComparison.OrdinalIgnoreCase))
-            {
-                return JsonResponse("""
-                                    {"value":[
-                                      {"id":"team-1","displayName":"Alpha"},
-                                      {"id":"team-2","displayName":"Bravo"}
-                                    ]}
-                                    """);
-            }
-
-            if (path.EndsWith("/$batch", StringComparison.OrdinalIgnoreCase))
-            {
-                string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
-                using JsonDocument doc = JsonDocument.Parse(requestBody);
-                // 403は権限不足であり待っても解決しないため、429/503と異なり即座に個別フォールバックへ回る
-                var responses = doc.RootElement.GetProperty("requests").EnumerateArray().Select(req =>
-                {
-                    string? id = req.GetProperty("id").GetString();
-                    string url = req.GetProperty("url").GetString()!;
-                    string teamId = url.Split('/')[2];
-                    return teamId == "team-1"
-                        ? new { id, status = 403, body = JsonDocument.Parse("{}").RootElement }
-                        : new
-                        {
-                            id,
-                            status = 200,
-                            body = JsonDocument.Parse(
-                                    """{"value":[{"id":"membership","userId":"current-user","displayName":"Me","email":"me@example.com","roles":["owner"]}]}""")
-                                .RootElement
-                        };
-                }).ToList();
-                return JsonResponse(JsonSerializer.Serialize(new { responses }));
-            }
-
-            Interlocked.Increment(ref individualCallCount);
-            return JsonResponse(
-                """{"value":[{"id":"membership","userId":"current-user","displayName":"Me","email":"me@example.com","roles":["owner"]}]}""");
+            Assert.EndsWith("/me/ownedObjects", path, StringComparison.OrdinalIgnoreCase);
+            return Task.FromResult(JsonResponse("""
+                                {"value":[
+                                  {"@odata.type":"#microsoft.graph.group","id":"group-2","resourceProvisioningOptions":["Team"]},
+                                  {"@odata.type":"#microsoft.graph.group","id":"group-4","resourceProvisioningOptions":["Team"]}
+                                ]}
+                                """));
         });
         GraphTeamsGateway gateway = CreateGateway(handler, out _);
 
@@ -232,58 +116,65 @@ public sealed class GraphTeamsGatewayTests
             await gateway.GetOwnedTeamsAsync("current-user", TestContext.Current.CancellationToken);
 
         Assert.Equal(["Alpha", "Bravo"], owned.Select(team => team.DisplayName));
-        Assert.Equal(1, individualCallCount);
     }
 
     [Fact]
-    public async Task GetOwnedTeams_バッチ内の200応答に本文がない場合は個別取得へフォールバックする()
+    public async Task GetOwnedTeams_Team化されていないグループやグループ以外の所有オブジェクトは除外する()
     {
-        int individualCallCount = 0;
-        DelegateHandler handler = new(async (request, cancellationToken) =>
+        DelegateHandler handler = new((request, _) =>
         {
             string path = request.RequestUri!.AbsolutePath;
             if (path.EndsWith("/me/joinedTeams", StringComparison.OrdinalIgnoreCase))
             {
-                return JsonResponse("""
+                return Task.FromResult(JsonResponse("""
                                     {"value":[
-                                      {"id":"team-1","displayName":"Alpha"},
-                                      {"id":"team-2","displayName":"Bravo"}
+                                      {"id":"group-5","displayName":"PlainGroup"},
+                                      {"id":"app-1","displayName":"NotAGroup"}
                                     ]}
-                                    """);
+                                    """));
             }
 
-            if (path.EndsWith("/$batch", StringComparison.OrdinalIgnoreCase))
+            Assert.EndsWith("/me/ownedObjects", path, StringComparison.OrdinalIgnoreCase);
+            return Task.FromResult(JsonResponse("""
+                                {"value":[
+                                  {"@odata.type":"#microsoft.graph.group","id":"group-5","resourceProvisioningOptions":[]},
+                                  {"@odata.type":"#microsoft.graph.application","id":"app-1"}
+                                ]}
+                                """));
+        });
+        GraphTeamsGateway gateway = CreateGateway(handler, out _);
+
+        IReadOnlyList<TeamInfo> owned =
+            await gateway.GetOwnedTeamsAsync("current-user", TestContext.Current.CancellationToken);
+
+        Assert.Empty(owned);
+    }
+
+    [Fact]
+    public async Task GetOwnedTeams_ownedObjectsのページングを辿る()
+    {
+        int call = 0;
+        DelegateHandler handler = new((request, _) =>
+        {
+            string path = request.RequestUri!.AbsolutePath;
+            if (path.EndsWith("/me/joinedTeams", StringComparison.OrdinalIgnoreCase))
             {
-                string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
-                using JsonDocument doc = JsonDocument.Parse(requestBody);
-                // team-1は200応答なのに本文(body)がない異常な形状を返す。SDKのGetResponseByIdAsync<T>が
-                // nullを返す状況を再現し、これが「所有者ではない」と静かに誤判定されず個別取得へ
-                // 回ることを確認する(修正前は空メンバー一覧として扱われisOwner=falseがキャッシュされていた)
-                var responses = doc.RootElement.GetProperty("requests").EnumerateArray().Select(req =>
-                {
-                    string? id = req.GetProperty("id").GetString();
-                    string url = req.GetProperty("url").GetString()!;
-                    string teamId = url.Split('/')[2];
-                    if (teamId == "team-1")
-                    {
-                        return (object) new { id, status = 200 };
-                    }
-
-                    return new
-                    {
-                        id,
-                        status = 200,
-                        body = JsonDocument.Parse(
-                                """{"value":[{"id":"membership","userId":"current-user","displayName":"Me","email":"me@example.com","roles":["owner"]}]}""")
-                            .RootElement
-                    };
-                }).ToList();
-                return JsonResponse(JsonSerializer.Serialize(new { responses }));
+                return Task.FromResult(JsonResponse("""
+                                    {"value":[
+                                      {"id":"group-1","displayName":"Alpha"},
+                                      {"id":"group-2","displayName":"Bravo"}
+                                    ]}
+                                    """));
             }
 
-            Interlocked.Increment(ref individualCallCount);
-            return JsonResponse(
-                """{"value":[{"id":"membership","userId":"current-user","displayName":"Me","email":"me@example.com","roles":["owner"]}]}""");
+            Assert.EndsWith("/me/ownedObjects", path.Split('?')[0], StringComparison.OrdinalIgnoreCase);
+            return Task.FromResult(++call == 1
+                ? JsonResponse("""
+                               {"value":[{"@odata.type":"#microsoft.graph.group","id":"group-1","resourceProvisioningOptions":["Team"]}],"@odata.nextLink":"https://graph.microsoft.com/v1.0/me/ownedObjects?$skiptoken=next"}
+                               """)
+                : JsonResponse("""
+                               {"value":[{"@odata.type":"#microsoft.graph.group","id":"group-2","resourceProvisioningOptions":["Team"]}]}
+                               """));
         });
         GraphTeamsGateway gateway = CreateGateway(handler, out _);
 
@@ -291,360 +182,7 @@ public sealed class GraphTeamsGatewayTests
             await gateway.GetOwnedTeamsAsync("current-user", TestContext.Current.CancellationToken);
 
         Assert.Equal(["Alpha", "Bravo"], owned.Select(team => team.DisplayName));
-        Assert.Equal(1, individualCallCount);
-    }
-
-    [Fact]
-    public async Task GetOwnedTeams_バッチと個別取得の両方が失敗したチームは除外し他のチームの判定を継続する()
-    {
-        DelegateHandler handler = new(async (request, cancellationToken) =>
-        {
-            string path = request.RequestUri!.AbsolutePath;
-            if (path.EndsWith("/me/joinedTeams", StringComparison.OrdinalIgnoreCase))
-            {
-                return JsonResponse("""
-                                    {"value":[
-                                      {"id":"team-1","displayName":"Alpha"},
-                                      {"id":"team-2","displayName":"Bravo"}
-                                    ]}
-                                    """);
-            }
-
-            if (path.EndsWith("/$batch", StringComparison.OrdinalIgnoreCase))
-            {
-                string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
-                using JsonDocument doc = JsonDocument.Parse(requestBody);
-                // team-1はバッチ内で403(権限不足)となり、個別フォールバックへ回る
-                var responses = doc.RootElement.GetProperty("requests").EnumerateArray().Select(req =>
-                {
-                    string? id = req.GetProperty("id").GetString();
-                    string url = req.GetProperty("url").GetString()!;
-                    string teamId = url.Split('/')[2];
-                    return teamId == "team-1"
-                        ? new { id, status = 403, body = JsonDocument.Parse("{}").RootElement }
-                        : new
-                        {
-                            id,
-                            status = 200,
-                            body = JsonDocument.Parse(
-                                    """{"value":[{"id":"membership","userId":"current-user","displayName":"Me","email":"me@example.com","roles":["owner"]}]}""")
-                                .RootElement
-                        };
-                }).ToList();
-                return JsonResponse(JsonSerializer.Serialize(new { responses }));
-            }
-
-            // team-1の個別フォールバック取得(GET /teams/team-1/members)も403で失敗させる。
-            // 動的Microsoft 365グループなど、Graphからメンバーを直接取得できないチームを想定している
-            return new HttpResponseMessage(HttpStatusCode.Forbidden)
-            {
-                Content = new StringContent("{\"error\":{\"message\":\"forbidden\"}}")
-            };
-        });
-        RecordingLogger<GraphTeamsGateway> gatewayLogger = new();
-        GraphTeamsGateway gateway = CreateGateway(handler, out _, gatewayLogger: gatewayLogger);
-
-        IReadOnlyList<TeamInfo> owned =
-            await gateway.GetOwnedTeamsAsync("current-user", TestContext.Current.CancellationToken);
-
-        // team-1は所有者判定を諦めて一覧から除外されるが、例外は伝播せずteam-2の判定は継続される
-        Assert.Equal(["Bravo"], owned.Select(team => team.DisplayName));
-        Assert.Contains(gatewayLogger.Entries, entry => entry.Level == LogLevel.Warning &&
-                                                        entry.Message.Contains("個別のメンバー取得にも失敗"));
-    }
-
-    [Fact]
-    public async Task GetOwnedTeams_取得不能だったチームはfalseをキャッシュせず次回取得で再試行する()
-    {
-        int batchCallCount = 0;
-        int individualCallCount = 0;
-        DelegateHandler handler = new(async (request, cancellationToken) =>
-        {
-            string path = request.RequestUri!.AbsolutePath;
-            if (path.EndsWith("/me/joinedTeams", StringComparison.OrdinalIgnoreCase))
-            {
-                return JsonResponse("""
-                                    {"value":[
-                                      {"id":"team-1","displayName":"Alpha"},
-                                      {"id":"team-2","displayName":"Bravo"}
-                                    ]}
-                                    """);
-            }
-
-            if (path.EndsWith("/$batch", StringComparison.OrdinalIgnoreCase))
-            {
-                int call = Interlocked.Increment(ref batchCallCount);
-                string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
-                using JsonDocument doc = JsonDocument.Parse(requestBody);
-                var responses = doc.RootElement.GetProperty("requests").EnumerateArray().Select(req =>
-                {
-                    string? id = req.GetProperty("id").GetString();
-                    string url = req.GetProperty("url").GetString()!;
-                    string teamId = url.Split('/')[2];
-                    bool failTemporarily = call == 1 && teamId == "team-1";
-                    return failTemporarily
-                        ? new { id, status = 403, body = JsonDocument.Parse("{}").RootElement }
-                        : new
-                        {
-                            id,
-                            status = 200,
-                            body = JsonDocument.Parse(
-                                    """{"value":[{"id":"membership","userId":"current-user","displayName":"Me","email":"me@example.com","roles":["owner"]}]}""")
-                                .RootElement
-                        };
-                }).ToList();
-                return JsonResponse(JsonSerializer.Serialize(new { responses }));
-            }
-
-            Interlocked.Increment(ref individualCallCount);
-            return new HttpResponseMessage(HttpStatusCode.Forbidden)
-            {
-                Content = new StringContent("{\"error\":{\"message\":\"temporary failure\"}}")
-            };
-        });
-        GraphTeamsGateway gateway = CreateGateway(handler, out _);
-
-        IReadOnlyList<TeamInfo> first = await gateway.GetOwnedTeamsAsync(
-            "current-user", TestContext.Current.CancellationToken);
-        IReadOnlyList<TeamInfo> second = await gateway.GetOwnedTeamsAsync(
-            "current-user", TestContext.Current.CancellationToken);
-
-        Assert.Equal(["Bravo"], first.Select(team => team.DisplayName));
-        Assert.Equal(["Alpha", "Bravo"], second.Select(team => team.DisplayName));
-        Assert.Equal(2, batchCallCount);
-        Assert.Equal(1, individualCallCount);
-    }
-
-    [Fact]
-    public async Task GetOwnedTeams_バッチ内の429はRetryAfter待機後に同じ項目だけ再試行し個別取得へ回さない()
-    {
-        int batchCallCount = 0;
-        List<int> requestCountsPerCall = new();
-        int individualCallCount = 0;
-        DelegateHandler handler = new(async (request, cancellationToken) =>
-        {
-            string path = request.RequestUri!.AbsolutePath;
-            if (path.EndsWith("/me/joinedTeams", StringComparison.OrdinalIgnoreCase))
-            {
-                return JsonResponse("""
-                                    {"value":[
-                                      {"id":"team-1","displayName":"Alpha"},
-                                      {"id":"team-2","displayName":"Bravo"}
-                                    ]}
-                                    """);
-            }
-
-            if (path.EndsWith("/$batch", StringComparison.OrdinalIgnoreCase))
-            {
-                int callIndex = Interlocked.Increment(ref batchCallCount);
-                string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
-                using JsonDocument doc = JsonDocument.Parse(requestBody);
-                List<JsonElement> requestList = doc.RootElement.GetProperty("requests").EnumerateArray().ToList();
-                lock (requestCountsPerCall)
-                {
-                    requestCountsPerCall.Add(requestList.Count);
-                }
-
-                // team-1は1回目のみ429(Retry-After=0秒)を返し、2回目以降は200を返す。
-                // team-2は最初から200(所有者ではない)
-                var responses = requestList.Select(req =>
-                {
-                    string? id = req.GetProperty("id").GetString();
-                    string url = req.GetProperty("url").GetString()!;
-                    string teamId = url.Split('/')[2];
-                    if (teamId == "team-1" && callIndex == 1)
-                    {
-                        return new
-                        {
-                            id,
-                            status = 429,
-                            headers = new Dictionary<string, string> { ["Retry-After"] = "0" },
-                            body = JsonDocument.Parse("{}").RootElement
-                        };
-                    }
-
-                    return new
-                    {
-                        id,
-                        status = 200,
-                        headers = new Dictionary<string, string>(),
-                        body = JsonDocument.Parse(teamId == "team-1"
-                                ? """{"value":[{"id":"membership","userId":"current-user","displayName":"Me","email":"me@example.com","roles":["owner"]}]}"""
-                                : """{"value":[]}""")
-                            .RootElement
-                    };
-                }).ToList();
-                return JsonResponse(JsonSerializer.Serialize(new { responses }));
-            }
-
-            Interlocked.Increment(ref individualCallCount);
-            return JsonResponse("""{"value":[]}""");
-        });
-        GraphTeamsGateway gateway = CreateGateway(handler, out _);
-
-        IReadOnlyList<TeamInfo> owned =
-            await gateway.GetOwnedTeamsAsync("current-user", TestContext.Current.CancellationToken);
-
-        Assert.Equal(["Alpha"], owned.Select(team => team.DisplayName));
-        Assert.Equal(0, individualCallCount);
-        Assert.Equal(2, batchCallCount);
-        // 1回目は2件(team-1, team-2)、2回目の再試行は429だったteam-1だけを含む1件のみ
-        Assert.Equal([2, 1], requestCountsPerCall);
-    }
-
-    [Fact]
-    public async Task GetOwnedTeams_バッチ内の503も429と同様に待機後に再試行する()
-    {
-        int batchCallCount = 0;
-        int individualCallCount = 0;
-        DelegateHandler handler = new(async (request, cancellationToken) =>
-        {
-            string path = request.RequestUri!.AbsolutePath;
-            if (path.EndsWith("/me/joinedTeams", StringComparison.OrdinalIgnoreCase))
-            {
-                return JsonResponse("""{"value":[{"id":"team-1","displayName":"Alpha"}]}""");
-            }
-
-            int callIndex = Interlocked.Increment(ref batchCallCount);
-            string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
-            using JsonDocument doc = JsonDocument.Parse(requestBody);
-            var responses = doc.RootElement.GetProperty("requests").EnumerateArray().Select(req =>
-            {
-                string? id = req.GetProperty("id").GetString();
-                return callIndex == 1
-                    ? new
-                    {
-                        id,
-                        status = 503,
-                        headers = new Dictionary<string, string> { ["Retry-After"] = "0" },
-                        body = JsonDocument.Parse("{}").RootElement
-                    }
-                    : new
-                    {
-                        id,
-                        status = 200,
-                        headers = new Dictionary<string, string>(),
-                        body = JsonDocument.Parse(
-                                """{"value":[{"id":"membership","userId":"current-user","displayName":"Me","email":"me@example.com","roles":["owner"]}]}""")
-                            .RootElement
-                    };
-            }).ToList();
-            return JsonResponse(JsonSerializer.Serialize(new { responses }));
-        });
-        GraphTeamsGateway gateway = CreateGateway(handler, out _);
-
-        IReadOnlyList<TeamInfo> owned =
-            await gateway.GetOwnedTeamsAsync("current-user", TestContext.Current.CancellationToken);
-
-        Assert.Equal(["Alpha"], owned.Select(team => team.DisplayName));
-        Assert.Equal(0, individualCallCount);
-        Assert.Equal(2, batchCallCount);
-    }
-
-    [Fact]
-    public async Task GetOwnedTeams_429が再試行上限に達すると個別取得へフォールバックする()
-    {
-        int batchCallCount = 0;
-        int individualCallCount = 0;
-        DelegateHandler handler = new(async (request, cancellationToken) =>
-        {
-            string path = request.RequestUri!.AbsolutePath;
-            if (path.EndsWith("/me/joinedTeams", StringComparison.OrdinalIgnoreCase))
-            {
-                return JsonResponse("""
-                                    {"value":[
-                                      {"id":"team-1","displayName":"Alpha"},
-                                      {"id":"team-2","displayName":"Bravo"}
-                                    ]}
-                                    """);
-            }
-
-            if (path.EndsWith("/$batch", StringComparison.OrdinalIgnoreCase))
-            {
-                Interlocked.Increment(ref batchCallCount);
-                string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
-                using JsonDocument doc = JsonDocument.Parse(requestBody);
-                List<JsonElement> requestList = doc.RootElement.GetProperty("requests").EnumerateArray().ToList();
-                // team-1は常に429を返し続け、再試行上限(3回)に達しても解消しないケースを再現する
-                var responses = requestList.Select(req =>
-                {
-                    string? id = req.GetProperty("id").GetString();
-                    string url = req.GetProperty("url").GetString()!;
-                    string teamId = url.Split('/')[2];
-                    return teamId == "team-1"
-                        ? new
-                        {
-                            id,
-                            status = 429,
-                            headers = new Dictionary<string, string> { ["Retry-After"] = "0" },
-                            body = JsonDocument.Parse("{}").RootElement
-                        }
-                        : new
-                        {
-                            id,
-                            status = 200,
-                            headers = new Dictionary<string, string>(),
-                            body = JsonDocument.Parse(
-                                    """{"value":[{"id":"membership","userId":"current-user","displayName":"Me","email":"me@example.com","roles":["owner"]}]}""")
-                                .RootElement
-                        };
-                }).ToList();
-                return JsonResponse(JsonSerializer.Serialize(new { responses }));
-            }
-
-            Interlocked.Increment(ref individualCallCount);
-            return JsonResponse(
-                """{"value":[{"id":"membership","userId":"current-user","displayName":"Me","email":"me@example.com","roles":["owner"]}]}""");
-        });
-        GraphTeamsGateway gateway = CreateGateway(handler, out _);
-
-        IReadOnlyList<TeamInfo> owned =
-            await gateway.GetOwnedTeamsAsync("current-user", TestContext.Current.CancellationToken);
-
-        // team-2はバッチで直接200が返り所有者と判定、team-1は429の再試行上限に達して個別取得へ回り
-        // そちらでも所有者と判定される(バッチ成功と個別フォールバックの併存を確認する)
-        Assert.Equal(["Alpha", "Bravo"], owned.Select(team => team.DisplayName));
-        Assert.Equal(1, individualCallCount);
-        Assert.Equal(3, batchCallCount);
-    }
-
-    [Fact]
-    public async Task GetOwnedTeams_バッチの再試行待機中にキャンセルすると新たな要求を送らない()
-    {
-        int batchCallCount = 0;
-        TaskCompletionSource firstBatchCompleted = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        DelegateHandler handler = new(async (request, cancellationToken) =>
-        {
-            string path = request.RequestUri!.AbsolutePath;
-            if (path.EndsWith("/me/joinedTeams", StringComparison.OrdinalIgnoreCase))
-            {
-                return JsonResponse("""{"value":[{"id":"team-1","displayName":"Alpha"}]}""");
-            }
-
-            Interlocked.Increment(ref batchCallCount);
-            string requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
-            using JsonDocument doc = JsonDocument.Parse(requestBody);
-            // Retry-Afterを60秒と長く返し、待機中にキャンセルされることを検証できるようにする
-            var responses = doc.RootElement.GetProperty("requests").EnumerateArray().Select(req => new
-            {
-                id = req.GetProperty("id").GetString(),
-                status = 429,
-                headers = new Dictionary<string, string> { ["Retry-After"] = "60" },
-                body = JsonDocument.Parse("{}").RootElement
-            }).ToList();
-            HttpResponseMessage response = JsonResponse(JsonSerializer.Serialize(new { responses }));
-            firstBatchCompleted.TrySetResult();
-            return response;
-        });
-        GraphTeamsGateway gateway = CreateGateway(handler, out _);
-        using CancellationTokenSource cancellation = new();
-
-        Task<IReadOnlyList<TeamInfo>> request = gateway.GetOwnedTeamsAsync("current-user", cancellation.Token);
-        await firstBatchCompleted.Task.WaitAsync(TestContext.Current.CancellationToken);
-        cancellation.Cancel();
-
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => request);
-        Assert.Equal(1, batchCallCount);
+        Assert.Equal(2, call);
     }
 
     [Fact]
@@ -882,8 +420,7 @@ public sealed class GraphTeamsGatewayTests
         GraphSdkClient sdk = new(new FakeHttpClientFactory(client), authentication,
             httpLogger ?? NullLogger<GraphSdkLogCategory>.Instance);
         ILogger<GraphTeamsGateway> logger = gatewayLogger ?? NullLogger<GraphTeamsGateway>.Instance;
-        return new GraphTeamsGateway(sdk, logger, new TeamMembersBatchFetcher(sdk, logger),
-            new GraphUserSearchService(sdk));
+        return new GraphTeamsGateway(sdk, logger, new GraphUserSearchService(sdk));
     }
 
     private sealed class FakeHttpClientFactory(HttpClient client) : IHttpClientFactory

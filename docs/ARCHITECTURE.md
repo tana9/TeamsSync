@@ -114,12 +114,9 @@ UI固有ポート(`IFilePickerService`など)を実装する。
 
 ```
 GraphTeamsGateway (ITeamsGateway実装。ドメインロジックの窓口)
-  ├─ GraphSdkClient ……… Graph SDK(GraphServiceClient)経由の通信を一手に担う。read/write用に2系統もち、
-  │    │                  チームメンバーの$batch取得(SendTeamMembersBatchAsync)もここから送信する
+  ├─ GraphSdkClient ……… Graph SDK(GraphServiceClient)経由の通信を一手に担う。read/write用に2系統もつ
   │    └─ GraphSdkTransportHandler … SDKの内部HTTP呼び出しを名前付きHttpClientへ転送
-  ├─ TeamMembersBatchFetcher … $batchで複数チームのメンバーを一括取得(所有権判定用)
-  ├─ GraphUserSearchService …… ユーザー検索の段階的フォールバック
-  └─ TeamOwnershipCache ……… 所有権判定結果のキャッシュ
+  └─ GraphUserSearchService …… ユーザー検索の段階的フォールバック
 
 横断的な補助クラス:
   GraphEndpoints ………… ホスト名/BaseURI/名前付きHttpClient名/メンバー取得ページサイズ上限の一元管理
@@ -137,11 +134,9 @@ Graph通信は現在すべて`GraphSdkClient`(Graph SDK経由)に一本化され
 
 | ファイル | 役割 |
 |---|---|
-| `GraphSdkClient.cs` | Graph SDKラッパー。read/write2系統の`GraphServiceClient`を保持し、ドメイン向けメソッドに加え`$batch`送信(`SendTeamMembersBatchAsync`)・ページング継続(`CollectTeamMembersPagesAsync`)を提供 |
+| `GraphSdkClient.cs` | Graph SDKラッパー。read/write2系統の`GraphServiceClient`を保持し、ドメイン向けメソッドを提供 |
 | `GraphSdkTransportHandler.cs` | SDKの内部通信を既存の名前付きHttpClientへ転送する`HttpMessageHandler` |
 | `GraphTeamsGateway.cs` | `ITeamsGateway`実装。所有チーム判定・メンバー取得/追加/削除のオーケストレーター |
-| `TeamMembersBatchFetcher.cs` | 複数チームのメンバーを`$batch`(SDKの`BatchRequestContentCollection`)で一括取得し、429/503を再試行 |
-| `TeamOwnershipCache.cs` | ユーザー×チームの所有権判定結果をセッション内キャッシュ |
 | `GraphUserSearchService.cs` | 直接参照で見つからないユーザーの段階的検索フォールバック |
 | `GraphResponseParser.cs` | SDKモデル→ドメインモデル(`TeamMember`/`DirectoryUser`)への変換 |
 | `GraphErrorHandler.cs` | 失敗応答の診断ログ記録と`GraphException`への変換を共通化 |
@@ -154,11 +149,18 @@ Graph通信は現在すべて`GraphSdkClient`(Graph SDK経由)に一本化され
 
 ### リクエストの流れの具体例(`GetOwnedTeamsAsync`)
 
+Graph APIには「所有チーム一覧」を直接返すエンドポイントがないため、以前はチームごとにメンバー
+一覧を取得して自分が含まれるか判定していた(参加チーム数に比例して呼び出し回数が増え、
+スロットリングの懸念もあった)。現在は`/me/ownedObjects`(ユーザーが所有するグループ等を1回で
+返す)を使い、参加チーム一覧との積集合を取るだけで済むため、チーム数に関わらず常にGraph呼び出し
+2回で完結する。
+
 1. `GraphTeamsGateway.GetOwnedTeamsAsync`が呼ばれる
-2. `sdk.GetJoinedTeamsAsync` → `GraphSdkClient`の`_read`クライアントでGETし、参加中の全チームを取得
-3. チームごとに`TeamOwnershipCache`を確認 → 未判定分だけ20件ずつのバッチに分割、同時実行数3で`TeamMembersBatchFetcher.FetchAsync`を呼ぶ
-4. バッチ内で429/503が出た項目はGraph応答の`Retry-After`に従って待機・再試行(最大3回)。403/400などは待たずに個別APIへフォールバック
-5. 結果を`TeamRoster`で判定し、所有チームのみ返す
+2. `sdk.GetJoinedTeamsAsync`(参加中の全チーム)と`sdk.GetOwnedObjectsAsync`(所有する
+   ディレクトリオブジェクト全般)を並行して呼び出す
+3. 所有オブジェクトのうちTeams化済みグループ(`resourceProvisioningOptions`に`"Team"`を含む
+   `Group`)のIDだけを`GraphResponseParser.ParseOwnedTeamIds`で抽出する
+4. 参加チーム一覧のうち、IDがその集合に含まれるものだけを所有チームとして返す(表示名昇順)
 
 ### read/write二重クライアントとリトライポリシーの非対称性
 
@@ -191,25 +193,6 @@ Graph通信は`GraphSdkClient`(SDK)経由に一本化されているが、最終
 URL検証(`GraphEndpointValidator`)はここでは行わず、`MsalAccessTokenProvider`がトークン取得前に
 行う(後述)。呼び出し元は`GraphSdkTransportHandler`1箇所だけだが、本体を肥大化させずテストしやすく
 するため、診断ヘッダー付与・エラー変換はそれぞれ独立したヘルパークラスに切り出されている。
-
-### `TeamMembersBatchFetcher`の三段構えの失敗処理
-
-`GraphSdkClient.SendTeamMembersBatchAsync`がSDKの`BatchRequestContentCollection`で$batchを送信し、
-その応答(`BatchResponseContentCollection`)をステータスごとに3通りに分類する:
-
-1. `200` — 正常。`GetResponseByIdAsync<ConversationMemberCollectionResponse>`で型付き取得し、
-   `GraphSdkClient.CollectTeamMembersPagesAsync`で`@odata.nextLink`のページングも継続する
-2. `429`/`503`(最終試行でない場合) — `GetResponseByIdAsync(id)`が返す型付き
-   `HttpResponseMessage.Headers.RetryAfter`に従い待機し、ジッターを加えて再試行(最大3回)。
-   「待たずに個別APIへ切り替えるとGraphへの負荷を増幅する」ため即時フォールバックしない。
-3. それ以外(403/400、解析失敗、再試行上限到達) — 結果に含めず、呼び出し元の個別API呼び出し
-   フォールバックに委ねる
-
-### `GraphTeamsGateway.GetOwnedTeamsAsync`の並列数制約
-
-Graphの`GET /teams/{id}/members`スロットリング上限が「テナントあたり60rps」であり、`$batch`の
-サブリクエストは個別に上限判定されるため、同時実行数3×バッチサイズ20=最大60件という構成は
-テナント上限のすぐ下を突いている。意図的なチューニング値で、安易に増やすと429増加のリスクがある。
 
 ### `GraphUserSearchService`の段階的フォールバック検索
 

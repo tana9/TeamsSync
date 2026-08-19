@@ -4,6 +4,8 @@ using TeamsSync.Domain.Teams;
 
 using GraphAadUserConversationMember = Microsoft.Graph.Models.AadUserConversationMember;
 using GraphConversationMember = Microsoft.Graph.Models.ConversationMember;
+using GraphDirectoryObject = Microsoft.Graph.Models.DirectoryObject;
+using GraphGroup = Microsoft.Graph.Models.Group;
 using GraphUser = Microsoft.Graph.Models.User;
 
 namespace TeamsSync.Infrastructure.Graph;
@@ -25,6 +27,18 @@ internal static class GraphResponseParser
                 member.DisplayName ?? "", user?.Email ?? AdditionalString(member, "email") ?? "",
                 HasOwnerRole(member.Roles));
         }).ToList();
+    }
+
+    // /me/ownedObjectsは所有するディレクトリオブジェクト全般(グループ・アプリ・サービスプリンシパル等)を
+    // 返すため、Teams化済みグループ(resourceProvisioningOptionsに"Team"を含むGroup)だけへ絞り込む
+    /// <summary>所有オブジェクト一覧から、Teams化済みグループ(チーム)のIDだけを抽出する</summary>
+    public static HashSet<string> ParseOwnedTeamIds(IEnumerable<GraphDirectoryObject> ownedObjects)
+    {
+        return ownedObjects
+            .OfType<GraphGroup>()
+            .Where(group => group.ResourceProvisioningOptions?.Contains("Team") == true)
+            .Select(group => Required(group.Id, "id"))
+            .ToHashSet();
     }
 
     /// <summary>ロール一覧に"owner"が含まれるかどうかを判定する</summary>
